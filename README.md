@@ -11,7 +11,7 @@ Programms for TX (groundstation) and RX (drone) to control the drone. The MultiW
 
 In monitor mode packets get sent without the use of libpcap using raw interfaces. On the receiving side a BPF (Berkely Packet Filter) is used to pass only airbridge-control packets to the receiving socket. The code is optimised for minimal system calls.
 
-Features:
+<b>Features:</b>
  - fast
  - secure and save: 
    - RX side is a MSP-passthrough. If no packets arrive nothing is sent to FC just like a "real" RC
