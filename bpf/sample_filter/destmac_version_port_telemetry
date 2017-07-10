@@ -1,0 +1,25 @@
+/* for packets with radiotap headers (see wireshark bpf) */
+/* filters "dst_mac 01:0e:e8:dc:aa:2c" + version=0x01 + port=0x02 + direction=0x02 */ 
+/* (use this for telemetry on groundstation side) */
+/* in x there is the radiotap header length */
+	ldb      [3]
+	lsh      #8
+	tax      
+	ldb      [2]
+	or       x
+	st       M[0]
+	tax      
+	ldb      [x + 0]
+L9:	jset     #0x8,             L16,	drop
+
+L16:	ld       [x + 6]
+L17:	jeq      #0xe8dcaa2c,      L18,	drop
+L18:	ldh      [x + 4]
+L19:	jeq      #0x10e,           ABV,	drop
+ABV:	ldh	 [x + 16]
+	jeq	 #0x102,	   ABD, drop
+ABD:	ldb	 [x + 18]
+	jeq	 #0x2,		   keep, drop	
+
+keep:	ret      #262144		/* keep packet and trim to 262144 bytes */
+drop:	ret      #0			/* drop packet */
