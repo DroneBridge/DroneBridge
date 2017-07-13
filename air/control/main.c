@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
             strcpy(macStr, optarg);
             break;
         case '?':
-            printf("Invalid commandline arguments. Use -n <network_IF> -u <USB_MSP_Interface_TO_FC> -m <w>/<m> -c <MAC_of_groundstation>");
+            printf("Invalid commandline arguments. Use \n-n <network_IF> \n-u <USB_MSP_Interface_TO_FC> \n-m <w>/<m> \n-c <MAC_of_groundstation>");
             break;
         default:
             abort ();

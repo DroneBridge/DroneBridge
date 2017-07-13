@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 2.5)
+cmake_minimum_required(VERSION 3.1)
 project(control_rx)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_FLAGS "-O3")        ## Optimize
 
 set(SOURCE_FILES
         db_protocol.h
