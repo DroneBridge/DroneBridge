@@ -1,14 +1,14 @@
 Build using: "cmake ." followed by "make"
 
 example:
-control_tx -n wlan0 -j 0 -d 11:22:33:44:55:66 -m m
+control_tx -n wlan0 -j 0 -d 11:22:33:44:55:66 -m m -b 1 -c "jscal -s 6,1,0,125,125,4329472,4194176,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,120,120,4511382,4036500 /dev/input/js0"
 
 -n    interface to send on (must be in monitor mode with option -m m)
 -j    index of joystick interface
 -d    MAC address of wifi interface on drone that should receive the control commands
 -m    use <m> for monitor mode and <w> for wifi mode (not supported yet)
+-b    bitrate: 1 = 2.5Mbit 2 = 4.5Mbit 3 = 6Mbit 4 = 12Mbit (default) 5 = 18Mbit
+-c    a command that is executed to calibrate the joystick
 
 known issues and future improvements:
- - calibration is hardcoded into "parameter.h"
  - xbox controller not supported yet
- - transmit data rate is hardcoded into radiotap header (1Mbit)
