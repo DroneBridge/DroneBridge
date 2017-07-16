@@ -24,3 +24,9 @@ In monitor mode packets get sent without the use of libpcap using raw interfaces
  - custom (raw) communication protocol
  - SDL2 not required in future release
  - full XBOX controller support (future release)
+
+
+<h3>Communication Module</h3>
+
+Currently in alpha phase. Some features untested. Some key parameters are still hardcoded at the beginning of each file. Place TX files in groundstation and RX files on drone.
+Check out code here: <b>https://github.com/seeul8er/DroneBridge_Comm</b>
