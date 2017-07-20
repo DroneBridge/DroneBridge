@@ -22,7 +22,7 @@ In monitor mode packets get sent without the use of libpcap using raw interfaces
  - easy integration of other RCs (currently i6S)
  - supported by all betaflight/cleanflight FC software
  - custom (raw) communication protocol
- - SDL2 not required in future release
+ - SDL2 not required
  - full XBOX controller support (future release)
 
 
