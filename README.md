@@ -30,3 +30,8 @@ In monitor mode packets get sent without the use of libpcap using raw interfaces
 
 Currently in alpha phase. Some features untested. Some key parameters are still hardcoded at the beginning of each file. Place TX files in groundstation and RX files on drone.
 Check out code here: <b>https://github.com/seeul8er/DroneBridge_Comm</b>
+
+
+<h3>DroneBridge Android App</h3>
+
+Code is already working. Soon to be released after some additional testing.
