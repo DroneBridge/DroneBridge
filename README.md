@@ -36,4 +36,4 @@ Check out code here: <b>https://github.com/seeul8er/DroneBridge_Comm</b>
 
 Code is already working. Soon to be released after some additional testing.
 
-![alt text](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app_scree.png)
+![alt text](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app_screen.png)
