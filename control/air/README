@@ -1,0 +1,25 @@
+Build using: "cmake ." followed by "make"
+
+example:
+sudo control_rx -n wlan0 -u /dev/ttyAMA0 -m m -c 11:22:33:44:55:66
+
+-n    network interface to use for communication
+-u    serial interface (USB) connected to flight controller. FC has to have MSP enabled on this one
+-m    mode - can be "w" for wifi (not supported yet) or "m" for long range communication using monitor mode
+-c    MAC address of the network interface used on the groundstation to send commands. Used as an ID. Only packets from this MAC will be accepted
+
+Wifi interface must be in monitor mode.
+Use: 
+interface='<name_of_interface>'
+ip link set $interface down
+iw dev $interface set type managed
+ip link set $interface up
+iw dev $interface set bitrates legacy-2.4 54
+ip link set $interface down
+iw dev $interface set type monitor
+ip link set $interface up
+# 2437 CH6
+# 2462 CH11 etc.
+iw dev $interface set freq 2462
+
+The upper step usually gets done by wifibroadcast
