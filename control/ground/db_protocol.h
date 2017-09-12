@@ -24,7 +24,9 @@ struct radiotap_header {
 };
 struct ab_80211_header {
     uint8_t frame_control_field[4];
-    uint8_t dest_mac_bytes[6];
+    uint8_t odd;
+    uint8_t direction_dstmac;
+    uint8_t comm_id[4];
     uint8_t src_mac_bytes[6];
     uint8_t version_bytes;
     uint8_t port_bytes;
@@ -40,7 +42,7 @@ struct crcdata {
 uint8_t radiotap_header_pre[] = {
 
         0x00, 0x00, // <-- radiotap version
-        0x0c, 0x00, // <- radiotap header lengt
+        0x0c, 0x00, // <- radiotap header length
         0x04, 0x80, 0x00, 0x00, // <-- bitmap
         0x24,       // data rate (will be overwritten)
         0x00,

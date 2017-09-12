@@ -56,7 +56,7 @@ void set_bitrate(int bitrate_option) {
     }
 
 }
-int openSocket(char ifName[16], unsigned char dest_mac[6], char trans_mode, int bitrate_option) {
+int openSocket(char ifName[16], uint8_t comm_id[4], char trans_mode, int bitrate_option) {
     mode = trans_mode;
     strncpy(interfaceName, ifName, IFNAMSIZ - 1);
 
@@ -94,9 +94,11 @@ int openSocket(char ifName[16], unsigned char dest_mac[6], char trans_mode, int 
     }
 
     if (trans_mode == 'w') {
-        return conf_ethernet(dest_mac);
+        printf("Wifi mode is not yet supported!");
+        return -1;
+        //return conf_ethernet(dest_mac);
     } else {
-        return conf_monitor(dest_mac, bitrate_option);
+        return conf_monitor(comm_id, bitrate_option);
     }
 }
 
@@ -135,14 +137,15 @@ int conf_ethernet(unsigned char dest_mac[6]) {
     return 0;
 }
 
-int conf_monitor(unsigned char dest_mac[6], int bitrate_option) {
+int conf_monitor(uint8_t comm_id[4], int bitrate_option) {
     memset(monitor_framebuffer, 0, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH));
     set_bitrate(bitrate_option);
     memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
     // build custom AirBridge 802.11 header
     memcpy(ab802->frame_control_field, frame_control_pre, 4);
-    memcpy(ab802->dest_mac_bytes, dest_mac, 6);
-    ab802->dest_mac_bytes[0] = 0x01; // for some (strange?) reason it can not be 0x00 so we make sure
+    memcpy(ab802->comm_id, comm_id, 4);
+    ab802->odd = 0x01; // for some (strange?) reason it can not be 0x00 so we make sure
+    ab802->direction_dstmac = AB_DIREC_DRONE;
     memcpy(ab802->src_mac_bytes, ((uint8_t *) &if_mac.ifr_hwaddr.sa_data), 6);
     ab802->version_bytes = AB_VERSION;
     ab802->port_bytes = AB_PORT_CONTROLLER;
