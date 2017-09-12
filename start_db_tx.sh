@@ -68,4 +68,4 @@ python3 comm_telemetry/db_telemetry_tx.py -i $interface_tel -r $ip_drone -p $por
 #./home/pi/airbridge/video/Project_Pegasus_video_tx &
 
 echo "DroneBridge-TX: Starting controller module...\n"
-./control/ground/control_tx -n $interface_control -j $joy_interface -d $mac_drone -m $mode -c "$joy_cal" &
+./control/ground/control_tx -n $interface_control -j $joy_interface -d $mac_drone -m $mode -g "$joy_cal" &
