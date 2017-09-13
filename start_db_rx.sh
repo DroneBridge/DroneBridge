@@ -63,4 +63,4 @@ python3 comm_telemetry/db_telemetry_rx.py -i $interface_tel -f $interface_teleme
 #./home/pi/airbridge/video/Project_Pegasus_video_rx &
 
 echo "DroneBridge-RX: Starting controller module..."
-./control/air/control_rx -n $interface_control -u $interface_MSP -m $mode &
+./control/air/control_rx -n $interface_control -u $interface_MSP -m $mode -c $comm_id &
