@@ -16,7 +16,7 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
 #define ETHER_TYPE	0x88ab
-#define DEFAULT_IF      "wlx18a6f716a511"
+#define DEFAULT_IF      "18a6f716a511"
 #define USB_IF          "/dev/ttyACM0"
 #define BUF_SIZ		                512 // should be enought?!
 #define COMMAND_BUF_SIZE            256
@@ -24,14 +24,13 @@
 static volatile int keepRunning = 1;
 uint8_t buf[BUF_SIZ];
 int radiotap_length;
-// BPF that filters: dest mac (first byte always 0x01), verion, port and direction
 
 void intHandler(int dummy)
 {
     keepRunning = 0;
 }
 
-struct ifreq findMACAdress(char interface[])
+/*struct ifreq findMACAdress(char interface[])
 {
     int s;
     struct ifreq buffer;
@@ -41,46 +40,44 @@ struct ifreq findMACAdress(char interface[])
     ioctl(s, SIOCGIFHWADDR, &buffer);
     close(s);
     return buffer;
-}
+}*/
 
-int setBPF(int newsocket, uint8_t new_mac_drone[6])
+int setBPF(int newsocket, uint8_t new_comm_id[4])
 {
-    struct sock_filter dest_filter_TPLink[] =
-    {
-        { 0x30,  0,  0, 0x00000003 },
-        { 0x64,  0,  0, 0x00000008 },
-        { 0x07,  0,  0, 0000000000 },
-        { 0x30,  0,  0, 0x00000002 },
-        { 0x4c,  0,  0, 0000000000 },
-        { 0x02,  0,  0, 0000000000 },
-        { 0x07,  0,  0, 0000000000 },
-        { 0x50,  0,  0, 0000000000 },
-        { 0x45,  0,  9, 0x00000008 },
-        { 0x40,  0,  0, 0x00000006 },
-        { 0x15,  0,  7, 0x33445566 }, // dest mac 0x33445566 (11:22:33:44:55:66)
-        { 0x48,  0,  0, 0x00000004 },
-        { 0x15,  0,  5, 0x00000122 }, // dest_mac 0x0122
-        { 0x48,  0,  0, 0x00000010 },
-        { 0x15,  0,  3, 0x00000101 }, // 0x<version><port> = 0x0101
-        { 0x50,  0,  0, 0x00000012 },
-        { 0x15,  0,  1, 0x00000001 }, // 0x<direction> = 0x01
-        { 0x06,  0,  0, 0x00040000 }, // accept and trim to 262144 bytes
-        { 0x06,  0,  0, 0000000000 },
-    };
+    struct sock_filter dest_filter[] =
+            {
+                    { 0x30,  0,  0, 0x00000003 },
+                    { 0x64,  0,  0, 0x00000008 },
+                    { 0x07,  0,  0, 0000000000 },
+                    { 0x30,  0,  0, 0x00000002 },
+                    { 0x4c,  0,  0, 0000000000 },
+                    { 0x02,  0,  0, 0000000000 },
+                    { 0x07,  0,  0, 0000000000 },
+                    { 0x50,  0,  0, 0000000000 },
+                    { 0x45,  1,  0, 0x00000008 }, // allow data frames
+                    { 0x45,  0,  9, 0x00000080 }, // allow beacon frames
+                    { 0x40,  0,  0, 0x00000006 },
+                    { 0x15,  0,  7, 0x33445566 }, // comm_id 0xaabbccdd
+                    { 0x48,  0,  0, 0x00000004 },
+                    { 0x15,  0,  5, 0x00000101 }, // 0x<odd><direction>: 0x0101
+                    { 0x48,  0,  0, 0x00000010 },
+                    { 0x15,  0,  3, 0x00000101 }, // 0x<version><port> = 0x0101
+                    { 0x50,  0,  0, 0x00000012 },
+                    { 0x15,  0,  1, 0x00000001 }, // 0x<direction> = 0x01
+                    { 0x06,  0,  0, 0x00040000 }, // accept and trim to 262144 bytes
+                    { 0x06,  0,  0, 0000000000 },
+            };
 
     // modify BPF Filter to fit the mac address of wifi card on drone (dst mac)
-    uint32_t modded_mac_end = (new_mac_drone[2]<<24) | (new_mac_drone[3]<<16) | (new_mac_drone[4]<<8) | new_mac_drone[5];
-    dest_filter_TPLink[10].k = modded_mac_end;
-    uint16_t modded_mac_start = (0x01<<8) | new_mac_drone[1];
-    dest_filter_TPLink[12].k = modded_mac_start;
-    printf("%02x\n", modded_mac_start);
+    uint32_t modded_mac_end = (new_comm_id[0]<<24) | (new_comm_id[1]<<16) | (new_comm_id[2]<<8) | new_comm_id[3];
+    dest_filter[10].k = modded_mac_end;
     printf("%02x\n", modded_mac_end);
 
     struct sock_fprog bpf =
-    {
-        .len = ARRAY_SIZE(dest_filter_TPLink),
-        .filter = dest_filter_TPLink,
-    };
+            {
+                    .len = ARRAY_SIZE(dest_filter),
+                    .filter = dest_filter,
+            };
     int ret = setsockopt(newsocket, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
     if (ret < 0)
     {
@@ -175,7 +172,7 @@ int determineRadiotapLength(int socket){
     ssize_t length = recv(socket, buf, BUF_SIZ, 0);
     if (length < 0)
     {
-        printf("raw socket returned unrecoverable error: %s\n", strerror(errno));
+        printf("Raw socket returned unrecoverable error: %s\n", strerror(errno));
         return 18; // might be true
     }
     radiotap_length = buf[2] | (buf[3] << 8);
@@ -189,8 +186,8 @@ int main(int argc, char *argv[])
     int sizeetheheader = sizeof(struct ether_header);
     char ifName[IFNAMSIZ];
     char usbIF[IFNAMSIZ];
-    char macStr[18];
-    uint8_t mac_ground[6];
+    char comm_id_Str[8];
+    uint8_t comm_id[4];
     uint8_t mac_drone[6];
     char ab_mode = 'm';
     //char interface[] = DEFAULT_IF;
@@ -202,34 +199,38 @@ int main(int argc, char *argv[])
     {
         switch (c)
         {
-        case 'n':
-            strcpy(ifName, optarg);
-            break;
-        case 'u':
-            strcpy(usbIF, optarg);
-            break;
-        case 'm':
-            ab_mode = *optarg;
-            break;
-        case 'c':
-            strcpy(macStr, optarg);
-            break;
-        case '?':
-            printf("Invalid commandline arguments. Use \n-n <network_IF> \n-u <USB_MSP_Interface_TO_FC> \n-m <w>/<m> \n-c <MAC_of_groundstation>");
-            break;
-        default:
-            abort ();
+            case 'n':
+                strcpy(ifName, optarg);
+                break;
+            case 'u':
+                strcpy(usbIF, optarg);
+                break;
+            case 'm':
+                ab_mode = *optarg;
+                break;
+            case 'c':
+                strcpy(comm_id_Str, optarg);
+                break;
+            case '?':
+                printf("Invalid commandline arguments. Use "
+                               "\n-n <network_IF> "
+                               "\n-u <USB_MSP_Interface_TO_FC>"
+                               "\n-m [w|m] "
+                               "\n-c <communication_id>");
+                break;
+            default:
+                abort ();
         }
     }
-    sscanf(macStr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac_ground[0], &mac_ground[1], &mac_ground[2], &mac_ground[3], &mac_ground[4], &mac_ground[5]);
+    sscanf(comm_id_Str, "%hhx%hhx%hhx%hhx", &comm_id[0], &comm_id[1], &comm_id[2], &comm_id[3]);
 
-    struct ifreq buffer = findMACAdress(ifName);
+/*    struct ifreq buffer = findMACAdress(ifName);
     mac_drone[0] = (uint8_t)buffer.ifr_hwaddr.sa_data[0];
     mac_drone[1] = (uint8_t)buffer.ifr_hwaddr.sa_data[1];
     mac_drone[2] = (uint8_t)buffer.ifr_hwaddr.sa_data[2];
     mac_drone[3] = (uint8_t)buffer.ifr_hwaddr.sa_data[3];
     mac_drone[4] = (uint8_t)buffer.ifr_hwaddr.sa_data[4];
-    mac_drone[5] = (uint8_t)buffer.ifr_hwaddr.sa_data[5];
+    mac_drone[5] = (uint8_t)buffer.ifr_hwaddr.sa_data[5];*/
 
 // ------------------------------- Setting up Network Interface ----------------------------------
 
@@ -237,7 +238,7 @@ int main(int argc, char *argv[])
     struct ether_header *eh = (struct ether_header *) buf;
     //struct iphdr *iph = (struct iphdr *) (buf + sizeof(struct ether_header));
     //struct udphdr *udph = (struct udphdr *) (buf + sizeof(struct iphdr) + sizeof(struct ether_header));
-    sockfd = setUpNetworkIF(ifName, ab_mode, mac_drone);
+    sockfd = setUpNetworkIF(ifName, ab_mode, comm_id);
 
 // ------------------------------- Setting up UART Interface ---------------------------------------
     int USB = -1;
@@ -277,7 +278,7 @@ int main(int argc, char *argv[])
         err = errno;
         if (length < 0)
         {
-            if ((err == EAGAIN) || (err == EWOULDBLOCK))
+            if (err == EAGAIN)
             {
             }
             else
