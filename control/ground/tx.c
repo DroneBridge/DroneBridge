@@ -26,7 +26,7 @@ struct sockaddr_ll socket_address;
 
 uint8_t monitor_framebuffer[RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH];
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
-struct ab_80211_header *ab802 = (struct ab_80211_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
+struct db_80211_header *db802 = (struct db_80211_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
 struct data *monitor_databuffer = (struct data *) (monitor_framebuffer + RADIOTAP_LENGTH + AB80211_LENGTH);
 
 char mode;
@@ -56,7 +56,7 @@ void set_bitrate(int bitrate_option) {
     }
 
 }
-int openSocket(char ifName[16], uint8_t comm_id[4], char trans_mode, int bitrate_option) {
+int openSocket(char ifName[16], uint8_t comm_id[4], char trans_mode, int bitrate_option, int frame_type) {
     mode = trans_mode;
     strncpy(interfaceName, ifName, IFNAMSIZ - 1);
 
@@ -98,7 +98,7 @@ int openSocket(char ifName[16], uint8_t comm_id[4], char trans_mode, int bitrate
         return -1;
         //return conf_ethernet(dest_mac);
     } else {
-        return conf_monitor(comm_id, bitrate_option);
+        return conf_monitor(comm_id, bitrate_option, frame_type);
     }
 }
 
@@ -137,24 +137,28 @@ int conf_ethernet(unsigned char dest_mac[6]) {
     return 0;
 }
 
-int conf_monitor(uint8_t comm_id[4], int bitrate_option) {
+int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
     memset(monitor_framebuffer, 0, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH));
     set_bitrate(bitrate_option);
     memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
-    // build custom AirBridge 802.11 header
-    memcpy(ab802->frame_control_field, frame_control_pre, 4);
-    memcpy(ab802->comm_id, comm_id, 4);
-    ab802->odd = 0x01; // for some (strange?) reason it can not be 0x00 so we make sure
-    ab802->direction_dstmac = AB_DIREC_DRONE;
-    memcpy(ab802->src_mac_bytes, ((uint8_t *) &if_mac.ifr_hwaddr.sa_data), 6);
-    ab802->version_bytes = AB_VERSION;
-    ab802->port_bytes = AB_PORT_CONTROLLER;
-    ab802->direction_bytes = AB_DIREC_DRONE;
-    ab802->payload_length_bytes[0] = 0x22; //TODO auto detect
-    ab802->payload_length_bytes[1] = 0x00;
-    ab802->crc_bytes = CRC_RC_TO_DRONE;
-    ab802->undefined[0] = 0x10;
-    ab802->undefined[1] = 0x86;
+    // build custom DroneBridge 802.11 header
+    if (frame_type==1){
+        memcpy(db802->frame_control_field, frame_control_pre_data, 4);
+    }else{
+        memcpy(db802->frame_control_field, frame_control_pre_beacon, 4);
+    }
+    memcpy(db802->comm_id, comm_id, 4);
+    db802->odd = 0x01; // for some (strange?) reason it can not be 0x00 so we make sure
+    db802->direction_dstmac = AB_DIREC_DRONE;
+    memcpy(db802->src_mac_bytes, ((uint8_t *) &if_mac.ifr_hwaddr.sa_data), 6);
+    db802->version_bytes = AB_VERSION;
+    db802->port_bytes = AB_PORT_CONTROLLER;
+    db802->direction_bytes = AB_DIREC_DRONE;
+    db802->payload_length_bytes[0] = 0x22; //TODO auto detect
+    db802->payload_length_bytes[1] = 0x00;
+    db802->crc_bytes = CRC_RC_TO_DRONE;
+    db802->undefined[0] = 0x10;
+    db802->undefined[1] = 0x86;
 
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {

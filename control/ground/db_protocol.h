@@ -22,7 +22,7 @@ struct data {
 struct radiotap_header {
     uint8_t bytes[RADIOTAP_LENGTH];
 };
-struct ab_80211_header {
+struct db_80211_header {
     uint8_t frame_control_field[4];
     uint8_t odd;
     uint8_t direction_dstmac;
@@ -49,9 +49,13 @@ uint8_t radiotap_header_pre[] = {
         0x18, 0x00
 };
 
-const uint8_t frame_control_pre[] =
+const uint8_t frame_control_pre_data[] =
         {
                 0x08, 0x00, 0x00, 0x00
+        };
+const uint8_t frame_control_pre_beacon[] =
+        {
+                0x80, 0x00, 0x00, 0x00
         };
 uint8_t MSPbuf[] =
         {

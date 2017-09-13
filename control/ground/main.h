@@ -3,11 +3,11 @@
 
 //#include <SDL2/SDL.h>
 
-int openSocket(char ifName[16], unsigned char dest_mac[6], char trans_mode, int bitrate_option);
+int openSocket(char ifName[16], unsigned char dest_mac[6], char trans_mode, int bitrate_option, int frame_type);
 void closeSocket();
 int sendPacket(unsigned short contData[]);
 int conf_ethernet(unsigned char dest_mac[6]);
-int conf_monitor(unsigned char dest_mac[6], int bitrate_option);
+int conf_monitor(unsigned char dest_mac[6], int bitrate_option, int frame_type);
 //int determineController(SDL_Joystick *joystick);
 
 int i6S(int Joy_IF, char calibrate_comm[]);

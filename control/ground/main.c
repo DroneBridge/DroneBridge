@@ -25,19 +25,20 @@ int main(int argc, char *argv[]) {
     char calibrate_comm[500];
     char comm_id[8];
     uint8_t comm_id_bytes[4];
-    int Joy_IF, c, bitrate_op;
+    int Joy_IF, c, bitrate_op, frame_type;
     //char macStr[18];
     char ab_mode = 'm';
 
     // Command Line processing
     //strcpy(macStr, DEST_MAC_CHAR);
     Joy_IF = JOY_INTERFACE;
+    frame_type = 1;
     bitrate_op = DEFAULT_BITRATE_OPTION;
     strcpy(comm_id, DEFAULT_COMMID);
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
     strcpy(ifName, DEFAULT_IF);
     opterr = 0;
-    while ((c = getopt(argc, argv, "n:j:m:b:g:c:")) != -1) {
+    while ((c = getopt(argc, argv, "n:j:m:b:g:c:a:")) != -1) {
         switch (c) {
             case 'n':
                 strcpy(ifName, optarg);
@@ -57,11 +58,16 @@ int main(int argc, char *argv[]) {
             case 'c':
                 strcpy(comm_id, optarg);
                 break;
+            case 'a':
+                frame_type = (int) strtol(optarg, NULL, 10);
+                break;
             case '?':
                 printf("Use following commandline arguments.\n");
                 printf("-n network interface for long range \n-j number of joystick interface of RC \n"
                                "-m mode: <w|m> for wifi or monitor\n-g a command to calibrate the joystick."
-                               " Gets executed on initialisation\n-c the communication ID (same on TX and RX)\n"
+                               " Gets executed on initialisation"
+                               "\n-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets"
+                               "\n-c the communication ID (same on TX and RX)\n"
                                "-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
                                "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)");
                 return -1;
@@ -95,7 +101,7 @@ int main(int argc, char *argv[]) {
     //printf("%d joysticks found, choosing #%i for controlling the drone\n", SDL_NumJoysticks(), Joy_IF);
     //}
 
-    if (openSocket(ifName, comm_id_bytes, ab_mode, bitrate_op) > 0) {
+    if (openSocket(ifName, comm_id_bytes, ab_mode, bitrate_op, frame_type) > 0) {
         printf("Could not open socket");
         return -1;
     }
