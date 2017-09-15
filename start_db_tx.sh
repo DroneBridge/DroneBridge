@@ -13,7 +13,6 @@ port_drone=$(awk -F "=" '/^port_drone/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 port_smartphone_ltm=$(awk -F "=" '/^port_smartphone_ltm/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 port_local_smartphone=$(awk -F "=" '/^port_local_smartphone/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 ip_drone=$(awk -F "=" '/^ip_drone/ {gsub(/[ \t]/, "", $2); print $2}' $file)
-mac_drone=$(awk -F "=" '/^mac_drone/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 joy_interface=$(awk -F "=" '/^joy_interface/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 joy_cal=$(sed -n -e 's/^\s*joy_cal\s*=\s*//p' $file)
 
@@ -68,4 +67,4 @@ python3 comm_telemetry/db_telemetry_tx.py -i $interface_tel -r $ip_drone -p $por
 #./home/pi/airbridge/video/Project_Pegasus_video_tx &
 
 echo "DroneBridge-TX: Starting controller module...\n"
-./control/ground/control_tx -n $interface_control -j $joy_interface -d $mac_drone -m $mode -g "$joy_cal" -a $frametype_control -c $comm_id &
+./control/ground/control_tx -n $interface_control -j $joy_interface -m $mode -g "$joy_cal" -a $frametype_control -c $comm_id &
