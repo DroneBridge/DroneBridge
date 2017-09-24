@@ -46,8 +46,9 @@ Status: Working code. WIP. Soon to be released for beta testing
 
 
 <h3>Future Milestones</h3>
+
  - release a working beta version
  - release beta version of android app
  - integrate GoPro into project
- - implement a custom USB protocol to reduce latency
+ - implement a custom USB protocol based on android USB accessory to reduce latency
  - implement VR support. Gimbal and yaw of drone can be controlled by head movement
