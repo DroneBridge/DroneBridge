@@ -21,13 +21,13 @@ In monitor mode packets get sent without the use of libpcap using raw interfaces
  - secure and save: 
    - RX side is a MSP-passthrough. If no packets arrive nothing is sent to FC just like a "real" RC
    - detection of unplugged RC - simple replugging is possible
-   - custom ID (MAC of drone wifi interface) for every frame sent allowing for multiple pilots to control their drones without need   for reconfiguration. It is nearly impossible to accendantly control one others drone 
- - auto calibration (needs to be calibrated once in lifetime)
- - any MSP command for FC can be sent to RX and gets passed on (like ACC/MAG calibration etc.)
+   - custom ID for every frame sent. Allowing for multiple pilots to control their drones without need for reconfiguration. It is nearly impossible to accendantly control one others drone
+ - auto calibration (needs to be calibrated once)
+ - any MSP command for FC can be sent to RX and gets passed on (like ACC/MAG calibration, missions etc.)
  - easy integration of other RCs (currently i6S)
  - supported by all betaflight/cleanflight based FC software
- - custom (raw) communication protocol
- - SDL(2) not required
+ - custom (raw) communication protocol for more security and less cpu usage
+ - SDL not required
  - full XBOX controller support (future release)
 
 
