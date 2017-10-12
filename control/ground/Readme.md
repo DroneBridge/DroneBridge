@@ -2,9 +2,9 @@ Build using `cmake .` followed by `make`
 
 Options:
 * -n network interface for long range 
-* -j number of joystick interface of RC: execute `jscal -c /dev/input/js0` to calibrate/generate calibration data
+* -j number of joystick interface of RC
 * -m mode: <w|m> for wifi or monitor
-* -g a command to calibrate the joystick. Gets executed on initialisation
+* -g a command to calibrate the joystick. Gets executed on initialisation: execute `jscal -c /dev/input/js0` to calibrate/generate calibration data
 * -a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets
 * -c the communication ID (same on drone and groundstation)
 * -b bitrate: 1 = 2.5Mbit 2 = 4.5Mbit 3 = 6Mbit 4 = 12Mbit (default) 5 = 18Mbit (bitrate option only supported with Ralink chipsets)
