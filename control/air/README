@@ -9,7 +9,7 @@ sudo control_rx -n wlan0 -u /dev/ttyAMA0 -m m -c aabbccdd
 -c    communication id. Has to be the same on drone and groundstation
 
 Wifi interface must be in monitor mode. If not using Wifibroadcast images use the following:
-`interface='<name_of_interface>'
+interface='<name_of_interface>'
 ip link set $interface down
 iw dev $interface set type managed
 ip link set $interface up
@@ -19,4 +19,4 @@ iw dev $interface set type monitor
 ip link set $interface up
 # 2437 CH6
 # 2462 CH11 etc.
-iw dev $interface set freq 2462`
+iw dev $interface set freq 2462
