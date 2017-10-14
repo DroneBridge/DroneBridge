@@ -4,8 +4,8 @@
 #define RADIOTAP_LENGTH 12
 #define AB80211_LENGTH  24
 #define HEADERBUF_SIZ   14
-#define DATA_LENTH      34      //size of MSPbuf
-#define MSP_CRC_DATA_LENGTH 30
+#define DATA_LENTH      34      //size of MSP v1
+#define DATA_LENTH_V2   36      //size of MSP v2 frame
 #define ETHER_TYPE      0x88ab
 
 #define AB_VERSION          0x01
@@ -18,6 +18,9 @@
 
 struct data {
     uint8_t bytes[DATA_LENTH];
+};
+struct datav2 {
+    uint8_t bytes[DATA_LENTH_V2];
 };
 struct radiotap_header {
     uint8_t bytes[RADIOTAP_LENGTH];
@@ -35,9 +38,9 @@ struct db_80211_header {
     uint8_t crc_bytes;
     uint8_t undefined[2];
 };
-struct crcdata {
+/*struct crcdata {
     uint8_t bytes[MSP_CRC_DATA_LENGTH];
-};
+};*/
 
 uint8_t radiotap_header_pre[] = {
 
@@ -57,7 +60,7 @@ const uint8_t frame_control_pre_beacon[] =
         {
                 0x80, 0x00, 0x00, 0x00
         };
-uint8_t MSPbuf[] =
+/*uint8_t MSPbuf[] =
         {
                 0x24, 0x4d, 0x3c,
                 0x1c,       //size
@@ -77,6 +80,6 @@ uint8_t MSPbuf[] =
                 0xe8, 0x03, //a9
                 0xe8, 0x03, //a10
                 0x00        //crc
-        };
+        };*/
 
 #endif // DB_PROTOCOL_H_INCLUDED

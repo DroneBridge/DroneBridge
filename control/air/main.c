@@ -188,7 +188,7 @@ int main(int argc, char *argv[])
     char usbIF[IFNAMSIZ];
     char comm_id_Str[10];
     uint8_t comm_id[4];
-    char ab_mode = 'm';
+    char db_mode = 'm';
     //char interface[] = DEFAULT_IF;
 // ------------------------------- Processing command line arguments ----------------------------------
     strncpy(ifName, DEFAULT_IF, IFNAMSIZ);
@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
                 strcpy(usbIF, optarg);
                 break;
             case 'm':
-                ab_mode = *optarg;
+                db_mode = *optarg;
                 break;
             case 'c':
                 strncpy(comm_id_Str, optarg, 10);
@@ -222,14 +222,8 @@ int main(int argc, char *argv[])
         }
     }
     sscanf(comm_id_Str, "%2hhx%2hhx%2hhx%2hhx", &comm_id[0], &comm_id[1], &comm_id[2], &comm_id[3]);
-    printf("DB_CONTROL_RX: Interface: %s Communication ID: %02x %02x %02x %02x\n", ifName, comm_id[0], comm_id[1], comm_id[2], comm_id[3]);
-/*    struct ifreq buffer = findMACAdress(ifName);
-    mac_drone[0] = (uint8_t)buffer.ifr_hwaddr.sa_data[0];
-    mac_drone[1] = (uint8_t)buffer.ifr_hwaddr.sa_data[1];
-    mac_drone[2] = (uint8_t)buffer.ifr_hwaddr.sa_data[2];
-    mac_drone[3] = (uint8_t)buffer.ifr_hwaddr.sa_data[3];
-    mac_drone[4] = (uint8_t)buffer.ifr_hwaddr.sa_data[4];
-    mac_drone[5] = (uint8_t)buffer.ifr_hwaddr.sa_data[5];*/
+    printf("DB_CONTROL_RX: Interface: %s Communication ID: %02x %02x %02x %02x\n", ifName, comm_id[0], comm_id[1],
+           comm_id[2], comm_id[3]);
 
 // ------------------------------- Setting up Network Interface ----------------------------------
 
@@ -237,7 +231,7 @@ int main(int argc, char *argv[])
     struct ether_header *eh = (struct ether_header *) buf;
     //struct iphdr *iph = (struct iphdr *) (buf + sizeof(struct ether_header));
     //struct udphdr *udph = (struct udphdr *) (buf + sizeof(struct iphdr) + sizeof(struct ether_header));
-    sockfd = setUpNetworkIF(ifName, ab_mode, comm_id);
+    sockfd = setUpNetworkIF(ifName, db_mode, comm_id);
 
 // ------------------------------- Setting up UART Interface ---------------------------------------
     int USB = -1;
@@ -246,7 +240,8 @@ int main(int argc, char *argv[])
         USB = open(usbIF, O_WRONLY | O_NOCTTY | O_NDELAY);
         if (USB == -1)
         {
-            printf("DB_CONTROL_RX: Error - Unable to open UART.  Ensure it is not in use by another application and the FC is connected\n");
+            printf("DB_CONTROL_RX: Error - Unable to open UART.  Ensure it is not in use by another application and the"
+                           " FC is connected\n");
             printf("DB_CONTROL_RX: retrying ...\n");
             sleep(1);
         }
@@ -288,17 +283,15 @@ int main(int argc, char *argv[])
         }
         else
         {
-            if(ab_mode == 'w')
+            if(db_mode == 'w')
             {
-                // TODO
+                // TODO implement wifi mode
             }
             else
             {
                 command_length = buf[radiotap_length+19] | (buf[radiotap_length+20] << 8);
                 //printf("payload length: %i\n", command_length);
                 memcpy(commandBuf, &buf[radiotap_length+AB80211_LENGTH], command_length);
-
-
             }
             //for (i=0; i<command_length; i++)
             //    printf("%02x:", commandBuf[i]);

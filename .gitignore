@@ -4,3 +4,5 @@ control/air/cmake-build-debug/
 control/air/\.idea/
 
 control/ground/\.idea/
+
+control/ground/cmake-build-debug/
