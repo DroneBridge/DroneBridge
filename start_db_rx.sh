@@ -59,8 +59,5 @@ python3 comm_telemetry/db_comm_rx.py -i $interface_comm -p $port_telemetry -m $m
 echo "DroneBridge-RX: Starting telemetry module..."
 python3 comm_telemetry/db_telemetry_rx.py -i $interface_tel -f $interface_telemetry -p $port_telemetry -m $mode -t yes -a $frametype_tel -c $comm_id &
 
-#python3 /home/pi/airbridge/video/GoPro_keepAlive.py &
-#./home/pi/airbridge/video/Project_Pegasus_video_rx &
-
 echo "DroneBridge-RX: Starting controller module..."
 ./control/air/control_rx -n $interface_control -u $interface_MSP -m $mode -c $comm_id &
