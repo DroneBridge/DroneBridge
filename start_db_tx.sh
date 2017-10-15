@@ -59,7 +59,7 @@ echo "DroneBridge-TX: calibrating RC using: '$joy_cal'"
 
 echo "DroneBridge-TX: Trying to start individual modules..."
 echo "DroneBridge-TX: Starting ip checker module..."
-python3 comm_telemetry/db_ip_checker.py
+python3 comm_telemetry/db_ip_checker.py &
 
 echo "DroneBridge-TX: Starting communication module..."
 python3 comm_telemetry/db_comm_tx.py -i $interface_comm -p $port_drone -r $ip_drone -u $port_local_smartphone -m $mode -a $frametype_comm -c $comm_id &
