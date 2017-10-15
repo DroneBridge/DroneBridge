@@ -8,11 +8,11 @@
 #define DATA_LENTH_V2   37      //size of MSP v2 frame
 #define ETHER_TYPE      0x88ab
 
-#define AB_VERSION          0x01
-#define AB_PORT_CONTROLLER  0x01
+#define DB_VERSION          0x01
+#define DB_PORT_CONTROLLER  0x01
 #define AB_PORT_TELEMETRY   0x02
 #define AB_PORT_VIDEO       0x03
-#define AB_DIREC_DRONE      0x01
+#define DB_DIREC_DRONE      0x01
 #define AB_DIREC_GROUNDST   0x02
 #define CRC_RC_TO_DRONE     0x06
 

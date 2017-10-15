@@ -162,12 +162,12 @@ int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
     // init for MSP v1
     memcpy(db802->comm_id, comm_id, 4);
     db802->odd = 0x01; // for some (strange?) reason it can not be 0x00 so we make sure
-    db802->direction_dstmac = AB_DIREC_DRONE;
+    db802->direction_dstmac = DB_DIREC_DRONE;
     memcpy(db802->src_mac_bytes, ((uint8_t *) &if_mac.ifr_hwaddr.sa_data), 6);
-    db802->version_bytes = AB_VERSION;
-    db802->port_bytes = AB_PORT_CONTROLLER;
-    db802->direction_bytes = AB_DIREC_DRONE;
-    db802->payload_length_bytes[0] = 0x22; //TODO auto detect
+    db802->version_bytes = DB_VERSION;
+    db802->port_bytes = DB_PORT_CONTROLLER;
+    db802->direction_bytes = DB_DIREC_DRONE;
+    db802->payload_length_bytes[0] = 0x22; //TODO auto detect = DATA_LENGTH
     db802->payload_length_bytes[1] = 0x00;
     db802->crc_bytes = CRC_RC_TO_DRONE;
     db802->undefined[0] = 0x10;
@@ -175,12 +175,12 @@ int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
     // Init for MSP v2
     memcpy(db802_v2->comm_id, comm_id, 4);
     db802_v2->odd = 0x01; // for some (strange?) reason it can not be 0x00 so we make sure
-    db802_v2->direction_dstmac = AB_DIREC_DRONE;
+    db802_v2->direction_dstmac = DB_DIREC_DRONE;
     memcpy(db802_v2->src_mac_bytes, ((uint8_t *) &if_mac.ifr_hwaddr.sa_data), 6);
-    db802_v2->version_bytes = AB_VERSION;
-    db802_v2->port_bytes = AB_PORT_CONTROLLER;
-    db802_v2->direction_bytes = AB_DIREC_DRONE;
-    db802_v2->payload_length_bytes[0] = 0x22; //TODO auto detect
+    db802_v2->version_bytes = DB_VERSION;
+    db802_v2->port_bytes = DB_PORT_CONTROLLER;
+    db802_v2->direction_bytes = DB_DIREC_DRONE;
+    db802_v2->payload_length_bytes[0] = 0x25; //TODO auto detect = DATA_LENGTH_V2 make it htons(int16_t)
     db802_v2->payload_length_bytes[1] = 0x00;
     db802_v2->crc_bytes = CRC_RC_TO_DRONE;
     db802_v2->undefined[0] = 0x10;
