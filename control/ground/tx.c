@@ -34,10 +34,10 @@ struct db_80211_header *db802 = (struct db_80211_header *) (monitor_framebuffer 
 struct db_80211_header *db802_v2 = (struct db_80211_header *) (monitor_framebuffer_v2 + RADIOTAP_LENGTH);
 
 struct data *monitor_databuffer = (struct data *) (monitor_framebuffer + RADIOTAP_LENGTH + AB80211_LENGTH);
-struct data *monitor_databuffer_v2 = (struct data *) (monitor_framebuffer_v2 + RADIOTAP_LENGTH + AB80211_LENGTH);
+struct datav2 *monitor_databuffer_v2 = (struct datav2 *) (monitor_framebuffer_v2 + RADIOTAP_LENGTH + AB80211_LENGTH);
 
 char mode;
-uint8_t crc;
+uint8_t crcS2, crc8;
 
 void set_bitrate(int bitrate_option) {
     switch (bitrate_option){
@@ -249,11 +249,11 @@ void generateMSP(unsigned short newJoystickData[NUM_CHANNELS]) {
     monitor_databuffer->bytes[31] = ((newJoystickData[13] >> 8) & 0xFF);
     monitor_databuffer->bytes[32] = newJoystickData[13] & 0xFF;
     // CRC
-    crc = 0;
+    crc8 = 0;
     for (int i = 3; i < 33; i++) {
-        crc ^= (monitor_databuffer->bytes[i] & 0xFF);
+        crc8 ^= (monitor_databuffer->bytes[i] & 0xFF);
     }
-    monitor_databuffer->bytes[33] = crc;
+    monitor_databuffer->bytes[33] = crc8;
 //    printf("MSP Data: ");
 //    for(int i = 0;i<sizeof(databuffer->bytes);i++){
 //        printf(" %02x",databuffer->bytes[i]);
@@ -327,10 +327,10 @@ void generateMSPV2(unsigned short newJoystickData[NUM_CHANNELS]) {
     monitor_databuffer_v2->bytes[34] = (uint8_t) ((newJoystickData[13] >> 8) & 0xFF);
     monitor_databuffer_v2->bytes[35] = (uint8_t) (newJoystickData[13] & 0xFF);
     // CRC
-    crc = 0;
+    crcS2 = 0;
     for(int i = 3; i < 36; i++)
-        crc8_dvb_s2(crc, monitor_databuffer_v2->bytes[i]); // loop over summable data
-    monitor_databuffer_v2->bytes[36] = crc;
+        crcS2 = crc8_dvb_s2(crcS2, monitor_databuffer_v2->bytes[i]);
+    monitor_databuffer_v2->bytes[36] = crcS2;
 //    printf("MSPv2 Data: ");
 //    for(int i = 0;i<sizeof(databuffer->bytes);i++){
 //        printf(" %02x",databuffer->bytes[i]);

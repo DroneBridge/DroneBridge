@@ -1,16 +1,30 @@
 #include <stdio.h>
 #include <stdlib.h>
-//#include <SDL2/SDL.h>
-#include <arpa/inet.h>
 #include <net/if.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <linux/joystick.h>
 #include "main.h"
 #include "parameter.h"
 
+int detect_RC(int new_Joy_IF) {
+    int fd;
+    char interface_joystick[500];
+    char path[] = "/dev/input/js";
+    sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
+    printf("DB_CONTROL_TX: Waiting for a RC to be detected on: %s\n", interface_joystick);
+    do {
+        usleep(250);
+        fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
+    } while (fd < 0);
+    return fd;
+}
+
 int main(int argc, char *argv[]) {
     atexit(closeSocket);
-    char ifName[IFNAMSIZ];
+    char ifName[IFNAMSIZ], RC_name[128];
     char calibrate_comm[500];
     char comm_id[10];
     unsigned char comm_id_bytes[4];
@@ -58,7 +72,7 @@ int main(int argc, char *argv[]) {
                                "-j number of joystick interface of RC \n"
                                "-m mode: <w|m> for wifi or monitor\n"
                                "-g a command to calibrate the joystick. Gets executed on initialisation\n"
-                               "-v MSP Version [1|2]: Betaflight/Cleanflight = 1; iNAV = 2 (check the FC docs)\n"
+                               "-v MSP Version [1|2]: Betaflight/Cleanflight = 1; iNAV = 2 (default) (check the FC docs)\n"
                                "-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets\n"
                                "-c the communication ID (same on TX and RX)\n"
                                "-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
@@ -69,16 +83,23 @@ int main(int argc, char *argv[]) {
         }
     }
     sscanf(comm_id, "%2hhx%2hhx%2hhx%2hhx", &comm_id_bytes[0], &comm_id_bytes[1], &comm_id_bytes[2], &comm_id_bytes[3]);
-    printf("DB_CONTROL_TX: Interface: %s Communication ID: %02x %02x %02x %02x\n", ifName, comm_id_bytes[0],
-           comm_id_bytes[1], comm_id_bytes[2], comm_id_bytes[3]);
+    printf("DB_CONTROL_TX: Interface: %s Communication ID: %02x %02x %02x %02x MSP: v%i\n", ifName, comm_id_bytes[0],
+           comm_id_bytes[1], comm_id_bytes[2], comm_id_bytes[3], msp_version);
 
     if (openSocket(ifName, comm_id_bytes, ab_mode, bitrate_op, frame_type, msp_version) > 0) {
         printf("DB_CONTROL_TX: Could not open socket\n");
         return -1;
     }
-    printf("DB_CONTROL_TX: Choosing i6S-Config\n");
-    i6S(Joy_IF, calibrate_comm);
-
+    int sock_fd = detect_RC(Joy_IF);
+    if (ioctl(sock_fd, JSIOCGNAME(sizeof(RC_name)), RC_name) < 0)
+        strncpy(RC_name, "Unknown", sizeof(RC_name));
+    close(sock_fd);
+    if (strcmp(i6S_descriptor, RC_name) == 0){
+        printf("DB_CONTROL_TX: Choosing i6S-Config\n");
+        i6S(Joy_IF, calibrate_comm);
+    } else {
+        printf("DB_CONTROL_TX: Your RC \"%s\" is currently not supported. Closing.\n", RC_name);
+    }
     return 0;
 }
 

@@ -5,7 +5,7 @@
 #define AB80211_LENGTH  24
 #define HEADERBUF_SIZ   14
 #define DATA_LENTH      34      //size of MSP v1
-#define DATA_LENTH_V2   36      //size of MSP v2 frame
+#define DATA_LENTH_V2   37      //size of MSP v2 frame
 #define ETHER_TYPE      0x88ab
 
 #define AB_VERSION          0x01
