@@ -9,6 +9,11 @@ interface_tel=$(awk -F "=" '/^interface_tel/ {gsub(/[ \t]/, "", $2); print $2}' 
 interface_video=$(awk -F "=" '/^interface_video/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 interface_comm=$(awk -F "=" '/^interface_comm/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 
+en_control=$(awk -F "=" '/^en_control/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+en_tel=$(awk -F "=" '/^en_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+en_video=$(awk -F "=" '/^en_video/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+en_comm=$(awk -F "=" '/^en_comm/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+
 mspversion=$(awk -F "=" '/^mspversion/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 port_drone=$(awk -F "=" '/^port_drone/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 port_smartphone_ltm=$(awk -F "=" '/^port_smartphone_ltm/ {gsub(/[ \t]/, "", $2); print $2}' $file)
@@ -61,11 +66,17 @@ echo "DroneBridge-TX: Trying to start individual modules..."
 echo "DroneBridge-TX: Starting ip checker module..."
 python3 comm_telemetry/db_ip_checker.py &
 
-echo "DroneBridge-TX: Starting communication module..."
-python3 comm_telemetry/db_comm_tx.py -i $interface_comm -p $port_drone -r $ip_drone -u $port_local_smartphone -m $mode -a $frametype_comm -c $comm_id &
+if [ $en_comm == "Y" ]; then
+	echo "DroneBridge-TX: Starting communication module..."
+	python3 comm_telemetry/db_comm_tx.py -i $interface_comm -p $port_drone -r $ip_drone -u $port_local_smartphone -m $mode -a $frametype_comm -c $comm_id &
+fi
 
-echo "DroneBridge-TX: Starting telemetry module..."
-python3 comm_telemetry/db_telemetry_tx.py -i $interface_tel -r $ip_drone -p $port_drone -m $mode -a $frametype_tel -c $comm_id &
+if [ $en_tel == "Y" ]; then
+ echo "DroneBridge-TX: Starting telemetry module..."
+ python3 comm_telemetry/db_telemetry_tx.py -i $interface_tel -r $ip_drone -p $port_drone -m $mode -a $frametype_tel -c $comm_id &
+fi
 
-echo "DroneBridge-TX: Starting controller module...\n"
-./control/ground/control_tx -n $interface_control -j $joy_interface -m $mode -v $mspversion -g "$joy_cal" -a $frametype_control -c $comm_id &
+if [ $en_control == "Y" ]; then
+	echo "DroneBridge-TX: Starting controller module...\n"
+	./control/ground/control_tx -n $interface_control -j $joy_interface -m $mode -v $mspversion -g "$joy_cal" -a $frametype_control -c $comm_id &
+fi
