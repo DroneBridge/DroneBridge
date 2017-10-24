@@ -57,12 +57,12 @@ echo "DroneBridge-RX: Interfaces: Control: $interface_control Telemetry: $interf
 echo "DroneBridge-RX: Frametypes: Control: $frametype_control Telemetry: $frametype_tel Video: $frametype_video Communication: $frametype_comm"
 echo "DroneBridge-RX: Trying to start individual modules..."
 
-if [ $en_comm == "Y" ]; then
+if [ $en_comm = "Y" ]; then
 	echo "DroneBridge-RX: Starting communication module..."
 	python3 comm_telemetry/db_comm_rx.py -i $interface_comm -p $port_telemetry -m $mode -a $frametype_comm -c $comm_id &
 fi
 
-if [ $en_tel == "Y" ]; then
+if [ $en_tel = "Y" ]; then
 	echo "DroneBridge-RX: Starting telemetry module..."
 	python3 comm_telemetry/db_telemetry_rx.py -i $interface_tel -f $interface_telemetry -p $port_telemetry -m $mode -t yes -a $frametype_tel -c $comm_id &
 fi

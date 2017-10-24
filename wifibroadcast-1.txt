@@ -4,7 +4,7 @@
 # ============================================================
 #
 # Desired frequency in MHz
-FREQ=2332
+FREQ=2427
 #
 # Set to "Y" on the RX for auto-scanning. Frequency still has to be set on TX!
 # Feature might be buggy or not work at all!
@@ -143,13 +143,13 @@ EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -ex sports -mm average -awb horizon -r
 #
 # Serial port and baudrate (19200 is minimum) to use for the R/C connection between air Pi and flight control
 # Set this to "/dev/serial0" for Pi onboard serial port or  "/dev/ttyUSB0" for USB-to-serial adapter
-FC_RC_SERIALPORT=/dev/serial0
-FC_RC_BAUDRATE=57600
+FC_RC_SERIALPORT=/dev/ttyACM0
+FC_RC_BAUDRATE=115200
 #
 # Serial port and baudrate to use for the telemetry connection between air Pi and flight control
 # Set this to "/dev/serial0" for Pi onboard serial port or  "/dev/ttyUSB0" for USB-to-serial adapter
-FC_TELEMETRY_SERIALPORT=/dev/serial0
-FC_TELEMETRY_BAUDRATE=57600
+FC_TELEMETRY_SERIALPORT=/dev/ttyAMA0
+FC_TELEMETRY_BAUDRATE=9600
 #
 
 #
@@ -169,7 +169,7 @@ FC_MSP_BAUDRATE=115200
 # set this to "Y" to enable Wifi Hotspot. Default SSID is "EZ-Wifibroadcast", password is "wifibroadcast".
 # See apconfig.txt for configuration. This will forward the received video and telemetry streams to a
 # smartphone/tablet or computer connected to the RX Pi via WiFi.
-WIFI_HOTSPOT=N
+WIFI_HOTSPOT=Y
 #
 # Set to "internal" to use the interal Pi3 wifi chip or the MAC address of the USB wifi card you want to use
 WIFI_HOTSPOT_NIC=internal

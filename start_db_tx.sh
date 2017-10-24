@@ -66,17 +66,17 @@ echo "DroneBridge-TX: Trying to start individual modules..."
 echo "DroneBridge-TX: Starting ip checker module..."
 python3 comm_telemetry/db_ip_checker.py &
 
-if [ $en_comm == "Y" ]; then
+if [ $en_comm = "Y" ]; then
 	echo "DroneBridge-TX: Starting communication module..."
 	python3 comm_telemetry/db_comm_tx.py -i $interface_comm -p $port_drone -r $ip_drone -u $port_local_smartphone -m $mode -a $frametype_comm -c $comm_id &
 fi
 
-if [ $en_tel == "Y" ]; then
+if [ $en_tel = "Y" ]; then
  echo "DroneBridge-TX: Starting telemetry module..."
  python3 comm_telemetry/db_telemetry_tx.py -i $interface_tel -r $ip_drone -p $port_drone -m $mode -a $frametype_tel -c $comm_id &
 fi
 
-if [ $en_control == "Y" ]; then
+if [ $en_control = "Y" ]; then
 	echo "DroneBridge-TX: Starting controller module...\n"
 	./control/ground/control_tx -n $interface_control -j $joy_interface -m $mode -v $mspversion -g "$joy_cal" -a $frametype_control -c $comm_id &
 fi

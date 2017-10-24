@@ -1,6 +1,7 @@
 import argparse
 from DroneBridge_Protocol import DBProtocol
 from db_comm_helper import find_mac
+import os
 
 # Default values, may get overridden by command line arguments
 
@@ -11,9 +12,29 @@ UDP_PORT_ANDROID = 1605  # Port for communication with smartphone (port on groun
 UDP_buffersize = 512  # bytes
 interface_drone_comm = "000ee8dcaa2c"
 dst = b''   # MAC address of RX-Pi (TP-Link) - mac of drone
+pipenames = ["telemetryfifo1", "telemetryfifo2", "telemetryfifo3", "telemetryfifo4", "telemetryfifo5", "telemetryfifo6"]
+pipes = []
+fifo_write = None
+
+def write_tofifos(received_bytes):
+    # fifo_write = open(path, "wb")
+    # for pipename in pipenames:
+    # pipes.append(os.open(path+pipename, os.O_WRONLY | os.O_NONBLOCK))
+    # os.write(pipes[1], received_bytes)
+    try:
+        fifo_write.write(received_bytes)
+        fifo_write.flush()
+        return True
+    except BrokenPipeError as bperr:
+        print("DB_TX_TEL: Broken pipe: "+str(bperr.strerror))
+        return False
+    except OSError as oserr:
+        print("DB_TX_TEL: Pipe might not be opened yet: "+str(oserr.strerror))
+        return False
+
 
 def parsearguments():
-    parser = argparse.ArgumentParser(description='Put this file on TX (drone). It handles telemetry, GoPro settings'
+    parser = argparse.ArgumentParser(description='Put this file on TX (groundstation). It handles telemetry, GoPro settings'
                                                  ' and communication with smartphone')
     parser.add_argument('-i', action='store', dest='interface_drone_comm',
                         help='Network interface on which we send out packets to MSP-pass through. Should be interface '
@@ -40,7 +61,7 @@ def parsearguments():
 
 
 def main():
-    global interface_drone_comm, IP_RX, UDP_Port_RX
+    global interface_drone_comm, IP_RX, UDP_Port_RX, fifo_write
     parsedArgs = parsearguments()
     interface_drone_comm = parsedArgs.interface_drone_comm
     mode = parsedArgs.mode
@@ -55,6 +76,9 @@ def main():
 
     dbprotocol = DBProtocol(src, dst, UDP_Port_RX, IP_RX, 1606, b'\x01', interface_drone_comm, mode,
                             comm_id, frame_type, b'\x02')
+    print("DB_TX_TEL: Opening /root/telemetryfifo1...")
+    fifo_write = open("/root/telemetryfifo1", "wb")
+    print("DB_TX_TEL: Opened /root/telemetryfifo1")
 
     while True:
         received = dbprotocol.receive_telemetryfromdrone()
@@ -66,6 +90,7 @@ def main():
                 # send a beaconframe so drone telemetry can extract signal strength. MSP RSSI over AUX is also a option
                 # Then RSSI field in LTM would be set correctly. But RSSI would be in % which is worse compared to dbm
                 dbprotocol.send_beacon()
+            write_tofifos(received)
             sent = dbprotocol.sendto_smartphone(received, dbprotocol.LTM_PORT_SMARTPHONE)
             #print("DB_TX_TEL: Sent "+str(sent)+" bytes to sp")
 if __name__ == "__main__":
