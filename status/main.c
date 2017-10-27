@@ -31,7 +31,6 @@
 
 bool volatile keeprunning = true;
 
-#pragma pack(1)
 struct DB_LTM_FRAME {
     uint8_t ident[3];
     uint8_t mode;
@@ -42,8 +41,8 @@ struct DB_LTM_FRAME {
     uint32_t lost_packets_wbc;
     uint32_t kbitrate_wbc;
     uint8_t crc;
-};
-#pragma pack(0)
+} __attribute__((packed));
+
 void intHandler(int dummy)
 {
     keeprunning = false;
@@ -133,9 +132,9 @@ int main(int argc, char *argv[]) {
             if (best_dbm < t->adapter[cardcounter].current_signal_dbm) best_dbm = t->adapter[cardcounter].current_signal_dbm;
         }
         db_ltm_frame.rssi_ground = best_dbm;
-        db_ltm_frame.damaged_blocks_wbc = t->damaged_block_cnt;
-        db_ltm_frame.lost_packets_wbc = t->lost_packet_cnt;
-        db_ltm_frame.kbitrate_wbc = t-> kbitrate;
+        db_ltm_frame.damaged_blocks_wbc = htonl(t->damaged_block_cnt);
+        db_ltm_frame.lost_packets_wbc = htonl(t->lost_packet_cnt);
+        db_ltm_frame.kbitrate_wbc = htonl(t-> kbitrate);
         if (t->tx_restart_cnt > restarts) {
             restarts++;
             usleep ((__useconds_t) 1e7);
