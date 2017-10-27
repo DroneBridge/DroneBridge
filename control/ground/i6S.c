@@ -49,7 +49,7 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
     struct timespec tim, tim2;
     tim.tv_sec = 0;
     tim.tv_nsec = 16666666L; //60Hz
-    //tim.tv_nsec = 10000000L; //100Hz (should be better for monitor mode and packet loss)
+    //tim.tv_nsec = 10000000L; //100Hz
 
 
     struct js_event {
@@ -190,7 +190,6 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         if (rc.pitch == 32766) rc.pitch++;
         if (rc.throttle == 32766) rc.throttle++;
         if (rc.yaw == 32766) rc.yaw++;
-        // TODO: Check if there is input from the socket/FIFO (smartphone could send some extra commands)
 //        printf( "%c[;H", 27 );
 //        printf("Roll:     %i          \n",normalize_i6S(rc.roll,500));
 //        printf("Pitch:    %i          \n",normalize_i6S(rc.pitch,500));

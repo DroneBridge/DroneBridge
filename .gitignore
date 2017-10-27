@@ -6,3 +6,7 @@ control/air/\.idea/
 control/ground/\.idea/
 
 control/ground/cmake-build-debug/
+
+status/\.idea/
+
+status/cmake-build-debug/

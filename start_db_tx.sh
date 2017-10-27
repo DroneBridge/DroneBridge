@@ -71,6 +71,9 @@ if [ $en_comm = "Y" ]; then
 	python3 comm_telemetry/db_comm_tx.py -i $interface_comm -p $port_drone -r $ip_drone -u $port_local_smartphone -m $mode -a $frametype_comm -c $comm_id &
 fi
 
+echo "DroneBridge-TX: Starting status module..."
+./status/status &
+
 if [ $en_tel = "Y" ]; then
  echo "DroneBridge-TX: Starting telemetry module..."
  python3 comm_telemetry/db_telemetry_tx.py -i $interface_tel -r $ip_drone -p $port_drone -m $mode -a $frametype_tel -c $comm_id &

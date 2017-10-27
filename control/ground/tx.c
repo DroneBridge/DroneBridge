@@ -110,7 +110,7 @@ int openSocket(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mode, int b
 }
 
 /*int conf_ethernet(unsigned char dest_mac[6]) {
-    // TODO: ignore: UDP in future
+    // TODO: ignore: UDP in the future
     *//* Construct the Ethernet header *//*
     memset(Framebuf, 0, HEADERBUF_SIZ);
     *//* Ethernet header *//*
@@ -340,6 +340,7 @@ void generateMSPV2(unsigned short newJoystickData[NUM_CHANNELS]) {
 }
 
 int sendPacket(unsigned short contData[]) {
+    // TODO check for RC overwrite!
     // There might be a nicer way of doing things but this one is fast and easily added (two different buffers)
     if (msp_version == 1){
         generateMSP(contData);
