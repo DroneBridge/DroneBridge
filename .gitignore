@@ -10,3 +10,7 @@ control/ground/cmake-build-debug/
 status/\.idea/
 
 status/cmake-build-debug/
+
+comm_telemetry/\.idea/vcs\.xml
+
+comm_telemetry/\.idea/

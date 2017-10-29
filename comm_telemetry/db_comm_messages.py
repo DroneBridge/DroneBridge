@@ -15,7 +15,10 @@ PATH_WBC_SETTINGS = "/boot/wifibroadcast-1.txt"
 # As we send it as a single frame we do not want the payload to be unnecessarily big. Only respond important settings
 wbc_settings_blacklist = ["TXMODE", "MAC_RX[0]", "FREQ_RX[0]", "MAC_RX[1]", "FREQ_RX[1]", "MAC_RX[2]", "FREQ_RX[2]",
                           "MAC_RX[3]", "FREQ_RX[3]", "MAC_TX[0]", "FREQ_TX[0]", "MAC_TX[1]", "FREQ_TX[1]",
-                          "WIFI_HOTSPOT_NIC", "RELAY", "RELAY_NIC", "RELAY_FREQ", "QUIET"]
+                          "WIFI_HOTSPOT_NIC", "RELAY", "RELAY_NIC", "RELAY_FREQ", "QUIET", "FREQSCAN",
+                          "EXTERNAL_TELEMETRY_SERIALPORT_GROUND", "TELEMETRY_OUTPUT_SERIALPORT_GROUND",
+                          "FC_RC_BAUDRATE", "FC_RC_SERIALPORT", "TELEMETRY_UPLINK", "FC_MSP_SERIALPORT",
+                          "EXTERNAL_TELEMETRY_SERIALPORT_GROUND_BAUDRATE", "TELEMETRY_OUTPUT_SERIALPORT_GROUND_BAUDRATE"]
 db_settings_blacklist = ["ip_drone", "interface_selection", "interface_control", "interface_tel", "interface_video",
                          "interface_comm", "joy_cal"]
 

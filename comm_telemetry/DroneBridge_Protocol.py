@@ -182,6 +182,7 @@ class DBProtocol:
         else:
             # frame[5] = int((int(self.datarate)*500)/1000)
             frame[6] = self.signal
+            # TODO add wbc information and crc
             return bytes(frame)
 
     def sendto_smartphone(self, raw_data, port):
@@ -206,7 +207,7 @@ class DBProtocol:
 
     def send_dronebridge_frame(self):
         DroneBridgeFrame = b'$TY' + self.short_mode.encode() + chr(int(psutil.cpu_percent(interval=None))).encode() + \
-                           bytes([self.signal]) + b'\x00\x00\x00\x00\x00\x00\x00'
+                           bytes([self.signal]) + b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
         self.sendto_groundstation(DroneBridgeFrame, PORT_TELEMETRY)
 
     def send_beacon(self):
@@ -273,14 +274,14 @@ class DBProtocol:
             else:
                 status = True
         elif loaded_json['destination'] == 2 and check_package_good(extracted_info):
-            message = self._process_db_comm_protocol_type(loaded_json)
             if self.comm_direction == TO_DRONE:
-                self.sendto_smartphone(message, self.COMM_PORT_SMARTPHONE)
                 response_drone = self._redirect_comm_to_drone(raw_data_encoded)
-                if response_drone != False:
-                    #  TODO: check if it is a success message and only then change as well on groundstation side
+                if response_drone != False and response_drone!=None:
+                    message = self._process_db_comm_protocol_type(loaded_json)
+                    self.sendto_smartphone(message, self.COMM_PORT_SMARTPHONE)
                     status = self.sendto_smartphone(response_drone, self.COMM_PORT_SMARTPHONE)
             else:
+                message = self._process_db_comm_protocol_type(loaded_json)
                 sentbytes = self.sendto_groundstation(message, PORT_COMMUNICATION)
                 if sentbytes == None:
                     status = True
