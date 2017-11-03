@@ -1,7 +1,7 @@
 import argparse
+
 from DroneBridge_Protocol import DBProtocol
 from db_comm_helper import find_mac
-import os
 
 # Default values, may get overridden by command line arguments
 
@@ -16,17 +16,14 @@ pipenames = ["telemetryfifo1", "telemetryfifo2", "telemetryfifo3", "telemetryfif
 pipes = []
 fifo_write = None
 
+
 def write_tofifos(received_bytes):
-    # fifo_write = open(path, "wb")
-    # for pipename in pipenames:
-    # pipes.append(os.open(path+pipename, os.O_WRONLY | os.O_NONBLOCK))
-    # os.write(pipes[1], received_bytes)
     try:
         fifo_write.write(received_bytes)
         fifo_write.flush()
         return True
     except BrokenPipeError as bperr:
-        print("DB_TX_TEL: Broken pipe: "+str(bperr.strerror))
+        # print("DB_TX_TEL: Broken pipe: "+str(bperr.strerror))
         return False
     except OSError as oserr:
         print("DB_TX_TEL: Pipe might not be opened yet: "+str(oserr.strerror))

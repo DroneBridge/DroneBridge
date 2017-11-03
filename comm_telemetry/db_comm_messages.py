@@ -46,7 +46,6 @@ def new_settingschangesuccess_message(origin, new_id):
     crc32 = binascii.crc32(str.encode(command))
     return command.encode()+crc32.to_bytes(4, byteorder='little', signed=False)
 
-
 def change_settings_wbc(loaded_json, origin):
     try:
         with open(PATH_WBC_SETTINGS, 'r+') as file:
@@ -58,6 +57,7 @@ def change_settings_wbc(loaded_json, origin):
             file.seek(0, 0)
             for line in lines:
                 file.write(line)
+            file.truncate()
     except Exception as ex:
         print("Error writing wbc settings: " + str(ex))
         return False
@@ -83,6 +83,7 @@ def change_settings_db(loaded_json, origin):
             file.seek(0, 0)
             for line in lines:
                 file.write(line)
+            file.truncate()
     except Exception as ex:
         print("Error writing wbc settings: "+str(ex))
         return False

@@ -18,9 +18,9 @@ Status: Working code. WIP. Soon to be released for beta testing
  - Display low latency video stream of wifibroadcast (USB Tethering or Wifi-AP)
  - Implementation of DroneBridge communication protocol
  - Display RC link quality from DroneBridge control module
- - User Interface to change settings of DroneBridge modules and Wifibroadcast modules
+ - User Interface to change settings of DroneBridge modules and Wifibroadcast
  - Full support for LTM-Protocol including DroneBridge LTM frame
- - Show homepoint and drone on map
+ - Show home point and drone on map
  - Calculate battery percent from ampere or voltage using a battery model
  - Show Wifibroadcast status: bad blocks/lost packets - bitrate and link quality
  - Display distance between pilot (app) and drone

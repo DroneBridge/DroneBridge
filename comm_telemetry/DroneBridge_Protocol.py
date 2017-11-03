@@ -435,6 +435,8 @@ class DBProtocol:
     def _open_android_udpsocket(self):
         print(self.tag + "Opening UDP-Socket to smartphone on port: "+str(self.udp_port_smartphone)+")")
         sock = socket(AF_INET, SOCK_DGRAM)
+        sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
         address = ('', self.udp_port_smartphone)
         sock.bind(address)
         sock.setblocking(False)
