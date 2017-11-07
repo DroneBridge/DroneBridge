@@ -5,7 +5,7 @@ from itertools import chain
 
 
 # Creates JSON messages for DB Communication Protocol to be sent out
-
+import os
 
 tag = 'DB_COMM_MESSAGE: '
 PATH_DRONEBRIDGE_TX_SETTINGS = "/boot/DroneBridgeTX.ini"
@@ -58,6 +58,8 @@ def change_settings_wbc(loaded_json, origin):
             for line in lines:
                 file.write(line)
             file.truncate()
+            file.flush()
+            os.fsync(file.fileno())
     except Exception as ex:
         print("Error writing wbc settings: " + str(ex))
         return False
@@ -84,6 +86,8 @@ def change_settings_db(loaded_json, origin):
             for line in lines:
                 file.write(line)
             file.truncate()
+            file.flush()
+            os.fsync(file.fileno())
     except Exception as ex:
         print("Error writing wbc settings: "+str(ex))
         return False
