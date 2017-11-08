@@ -5,10 +5,12 @@ A wifibroadcast extension to make Betaflight/Cleanflight/iNAV based flight contr
 
 Visit <b>http://wolfgangchristl.de/2017/not-just-another-drone-project/</b> for additional information about the project and its goals
 
-<h3>Coming Up ...</h3>
-Ready to use sd card images based on current version of EZ-wifibroadcast
+<h2>DroneBridge Beta 0.1 release</h2>
+Get it here: https://github.com/seeul8er/DroneBridge/releases/tag/v0.1
+To set it up please read the wiki and check out: https://github.com/bortek/EZ-WifiBroadcast/wiki#installation--setup
+Corresponding Android App follows during the next days.
 
-<h3>DroneBridge Android App</h3>
+<h2>DroneBridge Android App</h2>
 
 Status: Working code. WIP. Soon to be released for beta testing
 
@@ -32,7 +34,7 @@ Status: Working code. WIP. Soon to be released for beta testing
  - support for EZgui an mwp planner mission files
  - ...
 
-<h3>Control Module</h3>
+<h2>Control Module</h2>
 
 Programms for TX (groundstation) and RX (drone) to control the drone (RC link). The MultiWii Serial Protocol (MSP) is used.
 In monitor mode packets get sent without the use of libpcap using raw interfaces. On the receiving side a BPF (Berkely Packet Filter) is used to only forward dronebridge-control packets to the receiving socket. The code is optimised for minimal system calls and lowest latency possible.
@@ -54,18 +56,18 @@ In monitor mode packets get sent without the use of libpcap using raw interfaces
  - full XBOX controller support (future release)
 
 
-<h3>Communication Module</h3>
+<h2>Communication Module</h2>
 
 Currently in beta phase.
 Nightly code can be found here: <b>https://github.com/seeul8er/DroneBridge_Comm</b>
 Allows to change settings of Wifibroadcast and DroneBridge modules on drone and groundstation using the DroneBridge App.
 Implements a custom DroneBridge LTM frame to pass extra information about RSSI to the user interface (app)
 
-<h3>Status Module</h3>
+<h2>Status Module</h2>
 Reports Wifibroadcast status to DroneBridge App using a variant ($TZ) of DroneBridge LTM Frame. May replace telemetry module in the future.
 
 
-<h3>Future Milestones</h3>
+<h2>Future Milestones</h2>
 
  - release a working beta version
  - release beta version of android app
