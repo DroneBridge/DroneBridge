@@ -10,7 +10,9 @@ Visit <b>http://wolfgangchristl.de/2017/not-just-another-drone-project/</b> for 
 
 <h2>DroneBridge Beta 0.1 release</h2>
 Get it here: https://github.com/seeul8er/DroneBridge/releases/tag/v0.1
+
 To set it up please read the wiki and check out: https://github.com/bortek/EZ-WifiBroadcast/wiki#installation--setup
+
 Corresponding Android App follows during the next days.
 
 <h2>DroneBridge Android App</h2>
