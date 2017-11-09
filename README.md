@@ -3,6 +3,9 @@
 
 A wifibroadcast extension to make Betaflight/Cleanflight/iNAV based flight controllers more usable for aerial photography. Intended to be a real alternative to DJI Lightbridge and other similar systems. Videodownlink and telemetry is provided by wifibroadcast. RC, smartphone app, alternative LTM downdlink and command modules are provided by this project.
 
+<h2>One frequency. One digital radio link to rule them all.</h2>
+<img src="https://github.com/seeul8er/DroneBridge/blob/master/wiki/oneforall.jpg">
+
 Visit <b>http://wolfgangchristl.de/2017/not-just-another-drone-project/</b> for additional information about the project and its goals
 
 <h2>DroneBridge Beta 0.1 release</h2>
