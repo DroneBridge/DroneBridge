@@ -7,6 +7,7 @@ interface_selection=$(awk -F "=" '/^interface_selection/ {gsub(/[ \t]/, "", $2);
 en_tel=$(awk -F "=" '/^en_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 en_video=$(awk -F "=" '/^en_video/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 en_comm=$(awk -F "=" '/^en_comm/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+en_control=$(awk -F "=" '/^en_control/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 
 interface_control=$(awk -F "=" '/^interface_control/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 interface_tel=$(awk -F "=" '/^interface_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
@@ -67,5 +68,7 @@ if [ $en_tel = "Y" ]; then
 	python3 comm_telemetry/db_telemetry_rx.py -i $interface_tel -f $interface_telemetry -p $port_telemetry -m $mode -t yes -a $frametype_tel -c $comm_id &
 fi
 
-echo "DroneBridge-RX: Starting controller module..."
-./control/air/control_rx -n $interface_control -u $interface_MSP -m $mode -c $comm_id &
+if [ $en_control = "Y" ]; then
+	echo "DroneBridge-RX: Starting controller module..."
+	./control/air/control_rx -n $interface_control -u $interface_MSP -m $mode -c $comm_id &
+fi

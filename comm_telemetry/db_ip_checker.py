@@ -27,9 +27,10 @@ class DB_IP_GETTER():
             self.memory = sysv_ipc.SharedMemory(key_smartphone_ip_sm)
 
     def return_smartphone_ip(self):
-        self.sem.acquire()
+        # acquire causes lag. Unsolved for the moment. Might be because of status module
+        #self.sem.acquire()
         ip = str(self.memory.read(key_smartphone_ip_sm).strip(), 'utf-8')
-        self.sem.release()
+        #self.sem.release()
         return ip
 
 

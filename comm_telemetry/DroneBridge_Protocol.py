@@ -65,9 +65,9 @@ class DBProtocol:
         self.comm_sock = self._open_comm_sock()
         if self.comm_direction == TO_DRONE:
             self.android_sock = self._open_android_udpsocket()
+            self.ipgetter = DB_IP_GETTER()
         self.changed = False
         self.signal = 0  # signal quality that is measured [dBm]
-        self.ipgetter = DB_IP_GETTER()
         self.first_run = True
 
     def receive_datafromdrone(self):
@@ -437,8 +437,9 @@ class DBProtocol:
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        address = ('', self.udp_port_smartphone)
-        sock.bind(address)
+        if self.db_port == PORT_COMMUNICATION:
+            address = ('', self.udp_port_smartphone)
+            sock.bind(address)
         sock.setblocking(False)
         print("Done")
         return sock

@@ -89,7 +89,7 @@ def change_settings_db(loaded_json, origin):
             file.flush()
             os.fsync(file.fileno())
     except Exception as ex:
-        print("Error writing wbc settings: "+str(ex))
+        print("Error writing db settings: "+str(ex))
         return False
     return True
 

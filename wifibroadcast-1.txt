@@ -4,7 +4,7 @@
 # ============================================================
 #
 # Desired frequency in MHz
-FREQ=2427
+FREQ=2447
 #
 # Set to "Y" on the RX for auto-scanning. Frequency still has to be set on TX!
 # Feature might be buggy or not work at all!
@@ -57,34 +57,19 @@ CTS_PROTECTION=auto
 # Wifi Datarate. Lower settings yield higher range and vice versa.
 # 1=5.5Mbit, 2=11Mbit, 3=12Mbit, 4=19.5Mbit/18Mbit, 5=24Mbit, 6=36Mbit
 DATARATE=4
-#
-
-#
 
 # set to "auto" for automatic video bitrate measuring. Set to a fixed value to
-
 # disable automatic measuring
-
 VIDEO_BITRATE=auto
 
-#
-
 # if VIDEO_BITRATE above is set to "auto" the videobitrate will be determined
-
 # by measuring the available bitrate and multiplying it with BITRATE_PERCENT
-
 # Depending on channel utilization by other wifi networks you may need to set
-
 # this to a lower value like 60% to avoid a delayed video stream.
-
 # On free channels you may set this to a higher value like 75% to get a higher
-
 # bitrate and thus image quality.
-
 BITRATE_PERCENT=65
-
 #
-
 #
 #
 # Choose between 30, 40, 48, 59.9
@@ -93,7 +78,6 @@ FPS=48
 #
 # FEC SETTINGS
 # max. blocklength Ralink = 2278, Atheros = 1550
-
 # min. sensible blocklength ~ 700
 VIDEO_BLOCKS=8
 VIDEO_FECS=4
@@ -101,7 +85,8 @@ VIDEO_BLOCKLENGTH=1024
 #
 #
 # Telemetry transmission method:
-# db = to be able to use DroneBridge telemetry module for LTM downlink
+# db = to be able to use DroneBridge telemetry module for LTM downlink 
+# --> currently needed for DroneBridge app - make sure you enable the module in DroneBridgeTX.ini and DroneBridgeRX.ini as well!
 # wbc = use wifibroadcast as telemetry up/downlink
 # external = use external means as telemetry up/downlink (LRS or 3DR dongles)
 # if set to external, set serialport to which LRS or 3DR dongle is connected
@@ -112,7 +97,7 @@ TELEMETRY_TRANSMISSION=db
 #
 #
 # Set to "disabled" or "mavlink" for Mavlink (Tower App, Missionplanner, etc.)
-TELEMETRY_UPLINK=mavlink
+TELEMETRY_UPLINK=disabled
 #
 #
 #
@@ -127,10 +112,10 @@ RC=disabled
 # ============================================================
 #
 # Camera image settings
-# V1 cam: 1280x720: 30fps, 48fps. 1920x1080: 30fps
-# V2 cam: 1280x720: 30fps, 48fps, 59.9fps. 1640x922: 30fps, 40fps. 1920x1080: 30fps
-WIDTH=1280
-HEIGHT=720
+# V1 cam: 640x480: 59.9fps, 1280x720: 30fps, 48fps. 1920x1080: 30fps
+# V2 cam: 640x480: 59.9fps, 1280x720: 30fps, 48fps, 59.9fps. 1640x922: 30fps, 40fps. 1920x1080: 30fps
+WIDTH=1296
+HEIGHT=730
 #
 # Lower values mean faster glitch-recovery, but also lower video quality.
 # With fps=48 and keyframerate=5, glitches will stay visible for around 100ms in worst case.
@@ -138,38 +123,33 @@ HEIGHT=720
 KEYFRAMERATE=7
 #
 # Set additional raspivid parameters here
-EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -ex sports -mm average -awb horizon -rot 180"
+EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -ex sports -mm average -awb horizon"
 #
 #
 # Serial port and baudrate (19200 is minimum) to use for the R/C connection between air Pi and flight control
 # Set this to "/dev/serial0" for Pi onboard serial port or  "/dev/ttyUSB0" for USB-to-serial adapter
-FC_RC_SERIALPORT=/dev/ttyACM0
+FC_RC_SERIALPORT=/dev/serial0
 FC_RC_BAUDRATE=115200
 #
 # Serial port and baudrate to use for the telemetry connection between air Pi and flight control
 # Set this to "/dev/serial0" for Pi onboard serial port or  "/dev/ttyUSB0" for USB-to-serial adapter
-FC_TELEMETRY_SERIALPORT=/dev/ttyAMA0
+FC_TELEMETRY_SERIALPORT=/dev/serial0
 FC_TELEMETRY_BAUDRATE=9600
 #
-
 #
-
 # not supported yet, do not change
-
 FC_MSP_SERIALPORT=/dev/ttyUSB0
-
 FC_MSP_BAUDRATE=115200
-
 #
 #
 #
 # RX settings
 # ============================================================
 #
-# set this to "Y" to enable Wifi Hotspot. Default SSID is "EZ-Wifibroadcast", password is "wifibroadcast".
+# set this to "Y" to enable Wifi Hotspot. Default SSID is "DroneBridge", password is "dronebridge".
 # See apconfig.txt for configuration. This will forward the received video and telemetry streams to a
 # smartphone/tablet or computer connected to the RX Pi via WiFi.
-WIFI_HOTSPOT=Y
+WIFI_HOTSPOT=N
 #
 # Set to "internal" to use the interal Pi3 wifi chip or the MAC address of the USB wifi card you want to use
 WIFI_HOTSPOT_NIC=internal

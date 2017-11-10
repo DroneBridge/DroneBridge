@@ -82,13 +82,16 @@ def main():
         #received= b'$TA\x00\x00\x01\x00\xf0\x00\xf1'
         #time.sleep(0.15)
         if received != False:
-            if received[2] == 89:  # int("59", 16)
-                received = dbprotocol.finish_dronebridge_ltmframe(received)
-                # send a beaconframe so drone telemetry can extract signal strength. MSP RSSI over AUX is also a option
-                # Then RSSI field in LTM would be set correctly. But RSSI would be in % which is worse compared to dbm
-                dbprotocol.send_beacon()
-            write_tofifos(received)
-            sent = dbprotocol.sendto_smartphone(received, dbprotocol.LTM_PORT_SMARTPHONE)
-            #print("DB_TX_TEL: Sent "+str(sent)+" bytes to sp")
+            try:
+                if received[2] == 89:  # int("59", 16)
+                    received = dbprotocol.finish_dronebridge_ltmframe(received)
+                    # send a beaconframe so drone telemetry can extract signal strength. MSP RSSI over AUX is also a option
+                    # Then RSSI field in LTM would be set correctly. But RSSI would be in % which is worse compared to dbm
+                    dbprotocol.send_beacon()
+                write_tofifos(received)
+                sent = dbprotocol.sendto_smartphone(received, dbprotocol.LTM_PORT_SMARTPHONE)
+                #print("DB_TX_TEL: Sent "+str(sent)+" bytes to sp")
+            except Exception as e:
+                print(e)
 if __name__ == "__main__":
     main()
