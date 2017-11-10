@@ -15,6 +15,9 @@ To set it up please read the wiki and check out: https://github.com/bortek/EZ-Wi
 
 Corresponding Android App follows during the next days.
 
+
+**Discalmer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals. The pilot is responsible for any harm or damage caused by using the provided software or parts of it.**
+
 <h2>DroneBridge Android App</h2>
 
 Status: Working code. WIP. Soon to be released for beta testing
@@ -45,9 +48,9 @@ Programms for TX (groundstation) and RX (drone) to control the drone (RC link). 
 In monitor mode packets get sent without the use of libpcap using raw interfaces. On the receiving side a BPF (Berkely Packet Filter) is used to only forward dronebridge-control packets to the receiving socket. The code is optimised for minimal system calls and lowest latency possible.
 
 <b>Features:</b>
- - completely tested
+ - tested
  - fast
- - secure and save: 
+ - secure and safe by design: 
    - RX side is a MSP-passthrough. If no packets arrive nothing is sent to FC just like a "real" RC
    - detection of unplugged RC - simple replugging is possible
    - custom ID for every frame sent. Allowing for multiple pilots to control their drones without need for reconfiguration. It is nearly impossible to accendantly control one others drone
@@ -60,6 +63,7 @@ In monitor mode packets get sent without the use of libpcap using raw interfaces
  - SDL not required
  - full XBOX controller support (future release)
 
+Discalmer: Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals. The pilot is responsible for any harm or damage caused by using this software or parts of it.
 
 <h2>Communication Module</h2>
 
