@@ -8,19 +8,18 @@ A wifibroadcast extension to make Betaflight/Cleanflight/iNAV based flight contr
 
 Visit <b>http://wolfgangchristl.de/2017/not-just-another-drone-project/</b> for additional information about the project and its goals
 
-<h2>DroneBridge Beta 0.1 release</h2>
-Get it here: https://github.com/seeul8er/DroneBridge/releases/tag/v0.1
+<h2>DroneBridge Beta 0.2 release - Get it here</h2>
+Get it here: 
+**[Download DroneBridge Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.2)**
+
+**[Download DroneBridge Android App](https://forstudents-my.sharepoint.com/personal/ga25puh_forstudents_onmicrosoft_com/_layouts/15/guestaccess.aspx?docid=06b1ff2fa69744f45921789b52f88d853&authkey=AeCN4yiqgmL06Mq-rO1Lz6Y&expiration=2018-01-31T23%3A00%3A00.000Z&e=7422989d8eee49e28a268767350b10b1)**
 
 To set it up please read the wiki and check out: https://github.com/bortek/EZ-WifiBroadcast/wiki#installation--setup
-
-Corresponding Android App follows during the next days.
 
 
 **Discalmer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals. The pilot is responsible for any harm or damage caused by using the provided software or parts of it.**
 
 <h2>DroneBridge Android App</h2>
-
-Status: Working code. WIP. Soon to be released for beta testing
 
 ![alt text](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app-map-2017-10-29-kleiner.png)
 
