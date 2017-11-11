@@ -76,7 +76,8 @@ Reports Wifibroadcast status to DroneBridge App using a variant ($TZ) of DroneBr
 
 
 <h2>Future Milestones</h2>
- - make DroneBridge more indipendent of WifiBroadcast (video) --> support of esp32 or esp8266 modules to allow integration in existing builds using analog video --> no need for raspberry pi
+
+ - make DroneBridge more indipendent of WifiBroadcast (video) > support of esp32 or esp8266 modules to allow integration in existing builds using analog video > no need for raspberry pi
  - integrate GoPro into project
  - implement a custom USB protocol based on android USB accessory to reduce latency
  - implement VR support. Gimbal and yaw of drone can be controlled by head movement
