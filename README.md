@@ -41,6 +41,7 @@ To set it up please read the wiki and check out: https://github.com/bortek/EZ-Wi
  - switch between GoPro preview and pi cam
  - creation and upload of waypoint missions
  - support for EZgui an mwp planner mission files
+ - MavLink support
  - ...
 
 <h2>Control Module</h2>
@@ -80,7 +81,9 @@ Reports Wifibroadcast status to DroneBridge App using a variant ($TZ) of DroneBr
 
 <h2>Future Milestones</h2>
 
+ - add MavLink telemetry
+ - add MavLink and MSP waypoint missions
  - make DroneBridge more indipendent of WifiBroadcast (video) > support of esp32 or esp8266 modules to allow integration in existing builds using analog video > no need for raspberry pi
  - integrate GoPro into project
- - implement a custom USB protocol based on android USB accessory to reduce latency
+ - implement a custom USB protocol based on android USB accessory so talbets with no sim can connect via USB
  - implement VR support. Gimbal and yaw of drone can be controlled by head movement
