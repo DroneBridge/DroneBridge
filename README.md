@@ -81,6 +81,11 @@ Reports Wifibroadcast status to DroneBridge App using a variant ($TZ) of DroneBr
 
 <h2>Future Milestones</h2>
 
+### Blackbox concept
+Note: MavLink & MSP uplink still missing
+![Blackbox](https://github.com/seeul8er/DroneBridge/blob/master/wiki/Blackbox.png)
+
+### coming up:
  - add MavLink telemetry
  - add MavLink and MSP waypoint missions
  - make DroneBridge more indipendent of WifiBroadcast (video) > support of esp32 or esp8266 modules to allow integration in existing builds using analog video > no need for raspberry pi
