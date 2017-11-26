@@ -4,25 +4,38 @@
 #define RADIOTAP_LENGTH 12
 #define AB80211_LENGTH  24
 #define HEADERBUF_SIZ   14
-#define DATA_LENTH      34      //size of MSPbuf
-#define MSP_CRC_DATA_LENGTH 30
+#define DATA_LENTH      34      // size of MSP v1
+#define DATA_LENTH_V2   37      // size of MSP v2 frame
+#define DATA_UNI_LENGTH 2048	// max payload possible
 #define ETHER_TYPE      0x88ab
 
-#define AB_VERSION          0x01
-#define AB_PORT_CONTROLLER  0x01
-#define AB_PORT_TELEMETRY   0x02
-#define AB_PORT_VIDEO       0x03
-#define AB_DIREC_DRONE      0x01
-#define AB_DIREC_GROUNDST   0x02
+#define DB_VERSION          0x01
+
+#define DB_PORT_CONTROLLER  0x01
+#define DB_PORT_TELEMETRY   0x02
+#define DB_PORT_VIDEO       0x03
+#define DB_PORT_COMM		0x04
+#define DB_PORT_STATUS		0x05
+#define DB_PORT_DBPROXY		0x06
+
+#define DB_DIREC_DRONE      0x01
+#define DB_DIREC_GROUND   	0x02
+
 #define CRC_RC_TO_DRONE     0x06
 
 struct data {
 	uint8_t bytes[DATA_LENTH];
 };
+struct datav2 {
+	uint8_t bytes[DATA_LENTH_V2];
+};
+struct data_uni {
+	uint8_t bytes[DATA_UNI_LENGTH];
+};
 struct radiotap_header {
 	uint8_t bytes[RADIOTAP_LENGTH];
 };
-struct ab_80211_header {
+struct db_80211_header {
 	uint8_t frame_control_field[4];
 	uint8_t odd;
 	uint8_t direction_dstmac;
@@ -35,9 +48,6 @@ struct ab_80211_header {
 	uint8_t crc_bytes;
 	uint8_t undefined[2];
 };
-struct crcdata {
-	uint8_t bytes[MSP_CRC_DATA_LENGTH];
-};
 
 uint8_t radiotap_header_pre[] = {
 
@@ -49,30 +59,13 @@ uint8_t radiotap_header_pre[] = {
 		0x18, 0x00
 };
 
-const uint8_t frame_control_pre[] =
+const uint8_t frame_control_pre_data[] =
 		{
 				0x08, 0x00, 0x00, 0x00
 		};
-uint8_t MSPbuf[] =
+const uint8_t frame_control_pre_beacon[] =
 		{
-				0x24, 0x4d, 0x3c,
-				0x1c,       //size
-				0xc8,
-				0xe8, 0x03, //A
-				0xe8, 0x03, //E
-				0xe8, 0x03, //R
-				0xe8, 0x03, //T
-				0xe8, 0x03, //a1
-				0xe8, 0x03, //a2
-				0xe8, 0x03, //a3
-				0xe8, 0x03, //a4
-				0xe8, 0x03, //a5
-				0xe8, 0x03, //a6
-				0xe8, 0x03, //a7
-				0xe8, 0x03, //a8
-				0xe8, 0x03, //a9
-				0xe8, 0x03, //a10
-				0x00        //crc
+				0x80, 0x00, 0x00, 0x00
 		};
 
 #endif // DB_PROTOCOL_H_INCLUDED

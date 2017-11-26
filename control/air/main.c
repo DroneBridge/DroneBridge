@@ -13,6 +13,7 @@
 #include "db_protocol.h"
 #include <linux/filter.h>   // BPF
 #include <linux/if_packet.h> // sockaddr_ll
+#include "main.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
 #define ETHER_TYPE	0x88ab
@@ -42,7 +43,7 @@ void intHandler(int dummy)
     return buffer;
 }*/
 
-int setBPF(int newsocket, uint8_t new_comm_id[4])
+int setBPF(int newsocket, const uint8_t new_comm_id[4])
 {
     struct sock_filter dest_filter[] =
             {
@@ -71,7 +72,7 @@ int setBPF(int newsocket, uint8_t new_comm_id[4])
     // modify BPF Filter to fit the mac address of wifi card on drone (dst mac)
     uint32_t modded_mac_end = (new_comm_id[0]<<24) | (new_comm_id[1]<<16) | (new_comm_id[2]<<8) | new_comm_id[3];
     dest_filter[11].k = modded_mac_end;
-    printf("DB_CONTROL_RX: BPF comm_ID: %02x\n", modded_mac_end);
+    printf("DB_CONTROL_AIR: BPF comm_ID: %02x\n", modded_mac_end);
 
     struct sock_fprog bpf =
             {
@@ -81,7 +82,7 @@ int setBPF(int newsocket, uint8_t new_comm_id[4])
     int ret = setsockopt(newsocket, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
     if (ret < 0)
     {
-        perror("DB_CONTROL_RX: could not attach BPF: ");
+        perror("DB_CONTROL_AIR: could not attach BPF: ");
         close(newsocket);
         return -1;
     }
@@ -98,7 +99,7 @@ int bindsocket(int newsocket, char the_mode, char new_ifname[IFNAMSIZ])
     bzero(&sll, sizeof(sll));
     if((ioctl(newsocket, SIOCGIFINDEX, &ifr)) == -1)
     {
-        perror("DB_CONTROL_RX: Unable to find interface index");
+        perror("DB_CONTROL_AIR: Unable to find interface index");
         exit(-1);
     }
 
@@ -114,7 +115,7 @@ int bindsocket(int newsocket, char the_mode, char new_ifname[IFNAMSIZ])
     }
     if((bind(newsocket, (struct sockaddr *)&sll, sizeof(sll))) ==-1)
     {
-        perror("DB_CONTROL_RX: bind: ");
+        perror("DB_CONTROL_AIR: bind: ");
         exit(-1);
     }
     return newsocket;
@@ -131,7 +132,7 @@ int setUpNetworkIF(char newifName[IFNAMSIZ], char new_mode, uint8_t mac_drone[6]
     {
         if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETHER_TYPE))) == -1)
         {
-            perror("DB_CONTROL_RX: error in wifi socket setup\n");
+            perror("DB_CONTROL_AIR: error in wifi socket setup\n");
             return -1;
         }
         int flags = fcntl(sockfd,F_GETFL,0);
@@ -143,7 +144,7 @@ int setUpNetworkIF(char newifName[IFNAMSIZ], char new_mode, uint8_t mac_drone[6]
         /* Allow the socket to be reused - incase connection is closed prematurely */
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt) == -1)
         {
-            perror("DB_CONTROL_RX: setsockopt");
+            perror("DB_CONTROL_AIR: setsockopt");
             close(sockfd);
             exit(EXIT_FAILURE);
         }
@@ -152,11 +153,15 @@ int setUpNetworkIF(char newifName[IFNAMSIZ], char new_mode, uint8_t mac_drone[6]
     {
         if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1)
         {
-            perror("DB_CONTROL_RX: error in monitor mode socket setup\n");
+            perror("DB_CONTROL_AIR: error in monitor mode socket setup\n");
             return -1;
         }
         sockfd = setBPF(sockfd, mac_drone);
     }
+    struct timeval tv_timeout;
+    tv_timeout.tv_sec = 0;  /* 30 Secs Timeout */
+    tv_timeout.tv_usec = 250000;  // Not init'ing this can cause strange errors
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv_timeout, sizeof(struct timeval));
     sockfd = bindsocket(sockfd, new_mode, newifName);
     return sockfd;
 }
@@ -168,21 +173,21 @@ int packetisOK()
 }
 
 int determineRadiotapLength(int socket){
-    printf("DB_CONTROL_RX: Waiting for first packet.\n");
+    printf("DB_CONTROL_AIR: Waiting for first packet.\n");
     ssize_t length = recv(socket, buf, BUF_SIZ, 0);
     if (length < 0)
     {
-        printf("DB_CONTROL_RX: Raw socket returned unrecoverable error: %s\n", strerror(errno));
+        printf("DB_CONTROL_AIR: Raw socket returned unrecoverable error: %s\n", strerror(errno));
         return 18; // might be true
     }
     radiotap_length = buf[2] | (buf[3] << 8);
-    printf("DB_CONTROL_RX: Radiotapheader length is %i\n", radiotap_length);
+    printf("DB_CONTROL_AIR: Radiotapheader length is %i\n", radiotap_length);
     return radiotap_length;
 }
 
 int main(int argc, char *argv[])
 {
-    int sockfd, ret, i, c;
+    int socket_receive, socket_send, ret, i, c, frame_type = 1, bitrate_op = 4;
     int sizeetheheader = sizeof(struct ether_header);
     char ifName[IFNAMSIZ];
     char usbIF[IFNAMSIZ];
@@ -194,7 +199,7 @@ int main(int argc, char *argv[])
     strncpy(ifName, DEFAULT_IF, IFNAMSIZ);
     strcpy(usbIF, USB_IF);
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:u:m:c:")) != -1)
+    while ((c = getopt (argc, argv, "n:u:m:c:a:b:")) != -1)
     {
         switch (c)
         {
@@ -210,28 +215,38 @@ int main(int argc, char *argv[])
             case 'c':
                 strncpy(comm_id_Str, optarg, 10);
                 break;
+            case 'a':
+                frame_type = (int) strtol(optarg, NULL, 10);
+                break;
+            case 'b':
+                bitrate_op = (int) strtol(optarg, NULL, 10);
+                break;
             case '?':
                 printf("Invalid commandline arguments. Use "
                                "\n-n <network_IF> "
                                "\n-u <USB_MSP_Interface_TO_FC>"
                                "\n-m [w|m] "
-                               "\n-c <communication_id>");
+                               "\n-c <communication_id>"
+                               "\n-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets"
+                               "\n-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
+                               "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)");
                 break;
             default:
                 abort ();
         }
     }
     sscanf(comm_id_Str, "%2hhx%2hhx%2hhx%2hhx", &comm_id[0], &comm_id[1], &comm_id[2], &comm_id[3]);
-    printf("DB_CONTROL_RX: Interface: %s Communication ID: %02x %02x %02x %02x\n", ifName, comm_id[0], comm_id[1],
+    printf("DB_CONTROL_AIR: Interface: %s Communication ID: %02x %02x %02x %02x\n", ifName, comm_id[0], comm_id[1],
            comm_id[2], comm_id[3]);
 
 // ------------------------------- Setting up Network Interface ----------------------------------
 
     /* Header structures */
-    struct ether_header *eh = (struct ether_header *) buf;
+    //struct ether_header *eh = (struct ether_header *) buf;
     //struct iphdr *iph = (struct iphdr *) (buf + sizeof(struct ether_header));
     //struct udphdr *udph = (struct udphdr *) (buf + sizeof(struct iphdr) + sizeof(struct ether_header));
-    sockfd = setUpNetworkIF(ifName, db_mode, comm_id);
+    socket_receive = setUpNetworkIF(ifName, db_mode, comm_id);
+    socket_send = open_socket_sending(ifName,comm_id, db_mode, bitrate_op, frame_type, DB_DIREC_GROUND);
 
 // ------------------------------- Setting up UART Interface ---------------------------------------
     int USB = -1;
@@ -240,9 +255,9 @@ int main(int argc, char *argv[])
         USB = open(usbIF, O_WRONLY | O_NOCTTY | O_NDELAY);
         if (USB == -1)
         {
-            printf("DB_CONTROL_RX: Error - Unable to open UART.  Ensure it is not in use by another application and the"
+            printf("DB_CONTROL_AIR: Error - Unable to open UART.  Ensure it is not in use by another application and the"
                            " FC is connected\n");
-            printf("DB_CONTROL_RX: retrying ...\n");
+            printf("DB_CONTROL_AIR: retrying ...\n");
             sleep(1);
         }
     }
@@ -258,26 +273,26 @@ int main(int argc, char *argv[])
     tcsetattr(USB, TCSANOW, &options);
 
 // -------------------------------------- Loop ------------------------------------------------------
-    int err, sentbytes;
+    int err, sentbytes, rssi;
     ssize_t length;
     signal(SIGINT, intHandler);
     uint8_t commandBuf[COMMAND_BUF_SIZE];
-    int command_length;
+    int command_length = 0;
 
-    radiotap_length = determineRadiotapLength(sockfd);
-    printf("DB_CONTROL_RX: Starting MSP pass through!\n");
+    radiotap_length = determineRadiotapLength(socket_receive);
+    printf("DB_CONTROL_AIR: Starting MSP/MAVLink pass through!\n");
     while(keepRunning)
     {
-        length = recv(sockfd, buf, BUF_SIZ, 0);
+        length = recv(socket_receive, buf, BUF_SIZ, 0);
         err = errno;
-        if (length < 0)
+        if (length <= 0)
         {
             if (err == EAGAIN)
             {
             }
             else
             {
-                printf("DB_CONTROL_RX: recvfrom returned unrecoverable error(errno=%d)\n", err);
+                printf("DB_CONTROL_AIR: recvfrom returned unrecoverable error(errno=%d)\n", err);
                 return -1;
             }
         }
@@ -292,12 +307,17 @@ int main(int argc, char *argv[])
                 command_length = buf[radiotap_length+19] | (buf[radiotap_length+20] << 8);
                 //printf("payload length: %i\n", command_length);
                 memcpy(commandBuf, &buf[radiotap_length+AB80211_LENGTH], command_length);
+                if (frame_type == 1){
+                    rssi = buf[14];
+                }else{
+                    rssi = buf[30];
+                }
             }
             //for (i=0; i<command_length; i++)
             //    printf("%02x:", commandBuf[i]);
             //printf("\n");
 
-            sentbytes = (int) write(USB, commandBuf, command_length);
+            sentbytes = (int) write(USB, commandBuf, (size_t) command_length);
             tcdrain(USB);
             if (sentbytes > 0)
             {
@@ -313,11 +333,16 @@ int main(int argc, char *argv[])
                 printf(" NOT SENT because of error %s\n", strerror(errsv));
             }
             tcflush(USB, TCIOFLUSH);
+            // TODO: check for response on UART and send to DroneBridge proxy module on groundstation
+        }
+        // TODO: check if it time
+        if (1){
+            send_packet((const uint8_t *) rssi, DB_PORT_STATUS);
         }
     }
 
-    close(sockfd);
+    close(socket_receive);
     close(USB);
-    printf("DB_CONTROL_RX: Sockets closed!\n");
+    printf("DB_CONTROL_AIR: Sockets closed!\n");
     return 1;
 }

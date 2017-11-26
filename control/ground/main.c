@@ -28,13 +28,13 @@ int main(int argc, char *argv[]) {
     char calibrate_comm[500];
     char comm_id[10];
     unsigned char comm_id_bytes[4];
-    int Joy_IF, c, bitrate_op, frame_type, msp_version;
+    int Joy_IF, c, bitrate_op, frame_type, rc_protocol;
     char ab_mode = 'm';
 
     // Command Line processing
     Joy_IF = JOY_INTERFACE;
     frame_type = 1;
-    msp_version = 2;
+    rc_protocol = 2;
     bitrate_op = DEFAULT_BITRATE_OPTION;
     strcpy(comm_id, DEFAULT_COMMID);
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
                 strcpy(calibrate_comm, optarg);
                 break;
             case 'v':
-                msp_version = (int) strtol(optarg, NULL, 10);
+                rc_protocol = (int) strtol(optarg, NULL, 10);
                 break;
             case 'c':
                 strncpy(comm_id, optarg, 10);
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
                                "-j number of joystick interface of RC \n"
                                "-m mode: <w|m> for wifi or monitor\n"
                                "-g a command to calibrate the joystick. Gets executed on initialisation\n"
-                               "-v MSP Version [1|2]: Betaflight/Cleanflight = 1; iNAV = 2 (default) (check the FC docs)\n"
+                               "-v Protocol [1|2|3]: 1 = Betaflight/Cleanflight [MSPv1]; 2 = iNAV (default) [MSPv2]; 3 = MAVLink\n"
                                "-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets\n"
                                "-c the communication ID (same on TX and RX)\n"
                                "-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
@@ -84,9 +84,9 @@ int main(int argc, char *argv[]) {
     }
     sscanf(comm_id, "%2hhx%2hhx%2hhx%2hhx", &comm_id_bytes[0], &comm_id_bytes[1], &comm_id_bytes[2], &comm_id_bytes[3]);
     printf("DB_CONTROL_TX: Interface: %s Communication ID: %02x %02x %02x %02x MSP: v%i\n", ifName, comm_id_bytes[0],
-           comm_id_bytes[1], comm_id_bytes[2], comm_id_bytes[3], msp_version);
+           comm_id_bytes[1], comm_id_bytes[2], comm_id_bytes[3], rc_protocol);
 
-    if (openSocket(ifName, comm_id_bytes, ab_mode, bitrate_op, frame_type, msp_version) > 0) {
+    if (openSocket(ifName, comm_id_bytes, ab_mode, bitrate_op, frame_type, rc_protocol) > 0) {
         printf("DB_CONTROL_TX: Could not open socket\n");
         return -1;
     }

@@ -6,6 +6,6 @@ set(CMAKE_C_FLAGS "-O3")        ## Optimize
 
 set(SOURCE_FILES
         db_protocol.h
-        main.c)
+        main.c ground_communication.c main.h)
 
 add_executable(control_rx ${SOURCE_FILES})

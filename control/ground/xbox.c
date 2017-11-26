@@ -17,99 +17,162 @@
 #define TPLUS           (((500-2000)*MAX+2000*CENTERDEAD)/(CENTERDEAD-MAX))
 #define TMINUS          3000-TPLUS
 
-int xbox_only(SDL_Joystick *joystick){
-    unsigned short JoystickData[8];
+#define MAX 32767
+
+static volatile int keepRunning = 1;
+
+void intHandler(int dummy) {
+    keepRunning = 0;
+}
+
+int initialize_i6S(int new_Joy_IF, char calibrate_comm[]) {
+    int fd;
+    char interface_joystick[500];
+    char path[] = "/dev/input/js";
+    sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
+    printf("DB_CONTROL_TX: Waiting for i6S to be detected on: %s\n", interface_joystick);
+    do {
+        usleep(250);
+        fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
+    } while (fd < 0 && keepRunning);
+    printf("DB_CONTROL_TX: Opened joystick interface!\n");
+    printf("DB_CONTROL_TX: Calibrating...\n");
+    int returnval = system(calibrate_comm);
+    if (returnval == 0) {
+        printf("DB_CONTROL_TX: Calibrated i6S\n");
+    }else{
+        printf("DB_CONTROL_TX: Could not calibrate i6S\n");
+    }
+    return fd;
+}
+
+int xbox_one(SDL_Joystick *joystick){
+    signal(SIGINT, intHandler);
+    unsigned short JoystickData[NUM_CHANNELS];
+
     Uint16 armedValue = 1000;
     bool keepRunning = true, isarmed = false;
     int adjustingArray[] = {250,350,500};
     int AdjustingValue = 500;
     int sensLevel = (sizeof(adjustingArray) / sizeof(int))-1;  //immer mit der kleinsten Sensitivität loslegen
+
     struct timespec tim, tim2;
     tim.tv_sec = 0;
-    tim.tv_nsec = 18181818L; //55Hz
+    tim.tv_nsec = 16666666L; //60Hz
+    //tim.tv_nsec = 10000000L; //100Hz
 
     int a0 = 0, a1 = 0, a2 = 0, a3 = 0, a4 = 0, a5 = 0;
     bool b0 = false, b1 = false, b2 = false, b3 = false, b4 = false, b5 = false, b6 = false;
+    struct js_event {
+        unsigned int time;      /* event timestamp in milliseconds */
+        short value;            /* value */
+        unsigned char type;     /* event type */
+        unsigned char number;   /* axis/button number */
+    };
+    struct xbox_one {
+        int16_t roll;
+        int16_t pitch;
+        int16_t throttle;
+        int16_t yaw;
+        int16_t lt;
+        int16_t rt;
+        int16_t a;
+        int16_t b;
+        int16_t x;
+        int16_t y;
+        int16_t lb;
+        int16_t rb;
+        int16_t start;
+        int16_t back;
+    };
+    int fd = initialize_i6S(Joy_IF, calibrate_comm);
+    struct js_event e;
+    struct xbox_one rc;
+    rc.roll = 0;
+    rc.pitch = 0;
+    rc.throttle = 0;
+    rc.yaw = 0;
+    rc.lt = 0;
+    rc.rt = 0;
+    rc.a = 0;
+    rc.b = 0;
+    rc.x = 0;
+    rc.y = 0;
+    rc.lb = 0;
+    rc.rb = 0;
+    rc.start = 0;
+    rc.back = 0;
 
-    SDL_Event event;
-
-//    struct timeval  tv;
-//    gettimeofday(&tv, NULL);
-//    double begin = (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000;
+    printf("DB_CONTROL_TX: Starting to send commands!\n");
     while(keepRunning)
     {
-        SDL_JoystickUpdate();
-        a0 = SDL_JoystickGetAxis(joystick, 0);
-        a1 = -1*SDL_JoystickGetAxis(joystick, 1);
-        a2 = SDL_JoystickGetAxis(joystick, 2);
-        a3 = SDL_JoystickGetAxis(joystick, 3);
-        a4 = -1*SDL_JoystickGetAxis(joystick, 4);
-        a5 = SDL_JoystickGetAxis(joystick, 5);
-        b0 = SDL_JoystickGetButton(joystick, 0);
-        b1 = SDL_JoystickGetButton(joystick, 1);
-//        b2 = SDL_JoystickGetButton(joystick, 2);
-//        b3 = SDL_JoystickGetButton(joystick, 3);
-        b4 = SDL_JoystickGetButton(joystick, 4);
-        b5 = SDL_JoystickGetButton(joystick, 5);
-//        b6 = SDL_JoystickGetButton(joystick, 6);
-        while(SDL_PollEvent(&event))
+        // TODO: adjust for controller
+        nanosleep(&tim, &tim2);
+        while (read(fd, &e, sizeof(e)) > 0)   // go through all events occurred
         {
-            switch(event.type)
-            {
-            case SDL_JOYHATMOTION:
-                if (event.jhat.value == SDL_HAT_DOWN)
-                {
-                    if(sensLevel>0)
-                    {
-                        sensLevel--;
-                    }
+            e.type &= ~JS_EVENT_INIT; /* ignore synthetic events */
+            if (e.type == JS_EVENT_AXIS) {
+                switch (e.number) {
+                    case 0:
+                        rc.roll = e.value;
+                        break;
+                    case 1:
+                        rc.pitch = e.value;
+                        break;
+                    case 2:
+                        rc.throttle = e.value;
+                        break;
+                    case 3:
+                        rc.yaw = e.value;
+                        break;
+                    case 4:
+                        rc.cam_up = e.value;
+                        break;
+                    case 5:
+                        rc.cam_down = e.value;
+                        break;
+                    default:
+                        break;
                 }
-                else if(event.jhat.value == SDL_HAT_UP)
-                {
-                    if(sensLevel<2)
-                    {
-                        sensLevel++;
-                    }
+            } else if (e.type == JS_EVENT_BUTTON) {
+                switch (e.number) {
+                    case 0:
+                        rc.button0 = e.value;
+                        break;
+                    case 1:
+                        rc.button1 = e.value;
+                        break;
+                    case 2:
+                        rc.button2 = e.value;
+                        break;
+                    case 3:
+                        rc.button3 = e.value;
+                        break;
+                    case 4:
+                        rc.button4 = e.value;
+                        break;
+                    case 5:
+                        rc.button5 = e.value;
+                        break;
+                    default:
+                        break;
                 }
-                break;
-            case SDL_JOYBUTTONUP:
-                if(event.jbutton.button == 7)
-                {
-                    if(isarmed==true)
-                    {
-                        isarmed=false;
-                        armedValue=1000;
-                    }
-                    else
-                    {
-                        isarmed=true;
-                        armedValue=2000;
-                    }
-                }
-                break;
             }
         }
-        nanosleep(&tim , &tim2);
-
+        int myerror = errno;
+        if (myerror != EAGAIN) {
+            if (myerror == ENODEV) {
+                printf("DB_CONTROL_TX: Joystick was unplugged! Retrying...\n");
+                fd = initialize_i6S(Joy_IF, calibrate_comm);
+            } else {
+                printf("DB_CONTROL_TX: Error: %s\n", strerror(myerror));
+            }
+        }
         printf( "%c[;H", 27 );
-//        printf("\n");
-//        printf("Axis 0: %i          \n",a0);    //L-LR
-//        printf("Axis 1: %i          \n",a1);    //L-UD --> Throttle
-//        printf("Axis 2: %i          \n",a2);    //Bremsen
-//        printf("Axis 3: %i          \n",a3);    //R-LR
-//        printf("Axis 4: %i          \n",a4);    //R-UD
-//        printf("Axis 5: %i          \n",a5);    //Beschleunigen
-//        printf("Button 0: %i        \n",b0);    //A
-//        printf("Button 1: %i        \n",b1);    //B
-//        printf("Button 2: %i        \n",b2);    //X
-//        printf("Button 3: %i        \n",b3);    //Y
-//        printf("Button 4: %i        \n",b4);    //LB --> Disconnect
-//        printf("Button 5: %i        \n",b5);    //RB
-//        printf("Button 6: %i        \n",b6);    //ZweiKasten
-//        printf("Button 7: %i        \n",b7);    //Liste ---> engine off
+
         printf("Sensetifity-Level: %i                               \n",sensLevel+1);
         printf("Armed: %i                                           \n",isarmed);
-        if(b0==1)
+        if(rc.a==1)
         {
             if(a1<-32600)
             {
@@ -118,7 +181,7 @@ int xbox_only(SDL_Joystick *joystick){
                 a0=32768;
             }
         }
-        if(b1==1)
+        if(rc.b==1)
         {
             if(a1<-32600)
             {
@@ -128,51 +191,36 @@ int xbox_only(SDL_Joystick *joystick){
             }
         }
 
-        if(b4 == 1 && b5 == 1)
+        if(rc.lb == 1 && rc.rb == 1)
         {
-            keepRunning = false;
+            //keepRunning = false;
         }
 
         //Adjusting Joystick endpositions
-        if(a0==32767) a0++;
-        if(a2==32767) a2++;
-        if(a3==32767) a3++;
-        if(a5==32767) a5++;
-        if(a1==-32767) a1--;
-        if(a4==-32767) a4--;
+        if (rc.roll == 32766) rc.roll++;
+        if (rc.pitch == 32766) rc.pitch++;
+        if (rc.throttle == 32766) rc.throttle++;
+        if (rc.yaw == 32766) rc.yaw++;
 
         AdjustingValue = adjustingArray[sensLevel];
-        JoystickData[0] = normalize_xbox(a3, AdjustingValue, 3);
-        JoystickData[1] = normalize_xbox(a4, AdjustingValue, 4);
-        JoystickData[2] = normalize_xbox(a0, AdjustingValue, 0);
-        JoystickData[3] = normalize_xbox(a1, AdjustingValue, 1);    //a1
-        JoystickData[4] = normalize_xbox(32768, AdjustingValue, 2);    //a2
-        JoystickData[5] = normalize_xbox(a5, AdjustingValue, 5);
-        JoystickData[6] = htons(armedValue);
-        JoystickData[7] = htons(1000);
 
+        JoystickData[0] = htons(normalize_xbox(rc.roll, AdjustingValue, 3););
+        JoystickData[1] = htons(normalize_xbox(rc.pitch, AdjustingValue, 4));
+        JoystickData[2] = htons(normalize_xbox(rc.yaw, AdjustingValue, 0));
+        JoystickData[3] = htons(normalize_xbox(rc.throttle, AdjustingValue, 1));
+        // TODO
+        JoystickData[10] = htons(1000); // unused by i6s - used by app
+        JoystickData[11] = htons(1000); // unused by i6s - used by app
+        JoystickData[12] = htons(1000); // unused by i6s - used by app
+        JoystickData[13] = htons(1000); // unused by i6s - used by app
         sendPacket(JoystickData);
-//            count++;
-//            if(count == 55){
-//                gettimeofday(&tv, NULL);
-//
-//                double end = (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000 ;
-//                printf("Dauer für 55 mal senden: %f ms",end-begin);
-//                keepRunning = false;
-//            }
     }
-    //Used to disconnect all sockets on flight controller (Pi) and remote control
-    unsigned short JoystickData1[] = {htons(1000),htons(1000),htons(1000),
-                                      htons(1000),htons(1000),htons(1000),
-                                      htons(1000),htons(6666)
-                                     };
-    sendPacket(JoystickData1);
+    close(fd);
     closeSocket();
-    SDL_JoystickClose(joystick);
     return 0;
 }
 
-unsigned short normalize_xbox(int value, int adjustingValue, int axis)
+int16_t normalize_xbox(int value, int adjustingValue, int axis)
 {
     int computed = 0;
     if (value<CENTERDEAD && value>CENTERDEADN)
@@ -213,5 +261,5 @@ unsigned short normalize_xbox(int value, int adjustingValue, int axis)
         computed = 1000;
     }
     printf("%i ",computed);
-    return htons(computed);
+    return computed;
 }

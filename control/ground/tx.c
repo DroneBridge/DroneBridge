@@ -12,7 +12,7 @@
 #include "main.h"
 #include "parameter.h"
 
-int sockfd, msp_version;
+int sockfd, rc_protocol;
 struct ifreq if_idx;
 struct ifreq if_mac;
 int tx_len = 0, b = 0;
@@ -26,15 +26,20 @@ struct sockaddr_ll socket_address;
 
 uint8_t monitor_framebuffer[RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH];
 uint8_t monitor_framebuffer_v2[RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH_V2];
+uint8_t monitor_framebuffer_uni[RADIOTAP_LENGTH + AB80211_LENGTH + DATA_UNI_LENGTH];
 
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
 struct radiotap_header *rth_v2 = (struct radiotap_header *) monitor_framebuffer_v2;
+struct radiotap_header *rth_uni = (struct radiotap_header *) monitor_framebuffer_uni;
 
 struct db_80211_header *db802 = (struct db_80211_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
 struct db_80211_header *db802_v2 = (struct db_80211_header *) (monitor_framebuffer_v2 + RADIOTAP_LENGTH);
+struct db_80211_header *db802_uni = (struct db_80211_header *) (monitor_framebuffer_uni + RADIOTAP_LENGTH);
+
 
 struct data *monitor_databuffer = (struct data *) (monitor_framebuffer + RADIOTAP_LENGTH + AB80211_LENGTH);
 struct datav2 *monitor_databuffer_v2 = (struct datav2 *) (monitor_framebuffer_v2 + RADIOTAP_LENGTH + AB80211_LENGTH);
+struct data_uni *monitor_databuffer_uni = (struct data_uni *) (monitor_framebuffer_uni + RADIOTAP_LENGTH + AB80211_LENGTH);
 
 char mode;
 uint8_t crcS2, crc8;
@@ -65,7 +70,7 @@ void set_bitrate(int bitrate_option) {
 int openSocket(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mode, int bitrate_option, int frame_type,
                int new_msp_version) {
     mode = trans_mode;
-    msp_version = new_msp_version;
+    rc_protocol = new_msp_version;
 
     if (trans_mode == 'w') {
         // TODO: ignore. UDP in future
@@ -185,6 +190,17 @@ int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
     db802_v2->crc_bytes = CRC_RC_TO_DRONE;
     db802_v2->undefined[0] = 0x10;
     db802_v2->undefined[1] = 0x86;
+    // Init for universal payload
+    memcpy(db802_v2->comm_id, comm_id, 4);
+    db802_v2->odd = 0x01; // for some (strange?) reason it can not be 0x00 so we make sure
+    db802_v2->direction_dstmac = DB_DIREC_DRONE;
+    memcpy(db802_v2->src_mac_bytes, ((uint8_t *) &if_mac.ifr_hwaddr.sa_data), 6);
+    db802_v2->version_bytes = DB_VERSION;
+    db802_v2->port_bytes = DB_PORT_CONTROLLER;
+    db802_v2->direction_bytes = DB_DIREC_DRONE;
+    db802_v2->crc_bytes = CRC_RC_TO_DRONE;
+    db802_v2->undefined[0] = 0x10;
+    db802_v2->undefined[1] = 0x86;
 
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
@@ -200,7 +216,7 @@ int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
 }
 
 // could do this with two for-loops but hardcoded is faster and number of aux channels won't change anyways
-void generateMSP(unsigned short newJoystickData[NUM_CHANNELS]) {
+void generate_msp(unsigned short *newJoystickData) {
     monitor_databuffer->bytes[0] = 0x24;
     monitor_databuffer->bytes[1] = 0x4d;
     monitor_databuffer->bytes[2] = 0x3c;
@@ -275,7 +291,7 @@ uint8_t crc8_dvb_s2(uint8_t crc, unsigned char a)
     return crc;
 }
 
-void generateMSPV2(unsigned short newJoystickData[NUM_CHANNELS]) {
+void generate_mspv2(unsigned short *newJoystickData) {
     monitor_databuffer_v2->bytes[0] = 0x24;
     monitor_databuffer_v2->bytes[1] = 0x58;
     monitor_databuffer_v2->bytes[2] = 0x3c;
@@ -339,21 +355,28 @@ void generateMSPV2(unsigned short newJoystickData[NUM_CHANNELS]) {
 //    printf("---------");
 }
 
+void generate_mavlink(unsigned short newJoystickData[NUM_CHANNELS]) {
+
+}
+
 int sendPacket(unsigned short contData[]) {
     // TODO check for RC overwrite!
     // There might be a nicer way of doing things but this one is fast and easily added (two different buffers)
-    if (msp_version == 1){
-        generateMSP(contData);
+    if (rc_protocol == 1){
+        generate_msp(contData);
         if (sendto(sockfd, monitor_framebuffer, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH), 0,
                    (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
-            printf("DB_CONTROL_TX: Send failed (monitor): %s\n", strerror(errno));
+            printf("DB_CONTROL_TX: Send failed (monitor mspv1): %s\n", strerror(errno));
         }
-    }else{
-        generateMSPV2(contData);
+    }else if (rc_protocol == 2){
+        generate_mspv2(contData);
         if (sendto(sockfd, monitor_framebuffer_v2, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH_V2), 0,
                    (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
-            printf("DB_CONTROL_TX: Send failed (monitor): %s\n", strerror(errno));
+            printf("DB_CONTROL_TX: Send failed (monitor mspv2): %s\n", strerror(errno));
         }
+    }else{
+        generate_mavlink(contData);
+        // TODO: set db_payload length, send MAVLink
     }
 
     //printf( "%c[;H", 27 );
