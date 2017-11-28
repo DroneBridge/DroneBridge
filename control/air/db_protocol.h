@@ -32,6 +32,9 @@ struct datav2 {
 struct data_uni {
 	uint8_t bytes[DATA_UNI_LENGTH];
 };
+struct data_rc_status_update {
+	int8_t bytes[2];
+};
 struct radiotap_header {
 	uint8_t bytes[RADIOTAP_LENGTH];
 };

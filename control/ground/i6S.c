@@ -27,18 +27,18 @@ int initialize_i6S(int new_Joy_IF, char calibrate_comm[]) {
     char interface_joystick[500];
     char path[] = "/dev/input/js";
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
-    printf("DB_CONTROL_TX: Waiting for i6S to be detected on: %s\n", interface_joystick);
+    printf("DB_CONTROL_GROUND: Waiting for i6S to be detected on: %s\n", interface_joystick);
     do {
         usleep(250);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
     } while (fd < 0 && keepRunning);
-    printf("DB_CONTROL_TX: Opened joystick interface!\n");
-    printf("DB_CONTROL_TX: Calibrating...\n");
+    printf("DB_CONTROL_GROUND: Opened joystick interface!\n");
+    printf("DB_CONTROL_GROUND: Calibrating...\n");
     int returnval = system(calibrate_comm);
     if (returnval == 0) {
-        printf("DB_CONTROL_TX: Calibrated i6S\n");
+        printf("DB_CONTROL_GROUND: Calibrated i6S\n");
     }else{
-        printf("DB_CONTROL_TX: Could not calibrate i6S\n");
+        printf("DB_CONTROL_GROUND: Could not calibrate i6S\n");
     }
     return fd;
 }
@@ -99,7 +99,7 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
 //    struct timeval  tv;
 //    gettimeofday(&tv, NULL);
 //    double begin = (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000;
-    printf("DB_CONTROL_TX: Starting to send commands!\n");
+    printf("DB_CONTROL_GROUND: Starting to send commands!\n");
     while (keepRunning) //send loop
     {
         nanosleep(&tim, &tim2);
@@ -157,10 +157,10 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         int myerror = errno;
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
-                printf("DB_CONTROL_TX: Joystick was unplugged! Retrying...\n");
+                printf("DB_CONTROL_GROUND: Joystick was unplugged! Retrying...\n");
                 fd = initialize_i6S(Joy_IF, calibrate_comm);
             } else {
-                printf("DB_CONTROL_TX: Error: %s\n", strerror(myerror));
+                printf("DB_CONTROL_GROUND: Error: %s\n", strerror(myerror));
             }
         }
         // SWR - Arm switch

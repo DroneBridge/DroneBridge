@@ -1,5 +1,5 @@
 #!/bin/bash
-file=/boot/DroneBridgeTX.ini
+file=/boot/DroneBridgeGround.ini
 mode=$(awk -F "=" '/^mode/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 comm_id=$(awk -F "=" '/^communication_id/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 interface_selection=$(awk -F "=" '/^interface_selection/ {gsub(/[ \t]/, "", $2); print $2}' $file)
@@ -57,29 +57,29 @@ if [ "$DRIVER" == "ath9k_htc" ]; then
     frametype_comm=2
 fi
 
-echo "DroneBridge-TX: Communication ID: $comm_id MSPv $mspversion"
-echo "DroneBridge-TX: Interfaces: Control: $interface_control Telemetry: $interface_tel Video: $interface_video Communication: $interface_comm - Joystick Interface: $joy_interface - Mode: $mode"
-echo "DroneBridge-TX: Frametypes: Control: $frametype_control Telemetry: $frametype_tel Video: $frametype_video Communication: $frametype_comm"
-echo "DroneBridge-TX: calibrating RC using: '$joy_cal'"
+echo "DroneBridge-Ground: Communication ID: $comm_id MSPv $mspversion"
+echo "DroneBridge-Ground: Interfaces: Control: $interface_control Telemetry: $interface_tel Video: $interface_video Communication: $interface_comm - Joystick Interface: $joy_interface - Mode: $mode"
+echo "DroneBridge-Ground: Frametypes: Control: $frametype_control Telemetry: $frametype_tel Video: $frametype_video Communication: $frametype_comm"
+echo "DroneBridge-Ground: calibrating RC using: '$joy_cal'"
 
-echo "DroneBridge-TX: Trying to start individual modules..."
-echo "DroneBridge-TX: Starting ip checker module..."
+echo "DroneBridge-Ground: Trying to start individual modules..."
+echo "DroneBridge-Ground: Starting ip checker module..."
 python3 comm_telemetry/db_ip_checker.py &
 
 if [ $en_comm = "Y" ]; then
-	echo "DroneBridge-TX: Starting communication module..."
-	python3 comm_telemetry/db_comm_tx.py -i $interface_comm -p $port_drone -r $ip_drone -u $port_local_smartphone -m $mode -a $frametype_comm -c $comm_id &
+	echo "DroneBridge-Ground: Starting communication module..."
+	python3 comm_telemetry/db_comm_ground.py -i $interface_comm -p $port_drone -r $ip_drone -u $port_local_smartphone -m $mode -a $frametype_comm -c $comm_id &
 fi
 
-echo "DroneBridge-TX: Starting status module..."
+echo "DroneBridge-Ground: Starting status module..."
 ./status/status &
 
 if [ $en_tel = "Y" ]; then
- echo "DroneBridge-TX: Starting telemetry module..."
- python3 comm_telemetry/db_telemetry_tx.py -i $interface_tel -r $ip_drone -p $port_drone -m $mode -a $frametype_tel -c $comm_id &
+ echo "DroneBridge-Ground: Starting telemetry module..."
+ python3 comm_telemetry/db_telemetry_ground.py -i $interface_tel -r $ip_drone -p $port_drone -m $mode -a $frametype_tel -c $comm_id &
 fi
 
 if [ $en_control = "Y" ]; then
-	echo "DroneBridge-TX: Starting controller module...\n"
-	./control/ground/control_tx -n $interface_control -j $joy_interface -m $mode -v $mspversion -g "$joy_cal" -a $frametype_control -c $comm_id &
+	echo "DroneBridge-Ground: Starting controller module...\n"
+	./control/ground/control_ground -n $interface_control -j $joy_interface -m $mode -v $mspversion -g "$joy_cal" -a $frametype_control -c $comm_id &
 fi

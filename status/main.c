@@ -31,10 +31,11 @@
 
 bool volatile keeprunning = true;
 
-struct DB_LTM_FRAME {
-    uint8_t ident[3];
+struct DB_STATUS_FRAME {
+    uint8_t ident[2];
+    uint8_t message_id;
     uint8_t mode;
-    int8_t cpu_usage;
+    int8_t packetloss_rc;
     int8_t rssi_drone;
     int8_t rssi_ground;
     uint32_t damaged_blocks_wbc;
@@ -55,18 +56,18 @@ wifibroadcast_rx_status_t *status_memory_open() {
         if(fd > 0) {
             break;
         }
-        printf("DB_STATUS_TX: Waiting for rx to be started ...\n");
+        printf("DB_STATUS_GROUND: Waiting for rx to be started ...\n");
         usleep((__useconds_t) 1e5);
     }
 
     if (ftruncate(fd, sizeof(wifibroadcast_rx_status_t)) == -1) {
-        perror("DB_STATUS_TX: ftruncate");
+        perror("DB_STATUS_GROUND: ftruncate");
         exit(1);
     }
 
     void *retval = mmap(NULL, sizeof(wifibroadcast_rx_status_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (retval == MAP_FAILED) {
-        perror("DB_STATUS_TX: mmap");
+        perror("DB_STATUS_GROUND: mmap");
         exit(1);
     }
     return (wifibroadcast_rx_status_t*)retval;
@@ -79,14 +80,14 @@ int main(int argc, char *argv[]) {
     char *myPtr;
     int restarts = 0, fd, shID, i, best_dbm = 0, cardcounter = 0;
     uint8_t counter = 0;
-    struct DB_LTM_FRAME db_ltm_frame;
-    db_ltm_frame.ident[0] = '$';
-    db_ltm_frame.ident[1] = 'T';
-    db_ltm_frame.ident[2] = 'Z';
-    db_ltm_frame.mode = 'm';
-    db_ltm_frame.cpu_usage = 0;
-    db_ltm_frame.rssi_drone = 0;
-    db_ltm_frame.crc = 0x66;
+    struct DB_STATUS_FRAME db_status_frame;
+    db_status_frame.ident[0] = '$';
+    db_status_frame.ident[1] = 'D';
+    db_status_frame.message_id = 1;
+    db_status_frame.mode = 'm';
+    db_status_frame.packetloss_rc = 0;
+    db_status_frame.rssi_drone = 0;
+    db_status_frame.crc = 0x66;
 
     wifibroadcast_rx_status_t *t = status_memory_open();
     int number_cards = t->wifi_adapter_cnt;
@@ -97,17 +98,17 @@ int main(int argc, char *argv[]) {
     remoteServAddr.sin_port = htons(SERVER_PORT);
     fd = socket (AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
-        printf ("DB_STATUS_TX: %s: Unable to open socket \n", strerror(errno));
+        printf ("DB_STATUS_GROUND: %s: Unable to open socket \n", strerror(errno));
         exit (EXIT_FAILURE);
     }
     int broadcast=1;
     if (setsockopt(fd,SOL_SOCKET,SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
-        printf("DB_STATUS_TX: %s",strerror(errno));
+        printf("DB_STATUS_GROUND: %s",strerror(errno));
     }
     char ip_checker_ip[15];
     shID = shmget(IP_SHM_KEY, 15, 0666);
 
-    printf("DB_STATUS_TX: started!");
+    printf("DB_STATUS_GROUND: started!");
     while(keeprunning) {
         counter++;
         // Get IP from IP Checker shared memory segment with key 1111 every 10th time
@@ -127,20 +128,21 @@ int main(int argc, char *argv[]) {
         }
         remoteServAddr.sin_addr.s_addr = inet_addr(ip_checker_ip);
         //printf("%s\n",ip_checker_ip);
+        // TODO: check for incoming RC status message
         best_dbm = -1000;
         for(cardcounter=0; cardcounter<number_cards; ++cardcounter) {
             if (best_dbm < t->adapter[cardcounter].current_signal_dbm) best_dbm = t->adapter[cardcounter].current_signal_dbm;
         }
-        db_ltm_frame.rssi_ground = best_dbm;
-        db_ltm_frame.damaged_blocks_wbc = htonl(t->damaged_block_cnt);
-        db_ltm_frame.lost_packets_wbc = htonl(t->lost_packet_cnt);
-        db_ltm_frame.kbitrate_wbc = htonl(t-> kbitrate);
+        db_status_frame.rssi_ground = best_dbm;
+        db_status_frame.damaged_blocks_wbc = htonl(t->damaged_block_cnt);
+        db_status_frame.lost_packets_wbc = htonl(t->lost_packet_cnt);
+        db_status_frame.kbitrate_wbc = htonl(t-> kbitrate);
         if (t->tx_restart_cnt > restarts) {
             restarts++;
             usleep ((__useconds_t) 1e7);
         }
 
-        sendto (fd, &db_ltm_frame, sizeof(struct DB_LTM_FRAME), 0, (struct sockaddr *) &remoteServAddr,
+        sendto (fd, &db_status_frame, sizeof(struct DB_LTM_FRAME), 0, (struct sockaddr *) &remoteServAddr,
                 sizeof (remoteServAddr));
         usleep((__useconds_t) 2e5); // 5Hz
     }

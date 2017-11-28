@@ -14,7 +14,7 @@ int detect_RC(int new_Joy_IF) {
     char interface_joystick[500];
     char path[] = "/dev/input/js";
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
-    printf("DB_CONTROL_TX: Waiting for a RC to be detected on: %s\n", interface_joystick);
+    printf("DB_CONTROL_GROUND: Waiting for a RC to be detected on: %s\n", interface_joystick);
     do {
         usleep(250);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
                                "-g a command to calibrate the joystick. Gets executed on initialisation\n"
                                "-v Protocol [1|2|3]: 1 = Betaflight/Cleanflight [MSPv1]; 2 = iNAV (default) [MSPv2]; 3 = MAVLink\n"
                                "-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets\n"
-                               "-c the communication ID (same on TX and RX)\n"
+                               "-c the communication ID (same on drone and groundstation)\n"
                                "-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
                                "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)\n");
                 return -1;
@@ -83,11 +83,11 @@ int main(int argc, char *argv[]) {
         }
     }
     sscanf(comm_id, "%2hhx%2hhx%2hhx%2hhx", &comm_id_bytes[0], &comm_id_bytes[1], &comm_id_bytes[2], &comm_id_bytes[3]);
-    printf("DB_CONTROL_TX: Interface: %s Communication ID: %02x %02x %02x %02x MSP: v%i\n", ifName, comm_id_bytes[0],
+    printf("DB_CONTROL_GROUND: Interface: %s Communication ID: %02x %02x %02x %02x MSP: v%i\n", ifName, comm_id_bytes[0],
            comm_id_bytes[1], comm_id_bytes[2], comm_id_bytes[3], rc_protocol);
 
     if (openSocket(ifName, comm_id_bytes, ab_mode, bitrate_op, frame_type, rc_protocol) > 0) {
-        printf("DB_CONTROL_TX: Could not open socket\n");
+        printf("DB_CONTROL_GROUND: Could not open socket\n");
         return -1;
     }
     int sock_fd = detect_RC(Joy_IF);
@@ -95,10 +95,10 @@ int main(int argc, char *argv[]) {
         strncpy(RC_name, "Unknown", sizeof(RC_name));
     close(sock_fd);
     if (strcmp(i6S_descriptor, RC_name) == 0){
-        printf("DB_CONTROL_TX: Choosing i6S-Config\n");
+        printf("DB_CONTROL_GROUND: Choosing i6S-Config\n");
         i6S(Joy_IF, calibrate_comm);
     } else {
-        printf("DB_CONTROL_TX: Your RC \"%s\" is currently not supported. Closing.\n", RC_name);
+        printf("DB_CONTROL_GROUND: Your RC \"%s\" is currently not supported. Closing.\n", RC_name);
     }
     return 0;
 }

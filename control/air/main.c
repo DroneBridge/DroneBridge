@@ -13,6 +13,7 @@
 #include "db_protocol.h"
 #include <linux/filter.h>   // BPF
 #include <linux/if_packet.h> // sockaddr_ll
+#include <sys/time.h>
 #include "main.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
@@ -158,10 +159,6 @@ int setUpNetworkIF(char newifName[IFNAMSIZ], char new_mode, uint8_t mac_drone[6]
         }
         sockfd = setBPF(sockfd, mac_drone);
     }
-    struct timeval tv_timeout;
-    tv_timeout.tv_sec = 0;  /* 30 Secs Timeout */
-    tv_timeout.tv_usec = 250000;  // Not init'ing this can cause strange errors
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv_timeout, sizeof(struct timeval));
     sockfd = bindsocket(sockfd, new_mode, newifName);
     return sockfd;
 }
@@ -170,6 +167,14 @@ int packetisOK()
 {
     // TODO may want to check crc header here
     return 1;
+}
+
+int set_socket_timeout(int socketfd){
+    struct timeval tv_timeout;
+    tv_timeout.tv_sec = 0;
+    tv_timeout.tv_usec = 250000;
+    setsockopt(socketfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv_timeout, sizeof(struct timeval));
+    return socketfd;
 }
 
 int determineRadiotapLength(int socket){
@@ -224,7 +229,7 @@ int main(int argc, char *argv[])
             case '?':
                 printf("Invalid commandline arguments. Use "
                                "\n-n <network_IF> "
-                               "\n-u <USB_MSP_Interface_TO_FC>"
+                               "\n-u <USB_MSP/MAVLink_Interface_TO_FC>"
                                "\n-m [w|m] "
                                "\n-c <communication_id>"
                                "\n-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets"
@@ -273,16 +278,25 @@ int main(int argc, char *argv[])
     tcsetattr(USB, TCSANOW, &options);
 
 // -------------------------------------- Loop ------------------------------------------------------
-    int err, sentbytes, rssi;
+    int err, sentbytes;
+    int8_t rssi = -100;
+    uint8_t packet_count = 0;
     ssize_t length;
     signal(SIGINT, intHandler);
     uint8_t commandBuf[COMMAND_BUF_SIZE];
     int command_length = 0;
+    long start, end, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
+    struct timeval timecheck;
+    struct data_rc_status_update rc_status_update_data;
 
     radiotap_length = determineRadiotapLength(socket_receive);
+    socket_receive = set_socket_timeout(socket_receive);
     printf("DB_CONTROL_AIR: Starting MSP/MAVLink pass through!\n");
     while(keepRunning)
     {
+        gettimeofday(&timecheck, NULL);
+        start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
         length = recv(socket_receive, buf, BUF_SIZ, 0);
         err = errno;
         if (length <= 0)
@@ -292,12 +306,13 @@ int main(int argc, char *argv[])
             }
             else
             {
-                printf("DB_CONTROL_AIR: recvfrom returned unrecoverable error(errno=%d)\n", err);
+                printf("DB_CONTROL_AIR: recv returned unrecoverable error(errno=%d)\n", err);
                 return -1;
             }
         }
         else
         {
+            packet_count++;
             if(db_mode == 'w')
             {
                 // TODO implement wifi mode
@@ -305,7 +320,6 @@ int main(int argc, char *argv[])
             else
             {
                 command_length = buf[radiotap_length+19] | (buf[radiotap_length+20] << 8);
-                //printf("payload length: %i\n", command_length);
                 memcpy(commandBuf, &buf[radiotap_length+AB80211_LENGTH], command_length);
                 if (frame_type == 1){
                     rssi = buf[14];
@@ -321,7 +335,7 @@ int main(int argc, char *argv[])
             tcdrain(USB);
             if (sentbytes > 0)
             {
-                //printf(" and Sent!\n");
+
             }
             else if(sentbytes == 0)
             {
@@ -335,13 +349,19 @@ int main(int argc, char *argv[])
             tcflush(USB, TCIOFLUSH);
             // TODO: check for response on UART and send to DroneBridge proxy module on groundstation
         }
-        // TODO: check if it time
-        if (1){
-            send_packet((const uint8_t *) rssi, DB_PORT_STATUS);
+
+        gettimeofday(&timecheck, NULL);
+        end = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        if ((end-start) >= status_report_update_rate){
+            rc_status_update_data.bytes[0] = rssi;
+            rc_status_update_data.bytes[1] = packet_count;
+            send_packet(rc_status_update_data.bytes, DB_PORT_STATUS);
+            packet_count = 0;
         }
     }
 
     close(socket_receive);
+    close_socket_ground_comm();
     close(USB);
     printf("DB_CONTROL_AIR: Sockets closed!\n");
     return 1;

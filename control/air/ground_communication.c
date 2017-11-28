@@ -22,7 +22,7 @@ struct ifreq if_mac;
 char interfaceName[IFNAMSIZ];
 struct sockaddr_ll socket_address;
 char mode = 'm';
-int fd;
+int socket_ground_comm;
 
 uint8_t monitor_framebuffer_uni[RADIOTAP_LENGTH + AB80211_LENGTH + DATA_UNI_LENGTH];
 struct radiotap_header *rth_uni = (struct radiotap_header *) monitor_framebuffer_uni;
@@ -78,9 +78,9 @@ int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type, uint8_t
     crc8_db_header ^= (db802_uni->payload_length_bytes[0] & 0xFF);
     crc8_db_header ^= (db802_uni->payload_length_bytes[1] & 0xFF);
     db802_uni->crc_bytes = crc8_db_header;
-    if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
+    if (setsockopt(socket_ground_comm, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
         printf("DB_CONTROL_AIR: Error binding monitor socket to interface. Closing socket. Please restart.\n");
-        close(fd);
+        close(socket_ground_comm);
         return 2;
     }
     /* Index of the network device */
@@ -95,7 +95,7 @@ int open_socket_sending(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mo
 
     if (mode == 'w') {
         // TODO: ignore. UDP in future
-        if ((fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
+        if ((socket_ground_comm = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
             perror("DB_CONTROL_AIR: socket");
             return 2;
         }else{
@@ -103,7 +103,7 @@ int open_socket_sending(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mo
         }
 
     } else {
-        if ((fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
+        if ((socket_ground_comm = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
             perror("DB_CONTROL_AIR: socket");
             return 2;
         }else{
@@ -114,14 +114,14 @@ int open_socket_sending(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mo
     /* Get the index of the interface to send on */
     memset(&if_idx, 0, sizeof(struct ifreq));
     strncpy(if_idx.ifr_name, ifName, IFNAMSIZ - 1);
-    if (ioctl(fd, SIOCGIFINDEX, &if_idx) < 0) {
+    if (ioctl(socket_ground_comm, SIOCGIFINDEX, &if_idx) < 0) {
         perror("DB_CONTROL_AIR: SIOCGIFINDEX");
         return -1;
     }
     /* Get the MAC address of the interface to send on */
     memset(&if_mac, 0, sizeof(struct ifreq));
     strncpy(if_mac.ifr_name, ifName, IFNAMSIZ - 1);
-    if (ioctl(fd, SIOCGIFHWADDR, &if_mac) < 0) {
+    if (ioctl(socket_ground_comm, SIOCGIFHWADDR, &if_mac) < 0) {
         perror("DB_CONTROL_AIR: SIOCGIFHWADDR");
         return -1;
     }
@@ -135,14 +135,18 @@ int open_socket_sending(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mo
     }
 }
 
-int send_packet(const uint8_t payload[], const uint8_t dest_port){
+int send_packet(const int8_t payload[], const uint8_t dest_port){
     uint16_t payload_size = sizeof(payload);
     db802_uni->payload_length_bytes[0] = (uint8_t) (payload_size & 0xFF);
     db802_uni->payload_length_bytes[1] = (uint8_t) ((payload_size >> 8) & 0xFF);
     db802_uni->port_bytes = dest_port;
     memcpy(monitor_databuffer_uni->bytes, payload, payload_size);
-    if (sendto(fd, monitor_framebuffer_uni, (size_t) (RADIOTAP_LENGTH + AB80211_LENGTH + payload_size), 0,
+    if (sendto(socket_ground_comm, monitor_framebuffer_uni, (size_t) (RADIOTAP_LENGTH + AB80211_LENGTH + payload_size), 0,
                (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
         printf("DB_CONTROL_AIR: Send failed (monitor): %s\n", strerror(errno));
     }
+}
+
+void close_socket_ground_comm(){
+    close(socket_ground_comm);
 }

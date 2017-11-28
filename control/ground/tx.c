@@ -62,7 +62,7 @@ void set_bitrate(int bitrate_option) {
             radiotap_header_pre[8] = 0x24;
             break;
         default:
-            fprintf(stderr,"DB_CONTROL_TX: Wrong bitrate option\n");
+            fprintf(stderr,"DB_CONTROL_GROUND: Wrong bitrate option\n");
             exit(1);
     }
 
@@ -75,18 +75,18 @@ int openSocket(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mode, int b
     if (trans_mode == 'w') {
         // TODO: ignore. UDP in future
         if ((sockfd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
-            perror("DB_CONTROL_TX: socket");
+            perror("DB_CONTROL_GROUND: socket");
             return 2;
         }else{
-            printf("DB_CONTROL_TX: Opened socket for wifi mode\n");
+            printf("DB_CONTROL_GROUND: Opened socket for wifi mode\n");
         }
 
     } else {
         if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
-            perror("DB_CONTROL_TX: socket");
+            perror("DB_CONTROL_GROUND: socket");
             return 2;
         }else{
-            printf("DB_CONTROL_TX: Opened raw socket for monitor mode\n");
+            printf("DB_CONTROL_GROUND: Opened raw socket for monitor mode\n");
         }
     }
 
@@ -94,19 +94,19 @@ int openSocket(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mode, int b
     memset(&if_idx, 0, sizeof(struct ifreq));
     strncpy(if_idx.ifr_name, ifName, IFNAMSIZ - 1);
     if (ioctl(sockfd, SIOCGIFINDEX, &if_idx) < 0) {
-        perror("DB_CONTROL_TX: SIOCGIFINDEX");
+        perror("DB_CONTROL_GROUND: SIOCGIFINDEX");
         return -1;
     }
     /* Get the MAC address of the interface to send on */
     memset(&if_mac, 0, sizeof(struct ifreq));
     strncpy(if_mac.ifr_name, ifName, IFNAMSIZ - 1);
     if (ioctl(sockfd, SIOCGIFHWADDR, &if_mac) < 0) {
-        perror("DB_CONTROL_TX: SIOCGIFHWADDR");
+        perror("DB_CONTROL_GROUND: SIOCGIFHWADDR");
         return -1;
     }
 
     if (trans_mode == 'w') {
-        printf("DB_CONTROL_TX: Wifi mode is not yet supported!\n");
+        printf("DB_CONTROL_GROUND: Wifi mode is not yet supported!\n");
         return -1;
         //return conf_ethernet(dest_mac);
     } else {
@@ -204,7 +204,7 @@ int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
 
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
-        printf("DB_CONTROL_TX: Error binding monitor socket to interface. Closing socket. Please restart.\n");
+        printf("DB_CONTROL_GROUND: Error binding monitor socket to interface. Closing socket. Please restart.\n");
         close(sockfd);
         return 2;
     }
@@ -366,13 +366,13 @@ int sendPacket(unsigned short contData[]) {
         generate_msp(contData);
         if (sendto(sockfd, monitor_framebuffer, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH), 0,
                    (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
-            printf("DB_CONTROL_TX: Send failed (monitor mspv1): %s\n", strerror(errno));
+            printf("DB_CONTROL_GROUND: Send failed (monitor mspv1): %s\n", strerror(errno));
         }
     }else if (rc_protocol == 2){
         generate_mspv2(contData);
         if (sendto(sockfd, monitor_framebuffer_v2, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH_V2), 0,
                    (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
-            printf("DB_CONTROL_TX: Send failed (monitor mspv2): %s\n", strerror(errno));
+            printf("DB_CONTROL_GROUND: Send failed (monitor mspv2): %s\n", strerror(errno));
         }
     }else{
         generate_mavlink(contData);

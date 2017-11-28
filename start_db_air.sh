@@ -1,5 +1,5 @@
 #!/bin/bash
-file=/boot/DroneBridgeRX.ini
+file=/boot/DroneBridgeAir.ini
 mode=$(awk -F "=" '/^mode/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 comm_id=$(awk -F "=" '/^communication_id/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 interface_selection=$(awk -F "=" '/^interface_selection/ {gsub(/[ \t]/, "", $2); print $2}' $file)
@@ -53,22 +53,22 @@ if [ "$DRIVER" == "ath9k_htc" ]; then
     frametype_comm=2
 fi
 
-echo "DroneBridge-RX: Communication ID: $comm_id"
-echo "DroneBridge-RX: Interfaces: Control: $interface_control Telemetry: $interface_tel Video: $interface_video Communication: $interface_comm - Interface MSP: $interface_MSP - Mode: $mode"
-echo "DroneBridge-RX: Frametypes: Control: $frametype_control Telemetry: $frametype_tel Video: $frametype_video Communication: $frametype_comm"
-echo "DroneBridge-RX: Trying to start individual modules..."
+echo "DroneBridge-Air: Communication ID: $comm_id"
+echo "DroneBridge-Air: Interfaces: Control: $interface_control Telemetry: $interface_tel Video: $interface_video Communication: $interface_comm - Interface MSP: $interface_MSP - Mode: $mode"
+echo "DroneBridge-Air: Frametypes: Control: $frametype_control Telemetry: $frametype_tel Video: $frametype_video Communication: $frametype_comm"
+echo "DroneBridge-Air: Trying to start individual modules..."
 
 if [ $en_comm = "Y" ]; then
-	echo "DroneBridge-RX: Starting communication module..."
-	python3 comm_telemetry/db_comm_rx.py -i $interface_comm -p $port_telemetry -m $mode -a $frametype_comm -c $comm_id &
+	echo "DroneBridge-Air: Starting communication module..."
+	python3 comm_telemetry/db_comm_air.py -i $interface_comm -p $port_telemetry -m $mode -a $frametype_comm -c $comm_id &
 fi
 
 if [ $en_tel = "Y" ]; then
-	echo "DroneBridge-RX: Starting telemetry module..."
-	python3 comm_telemetry/db_telemetry_rx.py -i $interface_tel -f $interface_telemetry -p $port_telemetry -m $mode -t yes -a $frametype_tel -c $comm_id &
+	echo "DroneBridge-Air: Starting telemetry module..."
+	python3 comm_telemetry/db_telemetry_air.py -i $interface_tel -f $interface_telemetry -p $port_telemetry -m $mode -t yes -a $frametype_tel -c $comm_id &
 fi
 
 if [ $en_control = "Y" ]; then
-	echo "DroneBridge-RX: Starting controller module..."
-	./control/air/control_rx -n $interface_control -u $interface_MSP -m $mode -c $comm_id &
+	echo "DroneBridge-Air: Starting controller module..."
+	./control/air/control_air -n $interface_control -u $interface_MSP -m $mode -c $comm_id &
 fi
