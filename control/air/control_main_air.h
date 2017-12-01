@@ -1,5 +1,7 @@
 //
-// Created by Wolfgang Christl on 26.11.17.
+// Created by Wolfgang Christl on 30.11.17.
+// This file is part of DroneBridge
+// https://github.com/seeul8er/DroneBridge
 //
 
 #ifndef CONTROL_RX_MAIN_H

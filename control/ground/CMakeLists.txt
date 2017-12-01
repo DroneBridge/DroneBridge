@@ -7,8 +7,8 @@ set(CMAKE_C_FLAGS "-O3")        ## Optimize
 set(SOURCE_FILES
         db_protocol.h
         i6S.c
-        main.c
-        main.h
+        control_main_ground.c
+        control_main_ground.h
         parameter.h
         tx.c)
 

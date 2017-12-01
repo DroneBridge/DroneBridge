@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 3.5)
-project(status)
+project(status_ground)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_FLAGS "-O3") ## Optimize
-set(SOURCE_FILES status_main.c lib.h wifibroadcast.h db_raw_receive.c db_get_ip.c db_get_ip.h db_raw_receive.h db_protocol.h)
+
+add_subdirectory(../common common_lib)
+set(SOURCE_FILES status_main.c)
+
 add_executable(status ${SOURCE_FILES})
 if(UNIX AND NOT APPLE)
     target_link_libraries(status rt)
 endif()
+target_link_libraries(status common_lib)

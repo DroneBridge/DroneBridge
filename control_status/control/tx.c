@@ -1,3 +1,7 @@
+/**
+ * This file is deprecated! Use db_raw_send.c in the future
+ */
+
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <linux/if_packet.h>
@@ -8,7 +12,7 @@
 #include <net/if.h>
 #include <errno.h>
 #include <stdlib.h>
-#include "db_protocol.h"
+#include "../common/db_protocol.h"
 #include "control_main_ground.h"
 #include "parameter.h"
 
@@ -24,42 +28,66 @@ char interfaceName[IFNAMSIZ];
 //struct data *databuffer = (struct data *) (Framebuf + sizeof(struct ether_header));
 struct sockaddr_ll socket_address;
 
-uint8_t monitor_framebuffer[RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH];
-uint8_t monitor_framebuffer_v2[RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH_V2];
-uint8_t monitor_framebuffer_uni[RADIOTAP_LENGTH + AB80211_LENGTH + DATA_UNI_LENGTH];
+uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB80211_HEADER_LENGTH + DATA_LENTH];
+uint8_t monitor_framebuffer_v2[RADIOTAP_LENGTH + DB80211_HEADER_LENGTH + DATA_LENTH_V2];
+uint8_t monitor_framebuffer_uni_dep[RADIOTAP_LENGTH + DB80211_HEADER_LENGTH + DATA_UNI_LENGTH];
 
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
 struct radiotap_header *rth_v2 = (struct radiotap_header *) monitor_framebuffer_v2;
-struct radiotap_header *rth_uni = (struct radiotap_header *) monitor_framebuffer_uni;
+struct radiotap_header *rth_uni_dep = (struct radiotap_header *) monitor_framebuffer_uni_dep;
 
 struct db_80211_header *db802 = (struct db_80211_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
 struct db_80211_header *db802_v2 = (struct db_80211_header *) (monitor_framebuffer_v2 + RADIOTAP_LENGTH);
-struct db_80211_header *db802_uni = (struct db_80211_header *) (monitor_framebuffer_uni + RADIOTAP_LENGTH);
+struct db_80211_header *db802_uni_dep = (struct db_80211_header *) (monitor_framebuffer_uni_dep + RADIOTAP_LENGTH);
 
 
-struct data *monitor_databuffer = (struct data *) (monitor_framebuffer + RADIOTAP_LENGTH + AB80211_LENGTH);
-struct datav2 *monitor_databuffer_v2 = (struct datav2 *) (monitor_framebuffer_v2 + RADIOTAP_LENGTH + AB80211_LENGTH);
-struct data_uni *monitor_databuffer_uni = (struct data_uni *) (monitor_framebuffer_uni + RADIOTAP_LENGTH + AB80211_LENGTH);
+struct data *monitor_databuffer = (struct data *) (monitor_framebuffer + RADIOTAP_LENGTH + DB80211_HEADER_LENGTH);
+struct datav2 *monitor_databuffer_v2 = (struct datav2 *) (monitor_framebuffer_v2 + RADIOTAP_LENGTH + DB80211_HEADER_LENGTH);
+struct data_uni *monitor_databuffer_uni_dep = (struct data_uni *) (monitor_framebuffer_uni_dep + RADIOTAP_LENGTH + DB80211_HEADER_LENGTH);
 
 char mode;
 uint8_t crcS2, crc8;
 
-void set_bitrate(int bitrate_option) {
+uint8_t radiotap_header_pre_dep[] = {
+
+        0x00, 0x00, // <-- radiotap version
+        0x0c, 0x00, // <- radiotap header length
+        0x04, 0x80, 0x00, 0x00, // <-- bitmap
+        0x24,       // data rate (will be overwritten)
+        0x00,
+        0x18, 0x00
+};
+
+const uint8_t frame_control_pre_data_dep[] =
+        {
+                0x08, 0x00, 0x00, 0x00
+        };
+const uint8_t frame_control_pre_beacon_dep[] =
+        {
+                0x80, 0x00, 0x00, 0x00
+        };
+
+
+/**
+ * Deprecated! Use db_raw_send!
+ * @param bitrate_option
+ */
+void set_bitrate_dep(int bitrate_option) {
     switch (bitrate_option){
         case 1:
-            radiotap_header_pre[8] = 0x05;
+            radiotap_header_pre_dep[8] = 0x05;
             break;
         case 2:
-            radiotap_header_pre[8] = 0x09;
+            radiotap_header_pre_dep[8] = 0x09;
             break;
         case 3:
-            radiotap_header_pre[8] = 0x0c;
+            radiotap_header_pre_dep[8] = 0x0c;
             break;
         case 4:
-            radiotap_header_pre[8] = 0x18;
+            radiotap_header_pre_dep[8] = 0x18;
             break;
         case 5:
-            radiotap_header_pre[8] = 0x24;
+            radiotap_header_pre_dep[8] = 0x24;
             break;
         default:
             fprintf(stderr,"DB_CONTROL_GROUND: Wrong bitrate option\n");
@@ -110,7 +138,7 @@ int openSocket(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mode, int b
         return -1;
         //return conf_ethernet(dest_mac);
     } else {
-        return conf_monitor(comm_id, bitrate_option, frame_type);
+        return conf_monitor_dep(comm_id, bitrate_option, frame_type);
     }
 }
 
@@ -149,19 +177,26 @@ int openSocket(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mode, int b
     return 0;
 }*/
 
-int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
-    memset(monitor_framebuffer, 0, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH));
-    memset(monitor_framebuffer_v2, 0, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH_V2));
-    set_bitrate(bitrate_option);
-    memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
-    memcpy(rth_v2->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
+/**
+ * Deprecated! Use db_raw_send!
+ * @param comm_id
+ * @param bitrate_option
+ * @param frame_type
+ * @return
+ */
+int conf_monitor_dep(uint8_t comm_id[4], int bitrate_option, int frame_type) {
+    memset(monitor_framebuffer, 0, (RADIOTAP_LENGTH + DB80211_HEADER_LENGTH + DATA_LENTH));
+    memset(monitor_framebuffer_v2, 0, (RADIOTAP_LENGTH + DB80211_HEADER_LENGTH + DATA_LENTH_V2));
+    set_bitrate_dep(bitrate_option);
+    memcpy(rth->bytes, radiotap_header_pre_dep, RADIOTAP_LENGTH);
+    memcpy(rth_v2->bytes, radiotap_header_pre_dep, RADIOTAP_LENGTH);
     // build custom DroneBridge 802.11 header
     if (frame_type==1){
-        memcpy(db802->frame_control_field, frame_control_pre_data, 4);
-        memcpy(db802_v2->frame_control_field, frame_control_pre_data, 4);
+        memcpy(db802->frame_control_field, frame_control_pre_data_dep, 4);
+        memcpy(db802_v2->frame_control_field, frame_control_pre_data_dep, 4);
     }else{
-        memcpy(db802->frame_control_field, frame_control_pre_beacon, 4);
-        memcpy(db802_v2->frame_control_field, frame_control_pre_beacon, 4);
+        memcpy(db802->frame_control_field, frame_control_pre_beacon_dep, 4);
+        memcpy(db802_v2->frame_control_field, frame_control_pre_beacon_dep, 4);
     }
     // We init the buffers for MSP v1 and v2 even if we are only using only one of them. Quick and "dirty"
     // init for MSP v1
@@ -174,7 +209,7 @@ int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
     db802->direction_bytes = DB_DIREC_DRONE;
     db802->payload_length_bytes[0] = 0x22; //TODO auto detect = DATA_LENGTH
     db802->payload_length_bytes[1] = 0x00;
-    db802->crc_bytes = CRC_RC_TO_DRONE;
+    db802->crc_bytes = 0x06;
     db802->undefined[0] = 0x10;
     db802->undefined[1] = 0x86;
     // Init for MSP v2
@@ -187,7 +222,7 @@ int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
     db802_v2->direction_bytes = DB_DIREC_DRONE;
     db802_v2->payload_length_bytes[0] = 0x25; //TODO auto detect = DATA_LENGTH_V2 make it htons(int16_t)
     db802_v2->payload_length_bytes[1] = 0x00;
-    db802_v2->crc_bytes = CRC_RC_TO_DRONE;
+    db802_v2->crc_bytes = 0x06;
     db802_v2->undefined[0] = 0x10;
     db802_v2->undefined[1] = 0x86;
     // Init for universal payload
@@ -198,7 +233,7 @@ int conf_monitor(uint8_t comm_id[4], int bitrate_option, int frame_type) {
     db802_v2->version_bytes = DB_VERSION;
     db802_v2->port_bytes = DB_PORT_CONTROLLER;
     db802_v2->direction_bytes = DB_DIREC_DRONE;
-    db802_v2->crc_bytes = CRC_RC_TO_DRONE;
+    db802_v2->crc_bytes = 0x06;
     db802_v2->undefined[0] = 0x10;
     db802_v2->undefined[1] = 0x86;
 
@@ -364,13 +399,13 @@ int sendPacket(unsigned short contData[]) {
     // There might be a nicer way of doing things but this one is fast and easily added (two different buffers)
     if (rc_protocol == 1){
         generate_msp(contData);
-        if (sendto(sockfd, monitor_framebuffer, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH), 0,
+        if (sendto(sockfd, monitor_framebuffer, (RADIOTAP_LENGTH + DB80211_HEADER_LENGTH + DATA_LENTH), 0,
                    (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
             printf("DB_CONTROL_GROUND: Send failed (monitor mspv1): %s\n", strerror(errno));
         }
     }else if (rc_protocol == 2){
         generate_mspv2(contData);
-        if (sendto(sockfd, monitor_framebuffer_v2, (RADIOTAP_LENGTH + AB80211_LENGTH + DATA_LENTH_V2), 0,
+        if (sendto(sockfd, monitor_framebuffer_v2, (RADIOTAP_LENGTH + DB80211_HEADER_LENGTH + DATA_LENTH_V2), 0,
                    (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
             printf("DB_CONTROL_GROUND: Send failed (monitor mspv2): %s\n", strerror(errno));
         }

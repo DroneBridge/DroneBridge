@@ -1,3 +1,9 @@
+//
+// Created by Wolfgang Christl on 30.11.17.
+// This file is part of DroneBridge
+// https://github.com/seeul8er/DroneBridge
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -10,11 +16,11 @@
 #include <termios.h>    // POSIX terminal control definitionss
 #include <fcntl.h>      // File control definitions
 #include <errno.h>      // Error number definitions
-#include "db_protocol.h"
+#include "../common/db_protocol.h"
 #include <linux/filter.h>   // BPF
 #include <linux/if_packet.h> // sockaddr_ll
 #include <sys/time.h>
-#include "main.h"
+#include "control_main_air.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
 #define ETHER_TYPE	0x88ab
@@ -320,7 +326,7 @@ int main(int argc, char *argv[])
             else
             {
                 command_length = buf[radiotap_length+19] | (buf[radiotap_length+20] << 8);
-                memcpy(commandBuf, &buf[radiotap_length+AB80211_LENGTH], command_length);
+                memcpy(commandBuf, &buf[radiotap_length + DB80211_HEADER_LENGTH], command_length);
                 if (frame_type == 1){
                     rssi = buf[14];
                 }else{

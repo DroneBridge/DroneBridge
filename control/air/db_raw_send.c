@@ -1,5 +1,7 @@
 //
-// Created by Wolfgang Christl on 26.11.17.
+// Created by Wolfgang Christl on 30.11.17.
+// This file is part of DroneBridge
+// https://github.com/seeul8er/DroneBridge
 //
 
 #include <sys/socket.h>
@@ -14,8 +16,27 @@
 #include <linux/if_packet.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#include "main.h"
+#include "control_main_air.h"
 #include "db_protocol.h"
+
+uint8_t radiotap_header_pre[] = {
+
+        0x00, 0x00, // <-- radiotap version
+        0x0c, 0x00, // <- radiotap header length
+        0x04, 0x80, 0x00, 0x00, // <-- bitmap
+        0x24,       // data rate (will be overwritten)
+        0x00,
+        0x18, 0x00
+};
+
+const uint8_t frame_control_pre_data[] =
+        {
+                0x08, 0x00, 0x00, 0x00
+        };
+const uint8_t frame_control_pre_beacon[] =
+        {
+                0x80, 0x00, 0x00, 0x00
+        };
 
 struct ifreq if_idx;
 struct ifreq if_mac;
@@ -136,7 +157,7 @@ int open_socket_sending(char ifName[IFNAMSIZ], uint8_t comm_id[4], char trans_mo
 }
 
 int send_packet(const int8_t payload[], const uint8_t dest_port){
-    uint16_t payload_size = sizeof(payload);
+    uint16_t payload_size = sizeof(*payload);
     db802_uni->payload_length_bytes[0] = (uint8_t) (payload_size & 0xFF);
     db802_uni->payload_length_bytes[1] = (uint8_t) ((payload_size >> 8) & 0xFF);
     db802_uni->port_bytes = dest_port;

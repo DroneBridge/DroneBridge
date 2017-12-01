@@ -6,7 +6,7 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <linux/joystick.h>
-#include "main.h"
+#include "control_main_ground.h"
 #include "parameter.h"
 
 int detect_RC(int new_Joy_IF) {

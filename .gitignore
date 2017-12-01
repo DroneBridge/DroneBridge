@@ -17,3 +17,15 @@ comm_telemetry/\.idea/vcs\.xml
 =======
 >>>>>>> Stashed changes
 comm_telemetry/\.idea/
+
+control_status/common/\.idea/
+
+control_status/control/\.idea/
+
+control_status/control/cmake-build-debug/
+
+control_status/status/\.idea/
+
+control_status/status/cmake-build-debug/CMakeFiles/3\.8\.2/
+
+control_status/status/cmake-build-debug/
