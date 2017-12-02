@@ -98,7 +98,7 @@ int bindsocket(int newsocket, char the_mode, char new_ifname[IFNAMSIZ])
     if((ioctl(newsocket, SIOCGIFINDEX, &ifr)) == -1)
     {
         perror("DB_RECEIVE: Unable to find interface index ");
-        exit(-1);
+        return -1;
     }
 
     sll.sll_family = AF_PACKET;
@@ -114,7 +114,7 @@ int bindsocket(int newsocket, char the_mode, char new_ifname[IFNAMSIZ])
     if((bind(newsocket, (struct sockaddr *)&sll, sizeof(sll))) ==-1)
     {
         perror("DB_RECEIVE: bind ");
-        exit(-1);
+        return -1;
     }
     return newsocket;
 }
@@ -155,7 +155,7 @@ int set_socket_timeout(int the_socketfd, int time_out_s ,int time_out_us){
  * @param new_direction packets with what kind of directions (DB_DIREC_DRONE or DB_DIREC_GROUND) are allowed to pass the
  * filter.
  * @param new_port The port of the module using this function. See db_protocol.h (DB_PORT_CONTROLLER, DB_PORT_COMM, ...)
- * @return The socket file descriptor. Socket is bound and has a set BPF filter
+ * @return The socket file descriptor. Socket is bound and has a set BPF filter. Returns -1 if we screwed up.
  */
 int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id[6], uint8_t new_direction,
                         uint8_t new_port)

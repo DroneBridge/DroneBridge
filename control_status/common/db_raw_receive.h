@@ -10,8 +10,6 @@
 #include <stdint.h>
 #include <net/if.h>
 
-int setBPF(int newsocket, const uint8_t new_comm_id[4], uint8_t direction, uint8_t port);
-int bindsocket(int newsocket, char the_mode, char new_ifname[IFNAMSIZ]);
 int set_socket_nonblocking(int the_socket);
 int set_socket_timeout(int the_socketfd, int time_out_s ,int time_out_us);
 int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id[6], uint8_t new_direction,

@@ -9,9 +9,5 @@
 #define JOY_INTERFACE           0
 //#define DEFAULT_IF      "wlx18a6f716a511"   // TP-Link
 #define DEFAULT_IF      "wlx000ee8dcaa2c"   // Zioncom
-#define DEFAULT_COMMID  "aabbccdd"
-
-#define DEFAULT_i6S_CALIBRATION     "jscal -s 6,1,0,125,125,4329472,4194176,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,120,120,4511382,4036500 /dev/input/js0"
-#define i6S_descriptor              "Flysky FS-i6S emulator"
 
 #endif // PARAMETER_H_INCLUDED

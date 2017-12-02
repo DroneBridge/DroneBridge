@@ -9,13 +9,12 @@ add_subdirectory(../common common_lib)
 set(SOURCE_FILES_CONTROL_GROUND
         i6S.c
         control_main_ground.c
-        control_main_ground.h
         parameter.h
-        tx.c)
+        tx.h
+        i6S.h tx.c)
 
 set(SOURCE_FILES_CONTROL_AIR
-        control_main_air.c
-        control_main_air.h)
+        control_main_air.c)
 
 add_executable(control_ground ${SOURCE_FILES_CONTROL_GROUND})
 target_link_libraries(control_ground common_lib)

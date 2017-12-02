@@ -12,8 +12,11 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <linux/joystick.h>
-#include "control_main_ground.h"
 #include "parameter.h"
+#include "../common/db_protocol.h"
+#include "i6S.h"
+#include "../common/db_raw_send.h"
+#include "tx.h"
 
 int detect_RC(int new_Joy_IF) {
     int fd;
@@ -29,13 +32,13 @@ int detect_RC(int new_Joy_IF) {
 }
 
 int main(int argc, char *argv[]) {
-    atexit(closeSocket);
+    atexit(close_socket_send);
     char ifName[IFNAMSIZ], RC_name[128];
     char calibrate_comm[500];
     char comm_id[10];
     unsigned char comm_id_bytes[4];
     int Joy_IF, c, bitrate_op, frame_type, rc_protocol;
-    char ab_mode = 'm';
+    char db_mode = 'm';
 
     // Command Line processing
     Joy_IF = JOY_INTERFACE;
@@ -55,7 +58,7 @@ int main(int argc, char *argv[]) {
                 Joy_IF = (int) strtol(optarg, NULL, 10);
                 break;
             case 'm':
-                ab_mode = *optarg;
+                db_mode = *optarg;
                 break;
             case 'b':
                 bitrate_op = (int) strtol(optarg, NULL, 10);
@@ -92,14 +95,15 @@ int main(int argc, char *argv[]) {
     printf("DB_CONTROL_GROUND: Interface: %s Communication ID: %02x %02x %02x %02x MSP: v%i\n", ifName, comm_id_bytes[0],
            comm_id_bytes[1], comm_id_bytes[2], comm_id_bytes[3], rc_protocol);
 
-    if (openSocket(ifName, comm_id_bytes, ab_mode, bitrate_op, frame_type, rc_protocol) > 0) {
+    if (open_socket_sending(ifName, comm_id_bytes, db_mode, bitrate_op, frame_type, DB_DIREC_DRONE) < 0) {
         printf("DB_CONTROL_GROUND: Could not open socket\n");
-        return -1;
+        exit(-1);
     }
+    conf_rc_protocol(rc_protocol);
     int sock_fd = detect_RC(Joy_IF);
     if (ioctl(sock_fd, JSIOCGNAME(sizeof(RC_name)), RC_name) < 0)
         strncpy(RC_name, "Unknown", sizeof(RC_name));
-    close(sock_fd);
+    close(sock_fd); // We reopen in the RC specific file. Only opened in here to get the name of the controller
     if (strcmp(i6S_descriptor, RC_name) == 0){
         printf("DB_CONTROL_GROUND: Choosing i6S-Config\n");
         i6S(Joy_IF, calibrate_comm);
@@ -108,5 +112,3 @@ int main(int argc, char *argv[]) {
     }
     return 0;
 }
-
-

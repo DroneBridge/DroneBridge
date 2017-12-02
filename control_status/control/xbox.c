@@ -46,6 +46,50 @@ int initialize_i6S(int new_Joy_IF, char calibrate_comm[]) {
     return fd;
 }
 
+int16_t normalize_xbox(int value, int adjustingValue, int axis)
+{
+    int computed = 0;
+    if (value<CENTERDEAD && value>CENTERDEADN)
+    {
+        computed = 1500;
+    }
+    else
+    {
+        if(axis == 1)       //Throttle value should not be adjusted from 1500 to 1000 in order to reach 1000 for landing
+        {
+            if (value>0)
+            {
+                computed = ((adjustingValue*value)/DELTAX)+TPLUS;
+            }
+            else
+            {
+                computed = ((500*value)/DELTAX)+TMINUS;
+            }
+        }
+        else
+        {
+            if (value>0)
+            {
+                computed = ((adjustingValue*value)/DELTAX)+TPLUS;
+            }
+            else
+            {
+                computed = ((adjustingValue*value)/DELTAX)+TMINUS;
+            }
+        }
+    }
+    if (computed==1999)
+    {
+        computed = 2000;
+    }
+    else if(computed==1001)
+    {
+        computed = 1000;
+    }
+    printf("%i ",computed);
+    return computed;
+}
+
 int xbox_one(SDL_Joystick *joystick){
     signal(SIGINT, intHandler);
     unsigned short JoystickData[NUM_CHANNELS];
@@ -213,53 +257,9 @@ int xbox_one(SDL_Joystick *joystick){
         JoystickData[11] = htons(1000); // unused by i6s - used by app
         JoystickData[12] = htons(1000); // unused by i6s - used by app
         JoystickData[13] = htons(1000); // unused by i6s - used by app
-        sendPacket(JoystickData);
+        send_rc_packet(JoystickData);
     }
     close(fd);
     closeSocket();
     return 0;
-}
-
-int16_t normalize_xbox(int value, int adjustingValue, int axis)
-{
-    int computed = 0;
-    if (value<CENTERDEAD && value>CENTERDEADN)
-    {
-        computed = 1500;
-    }
-    else
-    {
-        if(axis == 1)       //Throttle value should not be adjusted from 1500 to 1000 in order to reach 1000 for landing
-        {
-            if (value>0)
-            {
-                computed = ((adjustingValue*value)/DELTAX)+TPLUS;
-            }
-            else
-            {
-                computed = ((500*value)/DELTAX)+TMINUS;
-            }
-        }
-        else
-        {
-            if (value>0)
-            {
-                computed = ((adjustingValue*value)/DELTAX)+TPLUS;
-            }
-            else
-            {
-                computed = ((adjustingValue*value)/DELTAX)+TMINUS;
-            }
-        }
-    }
-    if (computed==1999)
-    {
-        computed = 2000;
-    }
-    else if(computed==1001)
-    {
-        computed = 1000;
-    }
-    printf("%i ",computed);
-    return computed;
 }

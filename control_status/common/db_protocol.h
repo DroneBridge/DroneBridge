@@ -4,19 +4,22 @@
 // https://github.com/seeul8er/DroneBridge
 //
 
+#include <stdint.h>
+
 #ifndef DB_PROTOCOL_H_INCLUDED
 #define DB_PROTOCOL_H_INCLUDED
 
 #define RADIOTAP_LENGTH         12
-#define DB80211_HEADER_LENGTH  24
+#define DB80211_HEADER_LENGTH   24
 #define HEADERBUF_SIZ           14
-#define DATA_LENTH              34      // size of MSP v1
-#define DATA_LENTH_V2           37      // size of MSP v2 frame
+#define MSP_DATA_LENTH          34      // size of MSP v1
+#define MSP_V2_DATA_LENTH       37      // size of MSP v2 frame
 #define DATA_UNI_LENGTH         2048	// max frame length
 #define ETHER_TYPE              0x88ab
 
 #define DEFAULT_DB_MODE         'm'
 #define DEFAULT_DB_IF           "18a6f716a511"
+#define DEFAULT_COMMID  		"aabbccdd"
 
 #define DB_VERSION          0x01
 
@@ -27,20 +30,14 @@
 #define DB_PORT_STATUS		0x05
 #define DB_PORT_DBPROXY		0x06
 
-#define DB_DIREC_DRONE      0x01 // packet to for drone
-#define DB_DIREC_GROUND   	0x02 // packet to for groundstation
+#define DB_DIREC_DRONE      0x01 // packet to/for drone
+#define DB_DIREC_GROUND   	0x02 // packet to/for groundstation
 
 #define APP_PORT_STATUS     1608
 #define APP_PORT_COMM       1603
 #define APP_PORT_TELEMETRY  1604 // accepts MAVLink and LTM telemetry messages. Non MAVLink telemetry messages get rerouted internally to 1607
 #define APP_PORT_MSPMAVLINK 1607 // use this port for all non telemetry MAVLink messages and all MSP messages
 
-struct data {
-	uint8_t bytes[DATA_LENTH];
-};
-struct datav2 {
-	uint8_t bytes[DATA_LENTH_V2];
-};
 struct data_uni {
 	uint8_t bytes[DATA_UNI_LENGTH];
 };

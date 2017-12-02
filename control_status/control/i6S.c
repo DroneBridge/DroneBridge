@@ -7,8 +7,9 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <errno.h>
-#include "control_main_ground.h"
 #include "parameter.h"
+#include "tx.h"
+#include "../common/db_raw_send.h"
 
 #define JS_EVENT_BUTTON         0x01    /* button pressed/released */
 #define JS_EVENT_AXIS           0x02    /* joystick moved */
@@ -22,6 +23,12 @@ void intHandler(int dummy) {
     keepRunning = 0;
 }
 
+/**
+ * Look for the i6S controller on the given interface. Reinitialize if it was unplugged.
+ * @param new_Joy_IF Number of the joystick interface
+ * @param calibrate_comm The command to be executed to calibrate the i6S
+ * @return The file descriptor
+ */
 int initialize_i6S(int new_Joy_IF, char calibrate_comm[]) {
     int fd;
     char interface_joystick[500];
@@ -42,6 +49,17 @@ int initialize_i6S(int new_Joy_IF, char calibrate_comm[]) {
     }
     return fd;
 }
+
+/**
+ * Transform the values read from the RC to values between 1000 and 2000
+ * @param value The value read from the interface
+ * @param adjustingValue A extra value that might add extra exponential behavior to the sticks etc.
+ * @return 1000<=return_value<=2000
+ */
+int16_t normalize_i6S(int16_t value, int16_t adjustingValue) {
+    return ((adjustingValue * value) / MAX) + 1500;
+}
+
 
 int i6S(int Joy_IF, char calibrate_comm[]) {
     signal(SIGINT, intHandler);
@@ -216,7 +234,7 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         JoystickData[11] = htons(1000); // unused by i6s - used by app
         JoystickData[12] = htons(1000); // unused by i6s - used by app
         JoystickData[13] = htons(1000); // unused by i6s - used by app
-        sendPacket(JoystickData);
+        send_rc_packet(JoystickData);
 //            count++;
 //            if(count == 120){
 //                gettimeofday(&tv, NULL);
@@ -227,10 +245,6 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
 //            }
     }
     close(fd);
-    closeSocket();
+    close_socket_send();
     return 0;
-}
-
-int16_t normalize_i6S(int16_t value, int16_t adjustingValue) {
-    return ((adjustingValue * value) / MAX) + 1500;
 }
