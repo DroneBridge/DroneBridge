@@ -32,9 +32,9 @@
 
 bool volatile keeprunning = true;
 char if_name[IFNAMSIZ];
-char comm_id_str[10], db_mode;
-uint8_t comm_id[4];
-int c;
+char db_mode;
+uint8_t comm_id;
+int c, comm_id_num = DEFAULT_V2_COMMID;
 // TODO: get RC send rate from control module
 float rc_send_rate = 60; // [packets/s]
 
@@ -82,21 +82,18 @@ int process_command_line_args(int argc, char *argv[]){
                 db_mode = *optarg;
                 break;
             case 'c':
-                strncpy(comm_id_str, optarg, 10);
+                comm_id_num = (int) strtol(optarg, NULL, 10);
                 break;
             case '?':
                 printf("This tool sends extra information about the video stream and RC via UDP to port %i. Use "
                                "\n-n <network_IF> "
                                "\n-m [w|m] "
-                               "\n-c <communication_id>", APP_PORT_STATUS);
+                               "\n-c <communication_id> choose 0-255", APP_PORT_STATUS);
                 break;
             default:
                 abort ();
         }
     }
-    sscanf(comm_id_str, "%2hhx%2hhx%2hhx%2hhx", &comm_id[0], &comm_id[1], &comm_id[2], &comm_id[3]);
-    printf("DB_STATUS_GROUND: Interface: %s Communication ID: %02x %02x %02x %02x\n", if_name, comm_id[0], comm_id[1],
-           comm_id[2], comm_id[3]);
 }
 
 int main(int argc, char *argv[]) {
@@ -114,6 +111,7 @@ int main(int argc, char *argv[]) {
     db_status_frame.packetloss_rc = 0;
     db_status_frame.rssi_drone = 0;
     db_status_frame.crc = 0x66;
+    comm_id = (uint8_t) comm_id_num;
 
     process_command_line_args(argc, argv);
     // open wbc rx status shared memory
@@ -159,9 +157,9 @@ int main(int argc, char *argv[]) {
             // message_length = lr_buffer[radiotap_length+19] | (lr_buffer[radiotap_length+20] << 8);
             // process payload (currently only one type of raw status frame is supported: RC_AIR --> STATUS_GROUND)
             // must be a data_rc_status_update
-            db_status_frame.rssi_drone = lr_buffer[radiotap_length + DB80211_HEADER_LENGTH];
+            db_status_frame.rssi_drone = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH];
             db_status_frame.packetloss_rc = (uint8_t) (
-                    (1 - (lr_buffer[radiotap_length + DB80211_HEADER_LENGTH + 1] / rc_send_rate)) * 100);
+                    (1 - (lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1] / rc_send_rate)) * 100);
         }
 
         best_dbm = -1000;

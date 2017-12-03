@@ -20,8 +20,7 @@
 #include "../common/db_raw_send.h"
 #include "../common/db_raw_receive.h"
 
-#define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
-#define ETHER_TYPE	0x88ab
+#define ETHER_TYPE	    0x88ab
 #define DEFAULT_IF      "18a6f716a511"
 #define USB_IF          "/dev/ttyACM0"
 #define BUF_SIZ		                512 // should be enought?!
@@ -160,9 +159,9 @@ int main(int argc, char *argv[])
     long start, end, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
     struct timeval timecheck;
 
-    // create our data pointer directly inside the buffer (monitor_framebuffer_uni) that is sent over the socket
+    // create our data pointer directly inside the buffer (monitor_framebuffer) that is sent over the socket
     struct data_rc_status_update *rc_status_update_data = (struct data_rc_status_update *)
-            (monitor_framebuffer_uni + RADIOTAP_LENGTH + DB80211_HEADER_LENGTH);
+            (monitor_framebuffer + RADIOTAP_LENGTH + DATA_UNI_LENGTH);
 
     radiotap_length = determineRadiotapLength(socket_receive);
     socket_receive = set_socket_timeout(socket_receive, 0, 250000);
@@ -194,17 +193,14 @@ int main(int argc, char *argv[])
             }
             else
             {
-                command_length = buf[radiotap_length+19] | (buf[radiotap_length+20] << 8);
-                memcpy(commandBuf, &buf[radiotap_length + DB80211_HEADER_LENGTH], command_length);
+                command_length = buf[radiotap_length+7] | (buf[radiotap_length+8] << 8); // ready for v2
+                memcpy(commandBuf, &buf[radiotap_length + MSP_V2_DATA_LENGTH], command_length);
                 if (frame_type == 1){
                     rssi = buf[14];
                 }else{
                     rssi = buf[30];
                 }
             }
-            //for (i=0; i<command_length; i++)
-            //    printf("%02x:", commandBuf[i]);
-            //printf("\n");
 
             sentbytes = (int) write(USB, commandBuf, (size_t) command_length);
             tcdrain(USB);

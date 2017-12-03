@@ -24,16 +24,16 @@
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
 
 /**
- * Set a BPF filter on the socket (DroneBridge raw protocol v1)
+ * Set a BPF filter on the socket (DroneBridge raw protocol v2)
  * @param newsocket The socket file descriptor on which the BPF filter should be set
  * @param new_comm_id The communication ID that we filter for
- * @param direction packets with what kind of directions (DB_DIREC_DRONE or DB_DIREC_GROUND) are allowed to pass the filter
+ * @param direction packets with what kind of directions (DB_DIREC_DRONE or DB_V2_DIREC_GROUND) are allowed to pass the filter
  * @param port The port of the module using this function. See db_protocol.h (DB_PORT_CONTROLLER, DB_PORT_COMM, ...)
  * @return The socket with set BPF filter
  */
-int setBPF(int newsocket, const uint8_t new_comm_id[4], uint8_t direction, uint8_t port)
+int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t port)
 {
-    uint8_t db_version = 0x01;
+    // TODO: make BPF ready for db raw v2
     struct sock_filter dest_filter[] =
             {
                     { 0x30,  0,  0, 0x00000003 },
@@ -45,7 +45,7 @@ int setBPF(int newsocket, const uint8_t new_comm_id[4], uint8_t direction, uint8
                     { 0x07,  0,  0, 0000000000 },
                     { 0x50,  0,  0, 0000000000 },
                     { 0x45,  1,  0, 0x00000008 }, // allow data frames
-                    { 0x45,  0,  9, 0x00000080 }, // allow beacon frames
+                    { 0x45,  0,  9, 0x000000b4 }, // allow rts frames
                     { 0x40,  0,  0, 0x00000006 },
                     { 0x15,  0,  7, 0x33445566 }, // comm_id 0xaabbccdd (overwritten)
                     { 0x48,  0,  0, 0x00000004 },
@@ -62,7 +62,6 @@ int setBPF(int newsocket, const uint8_t new_comm_id[4], uint8_t direction, uint8
     // modify BPF Filter to fit the comm id
     dest_filter[11].k = (new_comm_id[0]<<24) | (new_comm_id[1]<<16) | (new_comm_id[2]<<8) | new_comm_id[3];
     dest_filter[13].k = (uint32_t) ((0x00 << 24) | (0x00 << 16) | (0x01 << 8) | direction);
-    dest_filter[15].k = (uint32_t) ((0x00 << 24) | (0x00 << 16) | (db_version << 8) | port);
     dest_filter[17].k = (uint32_t) direction;
 
     struct sock_fprog bpf =
@@ -157,7 +156,7 @@ int set_socket_timeout(int the_socketfd, int time_out_s ,int time_out_us){
  * @param new_port The port of the module using this function. See db_protocol.h (DB_PORT_CONTROLLER, DB_PORT_COMM, ...)
  * @return The socket file descriptor. Socket is bound and has a set BPF filter. Returns -1 if we screwed up.
  */
-int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id[6], uint8_t new_direction,
+int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id, uint8_t new_direction,
                         uint8_t new_port)
 {
     int sockfd, sockopt;

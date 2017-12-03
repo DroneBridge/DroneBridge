@@ -10,16 +10,16 @@
 #define DB_PROTOCOL_H_INCLUDED
 
 #define RADIOTAP_LENGTH         12
-#define DB80211_HEADER_LENGTH   24
-#define HEADERBUF_SIZ           14
+#define DB_RAW_V2_HEADER_LENGTH 10
+
 #define MSP_DATA_LENTH          34      // size of MSP v1
-#define MSP_V2_DATA_LENTH       37      // size of MSP v2 frame
+#define MSP_V2_DATA_LENGTH       37      // size of MSP v2 frame
 #define DATA_UNI_LENGTH         2048	// max frame length
 #define ETHER_TYPE              0x88ab
 
 #define DEFAULT_DB_MODE         'm'
 #define DEFAULT_DB_IF           "18a6f716a511"
-#define DEFAULT_COMMID  		"aabbccdd"
+#define DEFAULT_V2_COMMID		0x01
 
 #define DB_VERSION          0x01
 
@@ -29,9 +29,10 @@
 #define DB_PORT_COMM		0x04
 #define DB_PORT_STATUS		0x05
 #define DB_PORT_DBPROXY		0x06
+#define DB_PORT_RC			0x07
 
 #define DB_DIREC_DRONE      0x01 // packet to/for drone
-#define DB_DIREC_GROUND   	0x02 // packet to/for groundstation
+#define DB_DIREC_GROUND   	0x03 // packet to/for groundstation
 
 #define APP_PORT_STATUS     1608
 #define APP_PORT_COMM       1603
@@ -47,6 +48,7 @@ struct data_rc_status_update {
 struct radiotap_header {
 	uint8_t bytes[RADIOTAP_LENGTH];
 };
+// DroneBridge raw protocol v1 header (deprecated)
 struct db_80211_header {
 	uint8_t frame_control_field[4];
 	uint8_t odd;
@@ -59,6 +61,15 @@ struct db_80211_header {
 	uint8_t payload_length_bytes[2];
 	uint8_t crc_bytes;
 	uint8_t undefined[2];
+};
+// DroneBridge raw protocol v2 header
+struct db_raw_v2_header {
+	uint8_t fcf_duration[4];
+	uint8_t direction;
+	uint8_t comm_id;
+	uint8_t port;
+	uint8_t payload_length[2];
+	uint8_t seq_num;
 };
 
 struct DB_STATUS_FRAME {

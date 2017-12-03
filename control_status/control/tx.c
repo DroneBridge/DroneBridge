@@ -18,7 +18,7 @@ char mode;
 uint8_t crcS2, crc8;
 
 // pointing right into the sockets send buffer for max performance
-struct data_uni *monitor_databuffer = (struct data_uni *) (monitor_framebuffer_uni + RADIOTAP_LENGTH + DB80211_HEADER_LENGTH);
+struct data_uni *monitor_databuffer = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + MSP_V2_DATA_LENGTH);
 
 // could do this with two for-loops but hardcoded is faster and number of aux channels won't change anyways
 void generate_msp(unsigned short *newJoystickData) {
@@ -149,7 +149,11 @@ void generate_mspv2(unsigned short *newJoystickData) {
 }
 
 void generate_mavlink_v1(unsigned short newJoystickData[NUM_CHANNELS]) {
+    // TODO
+}
 
+void generate_db_rc_packet(unsigned short new_joystick_data[NUM_CHANNELS]){
+    // TODO
 }
 
 /**
@@ -170,10 +174,10 @@ int send_rc_packet(unsigned short contData[]) {
     // TODO check for RC overwrite!
     if (rc_protocol == 1){
         generate_msp(contData);
-        send_packet_hp(DB_PORT_CONTROLLER, MSP_DATA_LENTH);
+        send_packet_hp(DB_PORT_CONTROLLER, MSP_DATA_LENTH); // TODO: DB_PORT_RC
     }else if (rc_protocol == 2){
         generate_mspv2(contData);
-        send_packet_hp(DB_PORT_CONTROLLER, MSP_V2_DATA_LENTH);
+        send_packet_hp(DB_PORT_CONTROLLER, MSP_V2_DATA_LENGTH); // TODO: DB_PORT_RC
     }else if (rc_protocol == 3){
         generate_mavlink_v1(contData);
         // TODO: set db_payload length, send MAVLink
