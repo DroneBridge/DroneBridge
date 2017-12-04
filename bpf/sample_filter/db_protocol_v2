@@ -1,0 +1,20 @@
+/* for packets with radiotap headers (see wireshark bpf) */
+/* in x there is the radiotap header length */
+	ldb      [3]
+	lsh      #8
+	tax      
+	ldb      [2]
+	or       x
+	st       M[0]
+	tax      
+	ldb      [x + 0]
+L9:	jset     #0xb4,            L16,	L10	/* RTS frames */
+L10:	jset     #0x80,            L16,	drop	/* Data frames */
+
+L16:	ldh      [x + 4]
+L17:	jeq      #0x0301,	   L18, drop	/* <direction><comm id> */
+L18:	ldb      [x + 6]
+L19:	jeq      #0x05,            keep, drop	/* <port> */
+
+keep:	ret      #8192		/* keep packet and trim to 8192 bytes */
+drop:	ret      #0		/* drop packet */

@@ -63,11 +63,9 @@ int determineRadiotapLength(int socket){
 int main(int argc, char *argv[])
 {
     int c, frame_type = 1, bitrate_op = 4;
-    int size_ether_header = sizeof(struct ether_header);
     char ifName[IFNAMSIZ];
     char usbIF[IFNAMSIZ];
-    char comm_id_Str[10];
-    uint8_t comm_id[4];
+    uint8_t comm_id = DEFAULT_V2_COMMID;
     char db_mode = 'm';
 
 // ------------------------------- Processing command line arguments ----------------------------------
@@ -88,7 +86,7 @@ int main(int argc, char *argv[])
                 db_mode = *optarg;
                 break;
             case 'c':
-                strncpy(comm_id_Str, optarg, 10);
+                comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'a':
                 frame_type = (int) strtol(optarg, NULL, 10);
@@ -110,9 +108,6 @@ int main(int argc, char *argv[])
                 abort ();
         }
     }
-    sscanf(comm_id_Str, "%2hhx%2hhx%2hhx%2hhx", &comm_id[0], &comm_id[1], &comm_id[2], &comm_id[3]);
-    printf("DB_CONTROL_AIR: Interface: %s Communication ID: %02x %02x %02x %02x\n", ifName, comm_id[0], comm_id[1],
-           comm_id[2], comm_id[3]);
 
 // ------------------------------- Setting up Network Interface ----------------------------------
 
@@ -180,7 +175,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                printf("DB_CONTROL_AIR: recv returned unrecoverable error(errno=%d)\n", err);
+                printf("DB_CONTROL_AIR: recv returned unrecoverable error %s)\n", strerror(err));
                 return -1;
             }
         }

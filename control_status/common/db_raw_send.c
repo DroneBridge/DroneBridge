@@ -50,7 +50,7 @@ int socket_ground_comm;
 
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
 struct db_raw_v2_header *db_raw_header = (struct db_raw_v2_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
-struct data_uni *monitor_databuffer = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+struct data_uni *monitor_databuffer_internal = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
 
 /**
  * Set the transmission bit rate in the radiotap header. Only works with ralink cards.
@@ -93,7 +93,7 @@ int conf_monitor_v2(uint8_t comm_id, int bitrate_option, int frame_type, uint8_t
     set_bitrate(bitrate_option);
     memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
     // build custom DroneBridge v2 header
-    memcpy(db_raw_header->fcf_duration, frame_control_pre_data, 4);
+    memcpy(db_raw_header->fcf_duration, frame_control_pre_rts, 4);
     db_raw_header->direction = direction;
     db_raw_header->comm_id = comm_id;
     if (setsockopt(socket_ground_comm, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
@@ -160,7 +160,6 @@ int open_socket_sending(char ifName[IFNAMSIZ], uint8_t comm_id, char trans_mode,
         //return conf_ethernet(dest_mac);
     } else {
         return conf_monitor_v2(comm_id, bitrate_option, frame_type, direction);
-        // return conf_monitor_v1(comm_id, bitrate_option, frame_type, direction);
     }
 }
 
@@ -175,7 +174,8 @@ int send_packet(int8_t payload[], uint8_t dest_port, u_int16_t payload_length){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> 8) & 0xFF);
     db_raw_header->port = dest_port;
-    memcpy(monitor_databuffer->bytes, payload, payload_length);
+    db_raw_header->seq_num = 0x05; // TODO: update seq. number
+    memcpy(monitor_databuffer_internal->bytes, payload, payload_length);
     if (sendto(socket_ground_comm, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
             payload_length), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
         printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
@@ -200,6 +200,7 @@ int send_packet_hp(uint8_t dest_port, u_int16_t payload_length){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> 8) & 0xFF);
     db_raw_header->port = dest_port;
+    db_raw_header->seq_num = 0x05; // TODO: update seq. number
     if (sendto(socket_ground_comm, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
             payload_length), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
         printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));

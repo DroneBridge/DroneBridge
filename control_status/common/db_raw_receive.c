@@ -33,7 +33,6 @@
  */
 int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t port)
 {
-    // TODO: make BPF ready for db raw v2
     struct sock_filter dest_filter[] =
             {
                     { 0x30,  0,  0, 0x00000003 },
@@ -44,25 +43,19 @@ int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t 
                     { 0x02,  0,  0, 0000000000 },
                     { 0x07,  0,  0, 0000000000 },
                     { 0x50,  0,  0, 0000000000 },
-                    { 0x45,  1,  0, 0x00000008 }, // allow data frames
-                    { 0x45,  0,  9, 0x000000b4 }, // allow rts frames
-                    { 0x40,  0,  0, 0x00000006 },
-                    { 0x15,  0,  7, 0x33445566 }, // comm_id 0xaabbccdd (overwritten)
+                    { 0x45,  1,  0, 0x000000b4 },   // allow rts frames
+                    { 0x45,  0,  5, 0x00000080 },   // allow data frames
                     { 0x48,  0,  0, 0x00000004 },
-                    { 0x15,  0,  5, 0x00000101 }, // 0x<odd><direction>: 0x0101 (overwritten)
-                    { 0x48,  0,  0, 0x00000010 },
-                    { 0x15,  0,  3, 0x00000101 }, // 0x<version><port> = 0x0101 (overwritten)
-                    { 0x50,  0,  0, 0x00000012 },
-                    { 0x15,  0,  1, 0x00000001 }, // 0x<direction> = 0x01 (overwritten)
-                    { 0x06,  0,  0, 0x00040000 }, // accept and trim to 262144 bytes
+                    { 0x15,  0,  3, 0x00000301 },   // <direction><comm id>
+                    { 0x50,  0,  0, 0x00000006 },
+                    { 0x15,  0,  1, 0x00000005 },   // <port>
+                    { 0x06,  0,  0, 0x00002000 },
                     { 0x06,  0,  0, 0000000000 },
             };
 
     // override some of the filter settings
-    // modify BPF Filter to fit the comm id
-    dest_filter[11].k = (new_comm_id[0]<<24) | (new_comm_id[1]<<16) | (new_comm_id[2]<<8) | new_comm_id[3];
-    dest_filter[13].k = (uint32_t) ((0x00 << 24) | (0x00 << 16) | (0x01 << 8) | direction);
-    dest_filter[17].k = (uint32_t) direction;
+    dest_filter[11].k = (uint32_t) ((0x00 << 24) | (0x00 << 16) | (direction << 8) | new_comm_id);
+    dest_filter[13].k = (uint32_t) port;
 
     struct sock_fprog bpf =
             {
