@@ -23,7 +23,7 @@ To set it up please read the wiki and check out: https://github.com/bortek/EZ-Wi
 
 <h2>DroneBridge Android App</h2>
 
-![alt text](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app-map-2017-10-29-kleiner.png)
+![DroneBridge Android App interface](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app-map-2017-10-29-kleiner.png)
 
 <b>Features:</b>
  - Display low latency video stream of wifibroadcast (USB Tethering or Wifi-AP)
@@ -43,6 +43,13 @@ To set it up please read the wiki and check out: https://github.com/bortek/EZ-Wi
  - support for EZgui an mwp planner mission files
  - MavLink support
  - ...
+
+
+<h2>Exemplary hardware setup</h2>
+
+![possible hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/Hardware_setup.png)
+
+Other configurations where a laptop functions as the groundstation or a HDMI screen/goggles are connected to the ground Pi should be possible but are untested. Other SBC might work.
 
 <h2>Control Module</h2>
 
