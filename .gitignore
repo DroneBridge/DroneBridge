@@ -29,3 +29,7 @@ control_status/status/\.idea/
 control_status/status/cmake-build-debug/CMakeFiles/3\.8\.2/
 
 control_status/status/cmake-build-debug/
+
+control_status/\.idea/
+
+control_status/cmake-build-debug/

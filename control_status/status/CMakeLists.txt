@@ -8,7 +8,4 @@ add_subdirectory(../common common_lib)
 set(SOURCE_FILES status_main.c)
 
 add_executable(status ${SOURCE_FILES})
-if(UNIX AND NOT APPLE)
-    target_link_libraries(status rt)
-endif()
 target_link_libraries(status common_lib)

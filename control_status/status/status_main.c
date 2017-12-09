@@ -29,6 +29,7 @@
 #include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
+#include "../common/shared_memory.h"
 
 bool volatile keeprunning = true;
 char if_name[IFNAMSIZ];
@@ -41,30 +42,6 @@ float rc_send_rate = 60; // [packets/s]
 void intHandler(int dummy)
 {
     keeprunning = false;
-}
-
-wifibroadcast_rx_status_t *status_memory_open() {
-    int fd;
-    for(;;) {
-        fd = shm_open("/wifibroadcast_rx_status_0", O_RDWR, S_IRUSR | S_IWUSR);
-        if(fd > 0) {
-            break;
-        }
-        printf("DB_STATUS_GROUND: Waiting for groundstation video to be started ...\n");
-        usleep((__useconds_t) 1e5);
-    }
-
-    if (ftruncate(fd, sizeof(wifibroadcast_rx_status_t)) == -1) {
-        perror("DB_STATUS_GROUND: ftruncate");
-        exit(1);
-    }
-
-    void *retval = mmap(NULL, sizeof(wifibroadcast_rx_status_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (retval == MAP_FAILED) {
-        perror("DB_STATUS_GROUND: mmap");
-        exit(1);
-    }
-    return (wifibroadcast_rx_status_t*)retval;
 }
 
 int process_command_line_args(int argc, char *argv[]){
@@ -103,7 +80,7 @@ int main(int argc, char *argv[]) {
     ssize_t l;
     uint8_t counter = 0;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
-    struct DB_STATUS_FRAME db_status_frame;
+    DB_STATUS_FRAME db_status_frame;
     db_status_frame.ident[0] = '$';
     db_status_frame.ident[1] = 'D';
     db_status_frame.message_id = 1;
@@ -115,7 +92,7 @@ int main(int argc, char *argv[]) {
 
     process_command_line_args(argc, argv);
     // open wbc rx status shared memory
-    wifibroadcast_rx_status_t *wbc_rx_status = status_memory_open();
+    wifibroadcast_rx_status_t *wbc_rx_status = wbc_status_memory_open();
     int number_cards = wbc_rx_status->wifi_adapter_cnt;
 
     // set up long range receiving socket
@@ -176,7 +153,7 @@ int main(int argc, char *argv[]) {
             usleep ((__useconds_t) 1e7);
         }
 
-        sendto (fd, &db_status_frame, sizeof(struct DB_STATUS_FRAME), 0, (struct sockaddr *) &remoteServAddr,
+        sendto (fd, &db_status_frame, sizeof(DB_STATUS_FRAME), 0, (struct sockaddr *) &remoteServAddr,
                 sizeof (remoteServAddr));
         usleep((__useconds_t) 2e5); // 5Hz
     }

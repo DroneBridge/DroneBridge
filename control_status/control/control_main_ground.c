@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     // Command Line processing
     Joy_IF = JOY_INTERFACE;
     frame_type = 1;
-    rc_protocol = 2;
+    rc_protocol = 4;
     bitrate_op = DEFAULT_BITRATE_OPTION;
     comm_id = DEFAULT_V2_COMMID;
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
                                "-j number of joystick interface of RC \n"
                                "-m mode: <w|m> for wifi or monitor\n"
                                "-g a command to calibrate the joystick. Gets executed on initialisation\n"
-                               "-v (deprecated) Protocol [1|2|3]: 1 = Betaflight/Cleanflight [MSPv1]; 2 = iNAV (default) [MSPv2]; 3 = MAVLink\n"
+                               "-v Protocol [1|2|3|4]: 1 = Betaflight/Cleanflight [MSPv1]; 2 = iNAV [MSPv2]; 3 = MAVLink; 4 = DB-RC (default)\n"
                                "-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets\n"
                                "-c the communication ID (same on drone and groundstation)\n"
                                "-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
@@ -96,6 +96,8 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
     conf_rc_protocol(rc_protocol);
+    open_rc_tx_shm();
+
     int sock_fd = detect_RC(Joy_IF);
     if (ioctl(sock_fd, JSIOCGNAME(sizeof(RC_name)), RC_name) < 0)
         strncpy(RC_name, "Unknown", sizeof(RC_name));

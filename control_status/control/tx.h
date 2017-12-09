@@ -5,7 +5,8 @@
 #ifndef CONTROL_TX_H
 #define CONTROL_TX_H
 
-int send_rc_packet(unsigned short contData[]);
+int send_rc_packet(unsigned short channel_data[]);
 int conf_rc_protocol(int new_rc_protocol);
+void open_rc_tx_shm();
 
 #endif //CONTROL_TX_H

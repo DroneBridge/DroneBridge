@@ -17,8 +17,13 @@ else()
             db_raw_receive.h
             db_raw_send.c
             wifibroadcast.h
-            lib.h)
+            lib.h
+            db_rc_crc.h shared_memory.c shared_memory.h)
+
 
     add_library(common_lib STATIC ${LIB_SRCS})
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(common_lib rt)
+    endif()
 
 endif()

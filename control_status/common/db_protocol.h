@@ -13,13 +13,16 @@
 #define DB_RAW_V2_HEADER_LENGTH 10
 
 #define MSP_DATA_LENTH          34      // size of MSP v1
-#define MSP_V2_DATA_LENGTH       37      // size of MSP v2 frame
+#define MSP_V2_DATA_LENGTH      37      // size of MSP v2 frame
+#define DB_RC_DATA_LENGTH		16		// size of DB_RC frame
 #define DATA_UNI_LENGTH         2048	// max frame length
 #define ETHER_TYPE              0x88ab
 
 #define DEFAULT_DB_MODE         'm'
 #define DEFAULT_DB_IF           "18a6f716a511"
 #define DEFAULT_V2_COMMID		0x01
+
+#define NUM_CHANNELS            14      //max number of channels sent over DroneBridge control module (ground)
 
 #define DB_VERSION          0x01
 
@@ -39,7 +42,8 @@
 #define APP_PORT_TELEMETRY  1604 // accepts MAVLink and LTM telemetry messages. Non MAVLink telemetry messages get rerouted internally to 1607
 #define APP_PORT_MSPMAVLINK 1607 // use this port for all non telemetry MAVLink messages and all MSP messages
 
-struct data_uni {
+
+struct data_uni{
 	uint8_t bytes[DATA_UNI_LENGTH];
 };
 struct data_rc_status_update {
@@ -72,7 +76,7 @@ struct db_raw_v2_header {
 	uint8_t seq_num;
 };
 
-struct DB_STATUS_FRAME {
+typedef struct {
 	uint8_t ident[2];
 	uint8_t message_id;
 	uint8_t mode;
@@ -83,6 +87,10 @@ struct DB_STATUS_FRAME {
 	uint32_t lost_packets_wbc;
 	uint32_t kbitrate_wbc;
 	uint8_t crc;
-} __attribute__((packed));
+} __attribute__((packed)) DB_STATUS_FRAME;
+
+typedef struct {
+	uint16_t ch[NUM_CHANNELS];
+} __attribute__((packed)) db_rc_values;
 
 #endif // DB_PROTOCOL_H_INCLUDED
