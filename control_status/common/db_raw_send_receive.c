@@ -3,6 +3,13 @@
 // This file is part of DroneBridge
 // https://github.com/seeul8er/DroneBridge
 //
+/**
+ * ----------- Attention -----------
+ * Only open one(!) send & receive socket. Multiple instances may will use same variables. Will cause unexpected behaviour.
+ * One instance is enought for sending as you can specify the DroneBridge port with every transmit
+ * If you need multiple open ports (aka multiple receive sockets) use db_raw_receive.c to open such extra sockets. These
+ * sockets will only be able to receive data
+ */
 
 #include <sys/socket.h>
 #include <stdint.h>
@@ -17,7 +24,8 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include "db_protocol.h"
-#include "db_raw_send.h"
+#include "db_raw_send_receive.h"
+#include "db_raw_receive.h"
 
 uint8_t radiotap_header_pre[] = {
 
@@ -41,8 +49,8 @@ const uint8_t frame_control_pre_rts[] =
                 0xb4, 0x00, 0x00, 0x00
         };
 
-struct ifreq if_idx;
-struct ifreq if_mac;
+struct ifreq raw_if_idx;
+struct ifreq raw_if_mac;
 char interfaceName[IFNAMSIZ];
 struct sockaddr_ll socket_address;
 char mode = 'm';
@@ -88,7 +96,7 @@ void set_bitrate(int bitrate_option) {
  * @param direction
  * @return The socket file descriptor in case of a success or -1 if we screwed up
  */
-int conf_monitor_v2(uint8_t comm_id, int bitrate_option, int frame_type, uint8_t direction) {
+int conf_monitor_v2(uint8_t comm_id, int bitrate_option, int frame_type, uint8_t direction, uint8_t new_port) {
     memset(monitor_framebuffer, 0, (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH));
     set_bitrate(bitrate_option);
     memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
@@ -102,23 +110,26 @@ int conf_monitor_v2(uint8_t comm_id, int bitrate_option, int frame_type, uint8_t
         return -1;
     }
     /* Index of the network device */
-    socket_address.sll_ifindex = if_idx.ifr_ifindex;
-
+    socket_address.sll_ifindex = raw_if_idx.ifr_ifindex;
+    socket_ground_comm = setBPF(socket_ground_comm, comm_id, direction, new_port);
     return socket_ground_comm;
 }
 
 /**
- * Opens and configures a socket for sending DroneBridge raw protocol frames.
+ * ONLY OPEN ONE INSTANCE OF THIS SOCKET!
+ *
+ * Opens and configures a socket for sending and receiving DroneBridge raw protocol frames.
  * @param ifName Name of the network interface the socket is bound to
  * @param comm_id The communication ID
  * @param trans_mode The transmission mode (m|w) for monitor or wifi
  * @param bitrate_option Transmission bit rate. Only works with Ralink cards
  * @param frame_type Is it a atheros or ralink card. Determines if data frame or beacon frame
  * @param direction Is the packet for the drone or the groundstation
+ * @param receive_new_port Port the BPF filter gets set to. Port open for receiving data.
  * @return the socket file descriptor or -1 if something went wrong
  */
-int open_socket_sending(char ifName[IFNAMSIZ], uint8_t comm_id, char trans_mode, int bitrate_option, int frame_type,
-                        uint8_t direction){
+int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option, int frame_type,
+                             uint8_t direction, uint8_t receive_new_port){
     mode = trans_mode;
 
     if (mode == 'w') {
@@ -140,26 +151,26 @@ int open_socket_sending(char ifName[IFNAMSIZ], uint8_t comm_id, char trans_mode,
     }
 
     /* Get the index of the interface to send on */
-    memset(&if_idx, 0, sizeof(struct ifreq));
-    strncpy(if_idx.ifr_name, ifName, IFNAMSIZ - 1);
-    if (ioctl(socket_ground_comm, SIOCGIFINDEX, &if_idx) < 0) {
+    memset(&raw_if_idx, 0, sizeof(struct ifreq));
+    strncpy(raw_if_idx.ifr_name, ifName, IFNAMSIZ - 1);
+    if (ioctl(socket_ground_comm, SIOCGIFINDEX, &raw_if_idx) < 0) {
         perror("DB_SEND: SIOCGIFINDEX");
         return -1;
     }
     /* Get the MAC address of the interface to send on */
-    memset(&if_mac, 0, sizeof(struct ifreq));
-    strncpy(if_mac.ifr_name, ifName, IFNAMSIZ - 1);
-    if (ioctl(socket_ground_comm, SIOCGIFHWADDR, &if_mac) < 0) {
+    memset(&raw_if_mac, 0, sizeof(struct ifreq));
+    strncpy(raw_if_mac.ifr_name, ifName, IFNAMSIZ - 1);
+    if (ioctl(socket_ground_comm, SIOCGIFHWADDR, &raw_if_mac) < 0) {
         perror("DB_SEND: SIOCGIFHWADDR");
         return -1;
     }
-
+    socket_ground_comm = bindsocket(socket_ground_comm, trans_mode, ifName);
     if (trans_mode == 'w') {
         printf("DB_SEND: Wifi mode is not yet supported!\n");
         return -1;
         //return conf_ethernet(dest_mac);
     } else {
-        return conf_monitor_v2(comm_id, bitrate_option, frame_type, direction);
+        return conf_monitor_v2(comm_id, bitrate_option, frame_type, direction, receive_new_port);
     }
 }
 
@@ -168,13 +179,14 @@ int open_socket_sending(char ifName[IFNAMSIZ], uint8_t comm_id, char trans_mode,
  * @param payload The payload bytes of the message to be sent. Does use memcpy to write payload into buffer.
  * @param dest_port The DroneBridge destination port of the message (see db_protocol.h)
  * @param payload_length The length of the payload in bytes
+ * @param new_seq_num Specify the seqence number of the packet
  * @return 0 if success or -1 if failure
  */
-int send_packet(int8_t payload[], uint8_t dest_port, u_int16_t payload_length){
+int send_packet(int8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> 8) & 0xFF);
     db_raw_header->port = dest_port;
-    db_raw_header->seq_num = 0x05; // TODO: update seq. number
+    db_raw_header->seq_num = new_seq_num;
     memcpy(monitor_databuffer_internal->bytes, payload, payload_length);
     if (sendto(socket_ground_comm, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
             payload_length), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
@@ -194,21 +206,18 @@ int send_packet(int8_t payload[], uint8_t dest_port, u_int16_t payload_length){
  * Make sure you update your data every time before sending.
  * @param dest_port The DroneBridge destination port of the message (see db_protocol.h)
  * @param payload_length The length of the payload in bytes
+ * @param new_seq_num Specify the seqence number of the packet
  * @return 0 if success or -1 if failure
  */
-int send_packet_hp(uint8_t dest_port, u_int16_t payload_length){
+int send_packet_hp(uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> 8) & 0xFF);
     db_raw_header->port = dest_port;
-    db_raw_header->seq_num = 0x05; // TODO: update seq. number
+    db_raw_header->seq_num = new_seq_num;
     if (sendto(socket_ground_comm, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
             payload_length), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
         printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
         return -1;
     }
     return 0;
-}
-
-void close_socket_send(){
-    close(socket_ground_comm);
 }

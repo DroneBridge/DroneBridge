@@ -15,7 +15,7 @@ else()
             db_get_ip.h
             db_raw_receive.c
             db_raw_receive.h
-            db_raw_send.c
+            db_raw_send_receive.c
             wifibroadcast.h
             lib.h
             db_rc_crc.h shared_memory.c shared_memory.h)

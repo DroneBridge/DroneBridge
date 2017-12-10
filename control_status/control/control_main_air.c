@@ -17,8 +17,9 @@
 #include <errno.h>      // Error number definitions
 #include "../common/db_protocol.h"
 #include <sys/time.h>
-#include "../common/db_raw_send.h"
+#include "../common/db_raw_send_receive.h"
 #include "../common/db_raw_receive.h"
+#include "rc_air.h"
 
 #define ETHER_TYPE	    0x88ab
 #define DEFAULT_IF      "18a6f716a511"
@@ -63,16 +64,17 @@ int determineRadiotapLength(int socket){
 int main(int argc, char *argv[])
 {
     int c, frame_type = 1, bitrate_op = 4;
+    int rc_protocol = 2;
     char ifName[IFNAMSIZ];
     char usbIF[IFNAMSIZ];
-    uint8_t comm_id = DEFAULT_V2_COMMID;
+    uint8_t comm_id = DEFAULT_V2_COMMID, status_seq_number = 0;
     char db_mode = 'm';
 
 // ------------------------------- Processing command line arguments ----------------------------------
     strncpy(ifName, DEFAULT_IF, IFNAMSIZ);
     strcpy(usbIF, USB_IF);
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:u:m:c:a:b:")) != -1)
+    while ((c = getopt (argc, argv, "n:u:m:c:a:b:v:")) != -1)
     {
         switch (c)
         {
@@ -88,6 +90,9 @@ int main(int argc, char *argv[])
             case 'c':
                 comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
+            case 'v':
+                rc_protocol = (int) strtol(optarg, NULL, 10);
+                break;
             case 'a':
                 frame_type = (int) strtol(optarg, NULL, 10);
                 break;
@@ -98,8 +103,10 @@ int main(int argc, char *argv[])
                 printf("Invalid commandline arguments. Use "
                                "\n-n <network_IF> "
                                "\n-u <USB_MSP/MAVLink_Interface_TO_FC> - set the baud rate to 115200 on your FC!"
-                               "\n-m [w|m] "
-                               "\n-c <communication_id>"
+                               "\n-m [w|m] (m = default)"
+                               "\n-v Protocol over serial port [1|2|3|4]: 1 = MSPv1 [Betaflight/Cleanflight]; "
+                               "2 = MSPv2 [iNAV] (default); 3 = MAVLink; 4 = MAVLink v2"
+                               "\n-c <communication_id> Choose a number from 0-255. Same on groundstation and drone!"
                                "\n-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets"
                                "\n-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
                                "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)");
@@ -108,7 +115,7 @@ int main(int argc, char *argv[])
                 abort ();
         }
     }
-
+    conf_rc_serial_protocol_air(rc_protocol);
 // ------------------------------- Setting up Network Interface ----------------------------------
 
     /* Header structures */
@@ -116,8 +123,9 @@ int main(int argc, char *argv[])
     //struct iphdr *iph = (struct iphdr *) (buf + sizeof(struct ether_header));
     //struct udphdr *udph = (struct udphdr *) (buf + sizeof(struct iphdr) + sizeof(struct ether_header));
     //socket_receive = setUpNetworkIF(ifName, db_mode, comm_id);
-    int socket_receive = open_receive_socket(ifName, db_mode, comm_id, DB_DIREC_DRONE, DB_PORT_CONTROLLER);
-    open_socket_sending(ifName,comm_id, db_mode, bitrate_op, frame_type, DB_DIREC_GROUND);
+    int socket_port_rc = open_receive_socket(ifName, db_mode, comm_id, DB_DIREC_DRONE, DB_PORT_RC);
+    int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, frame_type,
+                                                       DB_DIREC_GROUND, DB_PORT_CONTROLLER);
 
 // ------------------------------- Setting up UART Interface ---------------------------------------
     int USB = -1;
@@ -152,6 +160,7 @@ int main(int argc, char *argv[])
     uint8_t commandBuf[COMMAND_BUF_SIZE];
     int command_length = 0;
     long start, end, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
+    uint8_t packet_count_multi = (uint8_t) (1000/status_report_update_rate);
     struct timeval timecheck;
 
     // create our data pointer directly inside the buffer (monitor_framebuffer) that is sent over the socket
@@ -219,15 +228,20 @@ int main(int argc, char *argv[])
         gettimeofday(&timecheck, NULL);
         end = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
         if ((end-start) >= status_report_update_rate){
+            if (status_seq_number == 255){
+                status_seq_number = 0;
+            } else {
+                status_seq_number++;
+            }
             rc_status_update_data->bytes[0] = rssi;
-            rc_status_update_data->bytes[1] = packet_count;
-            send_packet_hp( DB_PORT_STATUS, (u_int16_t) 2);
+            rc_status_update_data->bytes[1] = (packet_count*packet_count_multi);
+            send_packet_hp( DB_PORT_STATUS, (u_int16_t) 2, status_seq_number);
             packet_count = 0;
         }
     }
 
-    close(socket_receive);
-    close_socket_send();
+    close(socket_port_rc);
+    close(socket_port_control);
     close(USB);
     printf("DB_CONTROL_AIR: Sockets closed!\n");
     return 1;

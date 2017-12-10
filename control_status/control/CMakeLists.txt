@@ -10,11 +10,11 @@ set(SOURCE_FILES_CONTROL_GROUND
         i6S.c
         control_main_ground.c
         parameter.h
-        tx.h
-        i6S.h tx.c)
+        rc_ground.h
+        i6S.h rc_ground.c)
 
 set(SOURCE_FILES_CONTROL_AIR
-        control_main_air.c)
+        control_main_air.c rc_air.c rc_air.h)
 
 add_executable(control_ground ${SOURCE_FILES_CONTROL_GROUND})
 target_link_libraries(control_ground common_lib)

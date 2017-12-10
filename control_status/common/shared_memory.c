@@ -18,7 +18,7 @@ wifibroadcast_rx_status_t *wbc_status_memory_open() {
         if(fd > 0) {
             break;
         }
-        printf("db_rc_values_memory_open: Waiting for groundstation video to be started ...\n");
+        printf("db_rc_values_memory_open: Waiting for groundstation video to be started ... %s\n", strerror(errno));
         usleep((__useconds_t) 1e5);
     }
 
@@ -44,11 +44,11 @@ void db_rc_values_memory_init(db_rc_values *rc_values) {
 db_rc_values *db_rc_values_memory_open() {
     int fd;
     for(;;) {
-        fd = shm_open("/db_rc_values", O_RDWR, S_IRUSR | S_IWUSR);
+        fd = shm_open("/db_rc_values", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd > 0) {
             break;
         }
-        printf("db_rc_values_memory_open: Waiting for init ...\n");
+        printf("db_rc_values_memory_open: Waiting for init ... %s\n", strerror(errno));
         usleep((__useconds_t) 1e5);
     }
 

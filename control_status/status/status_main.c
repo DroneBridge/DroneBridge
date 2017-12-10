@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <zconf.h>
 #include <netdb.h>
 #include <sys/mman.h>
@@ -35,7 +36,7 @@ bool volatile keeprunning = true;
 char if_name[IFNAMSIZ];
 char db_mode;
 uint8_t comm_id;
-int c, comm_id_num = DEFAULT_V2_COMMID;
+int c, comm_id_num = DEFAULT_V2_COMMID, app_port_status = APP_PORT_STATUS;
 // TODO: get RC send rate from control module
 float rc_send_rate = 60; // [packets/s]
 
@@ -47,8 +48,9 @@ void intHandler(int dummy)
 int process_command_line_args(int argc, char *argv[]){
     strncpy(if_name, DEFAULT_DB_IF, IFNAMSIZ);
     db_mode = DEFAULT_DB_MODE;
+    app_port_status = APP_PORT_STATUS;
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:m:c:")) != -1)
+    while ((c = getopt (argc, argv, "n:m:c:p:")) != -1)
     {
         switch (c)
         {
@@ -61,11 +63,18 @@ int process_command_line_args(int argc, char *argv[]){
             case 'c':
                 comm_id_num = (int) strtol(optarg, NULL, 10);
                 break;
+            case 'p':
+                app_port_status = (int) strtol(optarg, NULL, 10);
+                break;
             case '?':
-                printf("This tool sends extra information about the video stream and RC via UDP to port %i. Use "
+                printf("This tool sends extra information about the video stream and RC via UDP to IP given by "
+                               "IP-checker module. Use"
                                "\n-n <network_IF> "
-                               "\n-m [w|m] "
-                               "\n-c <communication_id> choose 0-255", APP_PORT_STATUS);
+                               "\n-m [w|m] default is <m>"
+                               "\n-p Specify a UDP port to which we send the status information. IP comes from IP "
+                               "checker module. Default:%i"
+                               "\n-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
+                        , APP_PORT_STATUS);
                 break;
             default:
                 abort ();
@@ -103,7 +112,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in remoteServAddr;
     remoteServAddr.sin_family = AF_INET;
     remoteServAddr.sin_addr.s_addr = inet_addr("192.168.2.2");
-    remoteServAddr.sin_port = htons(APP_PORT_STATUS);
+    remoteServAddr.sin_port = htons(app_port_status);
     fd = socket (AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
         printf ("DB_STATUS_GROUND: %s: Unable to open socket \n", strerror(errno));

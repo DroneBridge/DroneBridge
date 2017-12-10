@@ -8,8 +8,8 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include "parameter.h"
-#include "tx.h"
-#include "../common/db_raw_send.h"
+#include "rc_ground.h"
+#include "../common/db_raw_send_receive.h"
 
 #define JS_EVENT_BUTTON         0x01    /* button pressed/released */
 #define JS_EVENT_AXIS           0x02    /* joystick moved */

@@ -15,8 +15,8 @@
 #include "parameter.h"
 #include "../common/db_protocol.h"
 #include "i6S.h"
-#include "../common/db_raw_send.h"
-#include "tx.h"
+#include "../common/db_raw_send_receive.h"
+#include "rc_ground.h"
 
 int detect_RC(int new_Joy_IF) {
     int fd;
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     // Command Line processing
     Joy_IF = JOY_INTERFACE;
     frame_type = 1;
-    rc_protocol = 4;
+    rc_protocol = 5;
     bitrate_op = DEFAULT_BITRATE_OPTION;
     comm_id = DEFAULT_V2_COMMID;
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
@@ -80,9 +80,10 @@ int main(int argc, char *argv[]) {
                                "-j number of joystick interface of RC \n"
                                "-m mode: <w|m> for wifi or monitor\n"
                                "-g a command to calibrate the joystick. Gets executed on initialisation\n"
-                               "-v Protocol [1|2|3|4]: 1 = Betaflight/Cleanflight [MSPv1]; 2 = iNAV [MSPv2]; 3 = MAVLink; 4 = DB-RC (default)\n"
+                               "-v Protocol [1|2|3|4|5]: 1 = MSPv1 [Betaflight/Cleanflight]; 2 = MSPv2 [iNAV]; "
+                               "3 = MAVLink; 4 = MAVLink v2; 5 = DB-RC (default)\n"
                                "-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets\n"
-                               "-c the communication ID (same on drone and groundstation)\n"
+                               "-c <communication id> Choose a number from 0-255. Same on groundstation and drone!\n"
                                "-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
                                "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)\n");
                 return -1;
@@ -91,7 +92,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (open_socket_sending(ifName, comm_id, db_mode, bitrate_op, frame_type, DB_DIREC_DRONE) < 0) {
+    if (open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, frame_type, DB_DIREC_DRONE, DB_PORT_CONTROLLER) < 0) {
         printf("DB_CONTROL_GROUND: Could not open socket\n");
         exit(-1);
     }

@@ -3,6 +3,10 @@
 // This file is part of DroneBridge
 // https://github.com/seeul8er/DroneBridge
 //
+/**
+ * ----------- Attention -----------
+ * These sockets will only be able to receive data! If you need to send data use "db_raw_send_receive.c"
+ */
 
 #include <stdio.h>
 #include <stdint.h>
