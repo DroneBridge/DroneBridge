@@ -245,6 +245,6 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
 //            }
     }
     close(fd);
-    close_socket_send();
+    close_socket_send_receive();
     return 0;
 }

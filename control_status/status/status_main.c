@@ -1,4 +1,6 @@
 /*
+ *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation; version 2.
@@ -85,7 +87,7 @@ int process_command_line_args(int argc, char *argv[]){
 int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
-    int restarts = 0, fd, shID, best_dbm = 0, cardcounter = 0, err, radiotap_length, message_length;
+    int restarts = 0, fd, shID, best_dbm = 0, cardcounter = 0, err, radiotap_length;
     ssize_t l;
     uint8_t counter = 0;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
@@ -100,6 +102,8 @@ int main(int argc, char *argv[]) {
     comm_id = (uint8_t) comm_id_num;
 
     process_command_line_args(argc, argv);
+
+    db_rc_values *rc_values = db_rc_values_memory_open();
     // open wbc rx status shared memory
     wifibroadcast_rx_status_t *wbc_rx_status = wbc_status_memory_open();
     int number_cards = wbc_rx_status->wifi_adapter_cnt;
@@ -115,18 +119,18 @@ int main(int argc, char *argv[]) {
     remoteServAddr.sin_port = htons(app_port_status);
     fd = socket (AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
-        printf ("DB_STATUS_GROUND: %s: Unable to open socket \n", strerror(errno));
+        printf ("DB_STATUS_GROUND: %s: Unable to open socket\n", strerror(errno));
         exit (EXIT_FAILURE);
     }
     int broadcast=1;
     if (setsockopt(fd,SOL_SOCKET,SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
-        printf("DB_STATUS_GROUND: %s",strerror(errno));
+        printf("DB_STATUS_GROUND: %s\n",strerror(errno));
     }
 
     // get IP shared memory ID
     shID = init_shared_memory_ip();
 
-    printf("DB_STATUS_GROUND: started!");
+    printf("DB_STATUS_GROUND: started!\n");
     while(keeprunning) {
         counter++;
         // Get IP from IP Checker shared memory segment 10th time
@@ -136,7 +140,6 @@ int main(int argc, char *argv[]) {
         }
         // Check for incoming data
         l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0);
-        err = errno;
         if (l>0){
             // get payload
             radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
@@ -164,6 +167,11 @@ int main(int argc, char *argv[]) {
 
         sendto (fd, &db_status_frame, sizeof(DB_STATUS_FRAME), 0, (struct sockaddr *) &remoteServAddr,
                 sizeof (remoteServAddr));
+
+        // DEBUG
+        printf("\nRC values form control module: %i %i %i %i %i %i %i", rc_values->ch[0], rc_values->ch[1], rc_values->ch[2],
+               rc_values->ch[3], rc_values->ch[4], rc_values->ch[5], rc_values->ch[6]);
+
         usleep((__useconds_t) 2e5); // 5Hz
     }
     close(fd);

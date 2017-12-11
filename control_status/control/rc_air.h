@@ -7,9 +7,9 @@
 #ifndef CONTROL_STATUS_RC_AIR_H
 #define CONTROL_STATUS_RC_AIR_H
 
-uint8_t serial_data_buffer[2048] = {0}; // write the data for the serial port in here!
+extern uint8_t serial_data_buffer[1024]; // write the rc protocol data for the serial port in here! init in rc_air
 
 int conf_rc_serial_protocol_air(int new_rc_protocol);
-void generate_rc_serial_message(uint8_t *db_rc_protocol);
+int generate_rc_serial_message(uint8_t *db_rc_protocol);
 
 #endif //CONTROL_STATUS_RC_AIR_H

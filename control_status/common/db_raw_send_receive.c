@@ -54,7 +54,7 @@ struct ifreq raw_if_mac;
 char interfaceName[IFNAMSIZ];
 struct sockaddr_ll socket_address;
 char mode = 'm';
-int socket_ground_comm;
+int socket_send_receive;
 
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
 struct db_raw_v2_header *db_raw_header = (struct db_raw_v2_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
@@ -96,7 +96,7 @@ void set_bitrate(int bitrate_option) {
  * @param direction
  * @return The socket file descriptor in case of a success or -1 if we screwed up
  */
-int conf_monitor_v2(uint8_t comm_id, int bitrate_option, int frame_type, uint8_t direction, uint8_t new_port) {
+int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t direction, uint8_t new_port) {
     memset(monitor_framebuffer, 0, (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH));
     set_bitrate(bitrate_option);
     memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
@@ -104,15 +104,15 @@ int conf_monitor_v2(uint8_t comm_id, int bitrate_option, int frame_type, uint8_t
     memcpy(db_raw_header->fcf_duration, frame_control_pre_rts, 4);
     db_raw_header->direction = direction;
     db_raw_header->comm_id = comm_id;
-    if (setsockopt(socket_ground_comm, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
+    if (setsockopt(socket_send_receive, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
         printf("DB_SEND: Error binding monitor socket to interface. Closing socket. Please restart.\n");
-        close(socket_ground_comm);
+        close(socket_send_receive);
         return -1;
     }
     /* Index of the network device */
     socket_address.sll_ifindex = raw_if_idx.ifr_ifindex;
-    socket_ground_comm = setBPF(socket_ground_comm, comm_id, direction, new_port);
-    return socket_ground_comm;
+    socket_send_receive = setBPF(socket_send_receive, comm_id, direction, new_port);
+    return socket_send_receive;
 }
 
 /**
@@ -123,18 +123,17 @@ int conf_monitor_v2(uint8_t comm_id, int bitrate_option, int frame_type, uint8_t
  * @param comm_id The communication ID
  * @param trans_mode The transmission mode (m|w) for monitor or wifi
  * @param bitrate_option Transmission bit rate. Only works with Ralink cards
- * @param frame_type Is it a atheros or ralink card. Determines if data frame or beacon frame
  * @param direction Is the packet for the drone or the groundstation
  * @param receive_new_port Port the BPF filter gets set to. Port open for receiving data.
  * @return the socket file descriptor or -1 if something went wrong
  */
-int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option, int frame_type,
+int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
                              uint8_t direction, uint8_t receive_new_port){
     mode = trans_mode;
 
     if (mode == 'w') {
         // TODO: ignore for now. I will be UDP in future.
-        if ((socket_ground_comm = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
+        if ((socket_send_receive = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
             perror("DB_SEND: socket");
             return -1;
         }else{
@@ -142,7 +141,7 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
         }
 
     } else {
-        if ((socket_ground_comm = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
+        if ((socket_send_receive = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
             perror("DB_SEND: socket");
             return -1;
         }else{
@@ -153,24 +152,24 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
     /* Get the index of the interface to send on */
     memset(&raw_if_idx, 0, sizeof(struct ifreq));
     strncpy(raw_if_idx.ifr_name, ifName, IFNAMSIZ - 1);
-    if (ioctl(socket_ground_comm, SIOCGIFINDEX, &raw_if_idx) < 0) {
+    if (ioctl(socket_send_receive, SIOCGIFINDEX, &raw_if_idx) < 0) {
         perror("DB_SEND: SIOCGIFINDEX");
         return -1;
     }
     /* Get the MAC address of the interface to send on */
     memset(&raw_if_mac, 0, sizeof(struct ifreq));
     strncpy(raw_if_mac.ifr_name, ifName, IFNAMSIZ - 1);
-    if (ioctl(socket_ground_comm, SIOCGIFHWADDR, &raw_if_mac) < 0) {
+    if (ioctl(socket_send_receive, SIOCGIFHWADDR, &raw_if_mac) < 0) {
         perror("DB_SEND: SIOCGIFHWADDR");
         return -1;
     }
-    socket_ground_comm = bindsocket(socket_ground_comm, trans_mode, ifName);
+    socket_send_receive = bindsocket(socket_send_receive, trans_mode, ifName);
     if (trans_mode == 'w') {
         printf("DB_SEND: Wifi mode is not yet supported!\n");
         return -1;
         //return conf_ethernet(dest_mac);
     } else {
-        return conf_monitor_v2(comm_id, bitrate_option, frame_type, direction, receive_new_port);
+        return conf_monitor_v2(comm_id, bitrate_option, direction, receive_new_port);
     }
 }
 
@@ -188,7 +187,7 @@ int send_packet(int8_t payload[], uint8_t dest_port, u_int16_t payload_length, u
     db_raw_header->port = dest_port;
     db_raw_header->seq_num = new_seq_num;
     memcpy(monitor_databuffer_internal->bytes, payload, payload_length);
-    if (sendto(socket_ground_comm, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
+    if (sendto(socket_send_receive, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
             payload_length), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
         printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
         return -1;
@@ -214,10 +213,14 @@ int send_packet_hp(uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> 8) & 0xFF);
     db_raw_header->port = dest_port;
     db_raw_header->seq_num = new_seq_num;
-    if (sendto(socket_ground_comm, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
+    if (sendto(socket_send_receive, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
             payload_length), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
         printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
         return -1;
     }
     return 0;
+}
+
+void close_socket_send_receive(){
+    close(socket_send_receive);
 }

@@ -25,7 +25,7 @@
 #define DEFAULT_IF      "18a6f716a511"
 #define USB_IF          "/dev/ttyACM0"
 #define BUF_SIZ		                512 // should be enought?!
-#define COMMAND_BUF_SIZE            256
+#define COMMAND_BUF_SIZE            1024
 
 static volatile int keepRunning = 1;
 uint8_t buf[BUF_SIZ];
@@ -63,7 +63,7 @@ int determineRadiotapLength(int socket){
 
 int main(int argc, char *argv[])
 {
-    int c, frame_type = 1, bitrate_op = 4;
+    int c, chipset_type = 1, bitrate_op = 4;
     int rc_protocol = 2;
     char ifName[IFNAMSIZ];
     char usbIF[IFNAMSIZ];
@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
                 rc_protocol = (int) strtol(optarg, NULL, 10);
                 break;
             case 'a':
-                frame_type = (int) strtol(optarg, NULL, 10);
+                chipset_type = (int) strtol(optarg, NULL, 10);
                 break;
             case 'b':
                 bitrate_op = (int) strtol(optarg, NULL, 10);
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
                                "\n-v Protocol over serial port [1|2|3|4]: 1 = MSPv1 [Betaflight/Cleanflight]; "
                                "2 = MSPv2 [iNAV] (default); 3 = MAVLink; 4 = MAVLink v2"
                                "\n-c <communication_id> Choose a number from 0-255. Same on groundstation and drone!"
-                               "\n-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets"
+                               "\n-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
                                "\n-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
                                "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)");
                 break;
@@ -124,8 +124,8 @@ int main(int argc, char *argv[])
     //struct udphdr *udph = (struct udphdr *) (buf + sizeof(struct iphdr) + sizeof(struct ether_header));
     //socket_receive = setUpNetworkIF(ifName, db_mode, comm_id);
     int socket_port_rc = open_receive_socket(ifName, db_mode, comm_id, DB_DIREC_DRONE, DB_PORT_RC);
-    int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, frame_type,
-                                                       DB_DIREC_GROUND, DB_PORT_CONTROLLER);
+    int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND, 
+                                                       DB_PORT_CONTROLLER);
 
 // ------------------------------- Setting up UART Interface ---------------------------------------
     int USB = -1;
@@ -152,14 +152,13 @@ int main(int argc, char *argv[])
     tcsetattr(USB, TCSANOW, &options);
 
 // -------------------------------------- Loop ------------------------------------------------------
-    int err, sentbytes;
+    int err, sentbytes = 0, command_length = 0;
     int8_t rssi = -100;
     uint8_t packet_count = 0;
     ssize_t length;
     signal(SIGINT, intHandler);
     uint8_t commandBuf[COMMAND_BUF_SIZE];
-    int command_length = 0;
-    long start, end, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
+    long start, rightnow, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
     uint8_t packet_count_multi = (uint8_t) (1000/status_report_update_rate);
     struct timeval timecheck;
 
@@ -167,16 +166,43 @@ int main(int argc, char *argv[])
     struct data_rc_status_update *rc_status_update_data = (struct data_rc_status_update *)
             (monitor_framebuffer + RADIOTAP_LENGTH + DATA_UNI_LENGTH);
 
-    radiotap_length = determineRadiotapLength(socket_receive);
-    socket_receive = set_socket_timeout(socket_receive, 0, 250000);
+    socket_port_rc = set_socket_timeout(socket_port_rc, 0, 250000);
+    socket_port_control = set_socket_nonblocking(socket_port_control);
+
     printf("DB_CONTROL_AIR: Starting MSP/MAVLink pass through!\n");
+    gettimeofday(&timecheck, NULL);
+    start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
     while(keepRunning)
     {
-        gettimeofday(&timecheck, NULL);
-        start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        // -------------------------------- DB_RC_PORT messages - has timeout
+        length = recv(socket_port_rc, buf, BUF_SIZ, 0); err = errno;
+        if (length > 0){
+            if (chipset_type == 1){
+                rssi = buf[14];
+            }else{
+                rssi = buf[30];
+            }
+            memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], (buf[buf[2]+7] | (buf[buf[2]+8] << 8)));
+            command_length = generate_rc_serial_message(commandBuf);
+            if (command_length > 0){
+                packet_count++;
+                sentbytes = (int) write(USB, serial_data_buffer, (size_t) command_length);
+                tcdrain(USB);
+                if(sentbytes == 0)
+                {
+                    printf(" RC NOT SENT!\n");
+                }
+                else
+                {
+                    int errsv = errno;
+                    printf(" RC NOT SENT because of error %s\n", strerror(errsv));
+                }
+                tcflush(USB, TCIOFLUSH);
+            }
+        }
 
-        length = recv(socket_receive, buf, BUF_SIZ, 0);
-        err = errno;
+        // -------------------------------- DB_CONTROL_PORT messages - non blocking
+        length = recv(socket_port_control, buf, BUF_SIZ, 0); err = errno;
         if (length <= 0)
         {
             if (err == EAGAIN)
@@ -190,29 +216,17 @@ int main(int argc, char *argv[])
         }
         else
         {
-            packet_count++;
-            if(db_mode == 'w')
-            {
-                // TODO implement wifi mode
+            if (chipset_type == 1){
+                rssi = buf[14];
+            }else{
+                rssi = buf[30];
             }
-            else
-            {
-                command_length = buf[radiotap_length+7] | (buf[radiotap_length+8] << 8); // ready for v2
-                memcpy(commandBuf, &buf[radiotap_length + MSP_V2_DATA_LENGTH], command_length);
-                if (frame_type == 1){
-                    rssi = buf[14];
-                }else{
-                    rssi = buf[30];
-                }
-            }
-
+            // Get MSP/MAVLink message and write to serial interface
+            command_length = buf[buf[2]+7] | (buf[buf[2]+8] << 8); // ready for v2
+            memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], command_length);
             sentbytes = (int) write(USB, commandBuf, (size_t) command_length);
             tcdrain(USB);
-            if (sentbytes > 0)
-            {
-
-            }
-            else if(sentbytes == 0)
+            if(sentbytes == 0)
             {
                 printf(" NOT SENT!\n");
             }
@@ -222,12 +236,13 @@ int main(int argc, char *argv[])
                 printf(" NOT SENT because of error %s\n", strerror(errsv));
             }
             tcflush(USB, TCIOFLUSH);
-            // TODO: check for response on UART and send to DroneBridge proxy module on groundstation
+            // TODO: check for response on UART and send to DroneBridge proxy module on groundstation; beware we might block RC!
         }
 
+        // Send a status update to status module on groundstation
         gettimeofday(&timecheck, NULL);
-        end = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
-        if ((end-start) >= status_report_update_rate){
+        rightnow = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        if ((rightnow-start) >= status_report_update_rate){
             if (status_seq_number == 255){
                 status_seq_number = 0;
             } else {
@@ -236,7 +251,11 @@ int main(int argc, char *argv[])
             rc_status_update_data->bytes[0] = rssi;
             rc_status_update_data->bytes[1] = (packet_count*packet_count_multi);
             send_packet_hp( DB_PORT_STATUS, (u_int16_t) 2, status_seq_number);
+
+            // reset values
             packet_count = 0;
+            gettimeofday(&timecheck, NULL);
+            start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
         }
     }
 

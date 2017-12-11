@@ -1,5 +1,7 @@
 //
-// Created by cyber on 09.12.17.
+// Created by Wolfgang Christl on 30.11.17.
+// This file is part of DroneBridge
+// https://github.com/seeul8er/DroneBridge
 //
 
 #include "lib.h"

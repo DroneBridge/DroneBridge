@@ -13,8 +13,6 @@
 
 
 int rc_protocol;
-char interfaceName[IFNAMSIZ];
-char mode;
 uint8_t crc_mspv2, crc8, rc_seq_number = 0;
 crc_t crc_rc;
 int i_crc, i_rc;

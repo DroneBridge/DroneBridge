@@ -32,23 +32,22 @@ int detect_RC(int new_Joy_IF) {
 }
 
 int main(int argc, char *argv[]) {
-    atexit(close_socket_send);
+    atexit(close_socket_send_receive);
     char ifName[IFNAMSIZ], RC_name[128];
     char calibrate_comm[500];
     uint8_t comm_id;
-    int Joy_IF, c, bitrate_op, frame_type, rc_protocol;
+    int Joy_IF, c, bitrate_op, rc_protocol;
     char db_mode = 'm';
 
     // Command Line processing
     Joy_IF = JOY_INTERFACE;
-    frame_type = 1;
     rc_protocol = 5;
     bitrate_op = DEFAULT_BITRATE_OPTION;
     comm_id = DEFAULT_V2_COMMID;
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
     strcpy(ifName, DEFAULT_IF);
     opterr = 0;
-    while ((c = getopt(argc, argv, "n:j:m:b:g:v:c:a:")) != -1) {
+    while ((c = getopt(argc, argv, "n:j:m:b:g:v:c:")) != -1) {
         switch (c) {
             case 'n':
                 strncpy(ifName, optarg, IFNAMSIZ);
@@ -71,9 +70,6 @@ int main(int argc, char *argv[]) {
             case 'c':
                 comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
-            case 'a':
-                frame_type = (int) strtol(optarg, NULL, 10);
-                break;
             case '?':
                 printf("Use following commandline arguments.\n");
                 printf("-n network interface for long range \n"
@@ -82,7 +78,6 @@ int main(int argc, char *argv[]) {
                                "-g a command to calibrate the joystick. Gets executed on initialisation\n"
                                "-v Protocol [1|2|3|4|5]: 1 = MSPv1 [Betaflight/Cleanflight]; 2 = MSPv2 [iNAV]; "
                                "3 = MAVLink; 4 = MAVLink v2; 5 = DB-RC (default)\n"
-                               "-a frame type [1|2] <1> for Ralink und <2> for Atheros chipsets\n"
                                "-c <communication id> Choose a number from 0-255. Same on groundstation and drone!\n"
                                "-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
                                "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)\n");
@@ -92,7 +87,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, frame_type, DB_DIREC_DRONE, DB_PORT_CONTROLLER) < 0) {
+    if (open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_CONTROLLER) < 0) {
         printf("DB_CONTROL_GROUND: Could not open socket\n");
         exit(-1);
     }

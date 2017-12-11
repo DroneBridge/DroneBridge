@@ -8,7 +8,9 @@
 #include "../common/db_protocol.h"
 #include "../common/db_rc_crc.h"
 
-int rc_protocol_air, i_rc_air, i;
+int rc_protocol_air, i_rc_air;
+
+uint8_t serial_data_buffer[1024] = {0}; // write the data for the serial port in here!
 
 uint16_t rc_channels[DB_RC_NUM_CHANNELS] = {0};
 uint8_t crc_mspv1_air = 0, crc_mspv2_air = 0, crc_db_rc = 0;
@@ -112,8 +114,8 @@ void generate_mspv2(uint16_t *rc_channel_data) {
     serial_data_buffer[31] = (uint8_t) (rc_channel_data[11] & 0xFF);
     // CRC
     crc_mspv2_air = 0;
-    for (i = 0; i < 32; i++) {
-        tbl_idx_air = crc_mspv2_air ^ serial_data_buffer[i];
+    for (i_rc_air = 0; i_rc_air < 32; i_rc_air++) {
+        tbl_idx_air = crc_mspv2_air ^ serial_data_buffer[i_rc_air];
         crc_mspv2_air = crc_dvb_s2_table[tbl_idx_air] & 0xff;
     }
     serial_data_buffer[32] = crc_mspv2_air;
@@ -164,8 +166,9 @@ int deserialize_db_rc_protocol(uint8_t *db_rc_protocol_message) {
  * Takes a DroneBridge RC protocol message, checks it and generates a <valid message> to be sent over the serial port.
  * <valid message> protocol is specified via "conf_rc_protocol_air(int protocol)" (MSPv1, MSPv2, MAVLink v1, MAVLink v2)
  * @param db_rc_protocol
+ * @return The number of bytes that the message for the serial port has. It depends on the picked serial protocol
  */
-void generate_rc_serial_message(uint8_t *db_rc_protocol){
+int generate_rc_serial_message(uint8_t *db_rc_protocol){
     if (deserialize_db_rc_protocol(db_rc_protocol) == 1){
         // adjust RC to 1000-2000 by adding 1000 to every channel received via DB-RC-Protocol
         rc_channels[0] += 1000; rc_channels[1] += 1000; rc_channels[2] += 1000; rc_channels[3] += 1000;
@@ -176,12 +179,15 @@ void generate_rc_serial_message(uint8_t *db_rc_protocol){
         }*/
         if (rc_protocol_air == 1){
             generate_msp(rc_channels);
+            return 30;
         }else if (rc_protocol_air == 2){
             generate_mspv2(rc_channels);
+            return 33;
         }else if (rc_protocol_air == 3){
             // TODO: MAVLink v1
         }else if (rc_protocol_air == 4){
             // TODO: generate MAVLink v2
         }
     }
+    return -1;
 }
