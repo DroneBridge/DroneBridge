@@ -76,8 +76,8 @@ int main(int argc, char *argv[]) {
                                "-j number of joystick interface of RC \n"
                                "-m mode: <w|m> for wifi or monitor\n"
                                "-g a command to calibrate the joystick. Gets executed on initialisation\n"
-                               "-v Protocol [1|2|3|4|5]: 1 = MSPv1 [Betaflight/Cleanflight]; 2 = MSPv2 [iNAV]; "
-                               "3 = MAVLink; 4 = MAVLink v2; 5 = DB-RC (default)\n"
+                               "-v Protocol [1|2|5]: 1 = MSPv1 [Betaflight/Cleanflight]; 2 = MSPv2 [iNAV]; "
+                               "3 = MAVLink (unsupported); 4 = MAVLink v2 (unsupported); 5 = DB-RC (default)\n"
                                "-c <communication id> Choose a number from 0-255. Same on groundstation and drone!\n"
                                "-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
                                "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)\n");

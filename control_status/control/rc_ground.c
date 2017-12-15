@@ -5,6 +5,7 @@
 //
 
 #include <arpa/inet.h>
+#include <stdint.h>
 #include "parameter.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_rc_crc.h"
@@ -18,9 +19,10 @@ crc_t crc_rc;
 int i_crc, i_rc;
 unsigned int rc_crc_tbl_idx, mspv2_tbl_idx;
 db_rc_values *shm_rc_values = NULL;
+struct timeval timecheck;
 
 // pointing right into the sockets send buffer for max performance
-struct data_uni *monitor_databuffer = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + MSP_V2_DATA_LENGTH);
+struct data_uni *monitor_databuffer = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
 
 // could do this with two for-loops but hardcoded is faster and number of aux channels won't change anyways
 void generate_msp(unsigned short *newJoystickData) {
@@ -200,7 +202,7 @@ void open_rc_tx_shm(){
  * @param contData Values in between 1000 and 2000
  * @return
  */
-int send_rc_packet(unsigned short channel_data[]) {
+int send_rc_packet(uint16_t channel_data[]) {
     // TODO: check for RC overwrite!
     if (rc_seq_number == 255){
         rc_seq_number = 0;
@@ -211,6 +213,7 @@ int send_rc_packet(unsigned short channel_data[]) {
     for(i_rc = 0; i_rc < NUM_CHANNELS; i_rc++) {
         shm_rc_values->ch[i_rc] = channel_data[i_rc];
     }
+
     if (rc_protocol == 1){
         generate_msp(channel_data);
         send_packet_hp(DB_PORT_CONTROLLER, MSP_DATA_LENTH, rc_seq_number);
@@ -224,6 +227,10 @@ int send_rc_packet(unsigned short channel_data[]) {
         // TODO: generate MAVLink v2
     } else if (rc_protocol == 5){
         generate_db_rc_message(channel_data);
+        printf( "%c[;H", 27 );
+        printf("CH8:     %i          \n",channel_data[8]);
+        printf("CH9:     %i          \n",channel_data[9]);
+        printf("CH10:    %i          \n",channel_data[10]);
         send_packet_hp(DB_PORT_RC, DB_RC_DATA_LENGTH, rc_seq_number);
     }
     return 0;

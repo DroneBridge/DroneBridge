@@ -71,11 +71,11 @@ int process_command_line_args(int argc, char *argv[]){
             case '?':
                 printf("This tool sends extra information about the video stream and RC via UDP to IP given by "
                                "IP-checker module. Use"
-                               "\n-n <network_IF> "
-                               "\n-m [w|m] default is <m>"
-                               "\n-p Specify a UDP port to which we send the status information. IP comes from IP "
+                               "\n\t-n <network_IF> "
+                               "\n\t-m [w|m] default is <m>"
+                               "\n\t-p Specify a UDP port to which we send the status information. IP comes from IP "
                                "checker module. Default:%i"
-                               "\n-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
+                               "\n\t-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
                         , APP_PORT_STATUS);
                 break;
             default:
@@ -87,22 +87,29 @@ int process_command_line_args(int argc, char *argv[]){
 int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
-    int restarts = 0, fd, shID, best_dbm = 0, cardcounter = 0, err, radiotap_length;
+    int restarts = 0, udp_socket, shID, best_dbm = 0, cardcounter = 0, err, radiotap_length;
     ssize_t l;
     uint8_t counter = 0;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
-    DB_STATUS_FRAME db_status_frame;
-    db_status_frame.ident[0] = '$';
-    db_status_frame.ident[1] = 'D';
-    db_status_frame.message_id = 1;
-    db_status_frame.mode = 'm';
-    db_status_frame.packetloss_rc = 0;
-    db_status_frame.rssi_drone = 0;
-    db_status_frame.crc = 0x66;
+
+    DB_RC_STATUS_MESSAGE db_rc_status_message;
+    db_rc_status_message.ident[0] = '$';
+    db_rc_status_message.ident[1] = 'D';
+    db_rc_status_message.message_id = 2;
+
+    DB_SYSTEM_STATUS_MESSAGE db_sys_status_message;
+    db_sys_status_message.ident[0] = '$';
+    db_sys_status_message.ident[1] = 'D';
+    db_sys_status_message.message_id = 1;
+    db_sys_status_message.mode = 'm';
+    db_sys_status_message.packetloss_rc = 0;
+    db_sys_status_message.rssi_drone = 0;
+    db_sys_status_message.crc = 0x66;
     comm_id = (uint8_t) comm_id_num;
 
     process_command_line_args(argc, argv);
 
+    // open db rc shared memory
     db_rc_values *rc_values = db_rc_values_memory_open();
     // open wbc rx status shared memory
     wifibroadcast_rx_status_t *wbc_rx_status = wbc_status_memory_open();
@@ -117,13 +124,13 @@ int main(int argc, char *argv[]) {
     remoteServAddr.sin_family = AF_INET;
     remoteServAddr.sin_addr.s_addr = inet_addr("192.168.2.2");
     remoteServAddr.sin_port = htons(app_port_status);
-    fd = socket (AF_INET, SOCK_DGRAM, 0);
-    if (fd < 0) {
+    udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
+    if (udp_socket < 0) {
         printf ("DB_STATUS_GROUND: %s: Unable to open socket\n", strerror(errno));
         exit (EXIT_FAILURE);
     }
     int broadcast=1;
-    if (setsockopt(fd,SOL_SOCKET,SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
+    if (setsockopt(udp_socket,SOL_SOCKET,SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
         printf("DB_STATUS_GROUND: %s\n",strerror(errno));
     }
 
@@ -132,13 +139,18 @@ int main(int argc, char *argv[]) {
 
     printf("DB_STATUS_GROUND: started!\n");
     while(keeprunning) {
-        counter++;
+        // ---------------
         // Get IP from IP Checker shared memory segment 10th time
+        // ---------------
+        counter++;
         if (counter>9){
             counter = 0;
             remoteServAddr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
         }
-        // Check for incoming data
+
+        // ---------------
+        // status message
+        // ---------------
         l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0);
         if (l>0){
             // get payload
@@ -146,34 +158,41 @@ int main(int argc, char *argv[]) {
             // message_length = lr_buffer[radiotap_length+19] | (lr_buffer[radiotap_length+20] << 8);
             // process payload (currently only one type of raw status frame is supported: RC_AIR --> STATUS_GROUND)
             // must be a data_rc_status_update
-            db_status_frame.rssi_drone = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH];
-            db_status_frame.packetloss_rc = (uint8_t) (
+            db_sys_status_message.rssi_drone = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH];
+            db_sys_status_message.packetloss_rc = (uint8_t) (
                     (1 - (lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1] / rc_send_rate)) * 100);
         }
-
         best_dbm = -1000;
         for(cardcounter=0; cardcounter<number_cards; ++cardcounter) {
             if (best_dbm < wbc_rx_status->adapter[cardcounter].current_signal_dbm)
                 best_dbm = wbc_rx_status->adapter[cardcounter].current_signal_dbm;
         }
-        db_status_frame.rssi_ground = best_dbm;
-        db_status_frame.damaged_blocks_wbc = htonl(wbc_rx_status->damaged_block_cnt);
-        db_status_frame.lost_packets_wbc = htonl(wbc_rx_status->lost_packet_cnt);
-        db_status_frame.kbitrate_wbc = htonl(wbc_rx_status-> kbitrate);
+        db_sys_status_message.rssi_ground = best_dbm;
+        db_sys_status_message.damaged_blocks_wbc = htonl(wbc_rx_status->damaged_block_cnt);
+        db_sys_status_message.lost_packets_wbc = htonl(wbc_rx_status->lost_packet_cnt);
+        db_sys_status_message.kbitrate_wbc = htonl(wbc_rx_status-> kbitrate);
         if (wbc_rx_status->tx_restart_cnt > restarts) {
             restarts++;
             usleep ((__useconds_t) 1e7);
         }
-
-        sendto (fd, &db_status_frame, sizeof(DB_STATUS_FRAME), 0, (struct sockaddr *) &remoteServAddr,
+        sendto (udp_socket, &db_sys_status_message, sizeof(DB_SYSTEM_STATUS_MESSAGE), 0, (struct sockaddr *) &remoteServAddr,
                 sizeof (remoteServAddr));
 
+        // ---------------
+        // RC message
+        // ---------------
+        memcpy(db_rc_status_message.channels, rc_values->ch, NUM_CHANNELS);
+        sendto (udp_socket, &db_rc_status_message, sizeof(DB_RC_STATUS_MESSAGE), 0, (struct sockaddr *) &remoteServAddr,
+                sizeof (remoteServAddr));
         // DEBUG
-        printf("\nRC values form control module: %i %i %i %i %i %i %i", rc_values->ch[0], rc_values->ch[1], rc_values->ch[2],
-               rc_values->ch[3], rc_values->ch[4], rc_values->ch[5], rc_values->ch[6]);
+        //printf( "%c[;H", 27 );
+        //printf("\nRC values form control module: %i %i %i %i %i %i %i", rc_values->ch[0], rc_values->ch[1],
+        // rc_values->ch[2], rc_values->ch[3], rc_values->ch[4], rc_values->ch[5], rc_values->ch[6]);
 
-        usleep((__useconds_t) 2e5); // 5Hz
+
+
+        usleep((__useconds_t) 1e5); // 10Hz
     }
-    close(fd);
+    close(udp_socket);
     return 0;
 }

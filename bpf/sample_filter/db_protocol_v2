@@ -7,9 +7,9 @@
 	or       x
 	st       M[0]
 	tax      
-	ldb      [x + 0]
-L9:	jset     #0xb4,            L16,	L10	/* RTS frames */
-L10:	jset     #0x80,            L16,	drop	/* Data frames */
+	ldh      [x + 0]
+L9:	jset     #0xb400,          L16,	L10	/* RTS frames */
+L10:	jset     #0x8000,          L16,	drop	/* Data frames */
 
 L16:	ldh      [x + 4]
 L17:	jeq      #0x0301,	   L18, drop	/* <direction><comm id> */

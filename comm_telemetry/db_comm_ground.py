@@ -3,20 +3,18 @@ from DroneBridge_Protocol import DBProtocol
 from db_comm_helper import find_mac
 import time
 
-# Default values, may get overridden by command line arguments
+
 UDP_Port_RX = 1604  # Port for communication with RX (Drone)
 IP_RX = '192.168.3.1'  # Target IP address (IP address of the Pi on the Drone: needs fixed one)
 UDP_PORT_ANDROID = 1605  # Port for communication with smartphone (port on groundstation side)
 UDP_buffersize = 512  # bytes
 interface_drone_comm = "000ee8dcaa2c" # for testing
-dst = b''   # MAC address of RX-Pi (TP-Link) - mac of drone
-# TODO: at the moment comm_id must be same as dest for compatibility reasons of v1 and v2 of raw protocol. Otherwise no MSP command can be sent
 
 
 def parsearguments():
-    parser = argparse.ArgumentParser(description='Put this file on TX (drone). It handles telemetry, GoPro settings'
+    parser = argparse.ArgumentParser(description='Put this file on the groundstation. It handles GoPro settings'
                                                  ' and communication with smartphone')
-    parser.add_argument('-i', action='store', dest='interface_drone_comm',
+    parser.add_argument('-n', action='store', dest='interface_drone_comm',
                         help='Network interface on which we send out packets to MSP-pass through. Should be interface '
                         'for long range comm (default: wlan1)',
                         default='wlan1')
@@ -36,11 +34,10 @@ def parsearguments():
                         help='Set the mode in which communication should happen. Use [wifi|monitor]',
                         default='monitor')
     parser.add_argument('-a', action='store', dest='frame_type',
-                        help='Specify frame type. Use <1> for Ralink chips (data frame) and <2> for Atheros chips '
-                             '(beacon frame). No CTS supported. Options [1|2]', default='1')
-    parser.add_argument('-c', action='store', dest='comm_id',
-                        help='Communication ID must be the same on drone and groundstation. 8 characters long. Allowed '
-                             'chars are (0123456789abcdef) Example: "aabb0011"', default='aabbccdd')
+                        help='Specify frame type. Options [1|2]', default='1')
+    parser.add_argument('-c', action='store', type=int, dest='comm_id',
+                        help='Communication ID must be the same on drone and groundstation. A number between 0-255 '
+                             'Example: "125"', default='111')
     return parser.parse_args()
 
 
@@ -55,20 +52,17 @@ def main():
     frame_type = parsedArgs.frame_type
 
     src = find_mac(interface_drone_comm)
-    extended_comm_id = bytes(b'\x01'+b'\x01'+bytearray.fromhex(parsedArgs.comm_id)) # <odd><direction><comm_id>
-    # print("DB_TX_Comm: Communication ID: " + comm_id.hex()) # only works in python 3.5+
-    print("DB_TX_Comm: Communication ID: " + str(extended_comm_id))
+    comm_id = bytes([parsedArgs.comm_id])
+    print("DB_Comm_GROUND: Communication ID: " + str(comm_id))
 
-    dbprotocol = DBProtocol(src, dst, UDP_Port_RX, IP_RX, UDP_PORT_ANDROID, b'\x01', interface_drone_comm, mode,
-                            extended_comm_id, frame_type, b'\x04')
-    if mode == 'wifi':
-        dbprotocol.updateRouting()
-
+    dbprotocol = DBProtocol(src, UDP_Port_RX, IP_RX, UDP_PORT_ANDROID, b'\x01', interface_drone_comm, mode,
+                            comm_id, frame_type, b'\x04')
     last_keepalive = 0
 
     while True:
         last_keepalive = dbprotocol.process_smartphonerequests(last_keepalive)  # non-blocking
         time.sleep(0.5)
+
 
 if __name__ == "__main__":
     main()

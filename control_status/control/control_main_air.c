@@ -29,36 +29,10 @@
 
 static volatile int keepRunning = 1;
 uint8_t buf[BUF_SIZ];
-int radiotap_length;
 
 void intHandler(int dummy)
 {
     keepRunning = 0;
-}
-
-/*struct ifreq findMACAdress(char interface[])
-{
-    int s;
-    struct ifreq buffer;
-    s = socket(PF_INET, SOCK_DGRAM, 0);
-    memset(&buffer, 0x00, sizeof(buffer));
-    strcpy(buffer.ifr_name, interface);
-    ioctl(s, SIOCGIFHWADDR, &buffer);
-    close(s);
-    return buffer;
-}*/
-
-int determineRadiotapLength(int socket){
-    printf("DB_CONTROL_AIR: Waiting for first packet.\n");
-    ssize_t length = recv(socket, buf, BUF_SIZ, 0);
-    if (length < 0)
-    {
-        printf("DB_CONTROL_AIR: Raw socket returned unrecoverable error: %s\n", strerror(errno));
-        return 18; // might be true
-    }
-    radiotap_length = buf[2] | (buf[3] << 8);
-    printf("DB_CONTROL_AIR: Radiotapheader length is %i\n", radiotap_length);
-    return radiotap_length;
 }
 
 int main(int argc, char *argv[])
@@ -70,7 +44,9 @@ int main(int argc, char *argv[])
     uint8_t comm_id = DEFAULT_V2_COMMID, status_seq_number = 0;
     char db_mode = 'm';
 
-// ------------------------------- Processing command line arguments ----------------------------------
+// -------------------------------
+// Processing command line arguments
+// -------------------------------
     strncpy(ifName, DEFAULT_IF, IFNAMSIZ);
     strcpy(usbIF, USB_IF);
     opterr = 0;
@@ -101,35 +77,37 @@ int main(int argc, char *argv[])
                 break;
             case '?':
                 printf("Invalid commandline arguments. Use "
-                               "\n-n <network_IF> "
-                               "\n-u <USB_MSP/MAVLink_Interface_TO_FC> - set the baud rate to 115200 on your FC!"
-                               "\n-m [w|m] (m = default)"
-                               "\n-v Protocol over serial port [1|2|3|4]: 1 = MSPv1 [Betaflight/Cleanflight]; "
-                               "2 = MSPv2 [iNAV] (default); 3 = MAVLink; 4 = MAVLink v2"
-                               "\n-c <communication_id> Choose a number from 0-255. Same on groundstation and drone!"
-                               "\n-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
-                               "\n-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
-                               "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)");
+                               "\n\t-n <network_IF> "
+                               "\n\t-u <USB_MSP/MAVLink_Interface_TO_FC> - set the baud rate to 115200 on your FC!"
+                               "\n\t-m [w|m] (m = default)"
+                               "\n\t-v Protocol over serial port [1|2]: 1 = MSPv1 [Betaflight/Cleanflight]; "
+                               "2 = MSPv2 [iNAV] (default); 3 = MAVLink (unsupported); 4 = MAVLink v2 (unsupported)"
+                               "\n\t-c <communication_id> Choose a number from 0-255. Same on groundstation and drone!"
+                               "\n\t-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
+                               "\n\t-b bitrate: \n\t\t1 = 2.5Mbit\n\t\t2 = 4.5Mbit\n\t\t3 = 6Mbit\n\t\t4 = 12Mbit (default)\n\t\t"
+                               "5 = 18Mbit\n\t\t(bitrate option only supported with Ralink chipsets)");
                 break;
             default:
                 abort ();
         }
     }
     conf_rc_serial_protocol_air(rc_protocol);
-// ------------------------------- Setting up Network Interface ----------------------------------
+// -------------------------------
+// Setting up Network Interface
+// -------------------------------
+    int socket_port_rc = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_RC);
+    //int socket_port_rc = open_receive_socket(ifName, db_mode, comm_id, DB_DIREC_DRONE, DB_PORT_RC);
+    int socket_port_control = 0;
+    //int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND, DB_PORT_CONTROLLER);
+    //socket_port_rc = set_socket_timeout(socket_port_rc, 0, 25000);
+    //socket_port_control = set_socket_nonblocking(socket_port_control);
 
-    /* Header structures */
-    //struct ether_header *eh = (struct ether_header *) buf;
-    //struct iphdr *iph = (struct iphdr *) (buf + sizeof(struct ether_header));
-    //struct udphdr *udph = (struct udphdr *) (buf + sizeof(struct iphdr) + sizeof(struct ether_header));
-    //socket_receive = setUpNetworkIF(ifName, db_mode, comm_id);
-    int socket_port_rc = open_receive_socket(ifName, db_mode, comm_id, DB_DIREC_DRONE, DB_PORT_RC);
-    int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND, 
-                                                       DB_PORT_CONTROLLER);
-
-// ------------------------------- Setting up UART Interface ---------------------------------------
+// -------------------------------
+//    Setting up UART Interface
+// -------------------------------
     int USB = -1;
-    do
+    // TODO remove
+/*    do
     {
         USB = open(usbIF, O_WRONLY | O_NOCTTY | O_NDELAY);
         if (USB == -1)
@@ -149,32 +127,34 @@ int main(int argc, char *argv[])
     options.c_oflag = 0;
     options.c_lflag = 0;
     tcflush(USB, TCIFLUSH);
-    tcsetattr(USB, TCSANOW, &options);
+    tcsetattr(USB, TCSANOW, &options);*/
 
-// -------------------------------------- Loop ------------------------------------------------------
+// ----------------------------------
+//       Loop
+// ----------------------------------
     int err, sentbytes = 0, command_length = 0;
     int8_t rssi = -100;
-    uint8_t packet_count = 0;
+    long start, rightnow, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
+
+    uint8_t packet_count = 0, packet_count_bad = 0;
+
     ssize_t length;
     signal(SIGINT, intHandler);
     uint8_t commandBuf[COMMAND_BUF_SIZE];
-    long start, rightnow, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
-    uint8_t packet_count_multi = (uint8_t) (1000/status_report_update_rate);
     struct timeval timecheck;
 
     // create our data pointer directly inside the buffer (monitor_framebuffer) that is sent over the socket
     struct data_rc_status_update *rc_status_update_data = (struct data_rc_status_update *)
-            (monitor_framebuffer + RADIOTAP_LENGTH + DATA_UNI_LENGTH);
-
-    socket_port_rc = set_socket_timeout(socket_port_rc, 0, 250000);
-    socket_port_control = set_socket_nonblocking(socket_port_control);
+            (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
 
     printf("DB_CONTROL_AIR: Starting MSP/MAVLink pass through!\n");
     gettimeofday(&timecheck, NULL);
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
     while(keepRunning)
     {
-        // -------------------------------- DB_RC_PORT messages - has timeout
+        // --------------------------------
+        // DB_RC_PORT messages - has timeout - for DroneBridge RC packets
+        // --------------------------------
         length = recv(socket_port_rc, buf, BUF_SIZ, 0); err = errno;
         if (length > 0){
             if (chipset_type == 1){
@@ -186,7 +166,8 @@ int main(int argc, char *argv[])
             command_length = generate_rc_serial_message(commandBuf);
             if (command_length > 0){
                 packet_count++;
-                sentbytes = (int) write(USB, serial_data_buffer, (size_t) command_length);
+                // TODO:
+                /*sentbytes = (int) write(USB, serial_data_buffer, (size_t) command_length);
                 tcdrain(USB);
                 if(sentbytes == 0)
                 {
@@ -197,12 +178,16 @@ int main(int argc, char *argv[])
                     int errsv = errno;
                     printf(" RC NOT SENT because of error %s\n", strerror(errsv));
                 }
-                tcflush(USB, TCIOFLUSH);
+                tcflush(USB, TCIOFLUSH);*/
+            } else {
+                packet_count_bad++;
             }
         }
 
-        // -------------------------------- DB_CONTROL_PORT messages - non blocking
-        length = recv(socket_port_control, buf, BUF_SIZ, 0); err = errno;
+        // --------------------------------
+        // DB_CONTROL_PORT messages - non blocking - for MSP/MAVLink
+        // --------------------------------
+        /*length = recv(socket_port_control, buf, BUF_SIZ, 0); err = errno;
         if (length <= 0)
         {
             if (err == EAGAIN)
@@ -221,7 +206,6 @@ int main(int argc, char *argv[])
             }else{
                 rssi = buf[30];
             }
-            // Get MSP/MAVLink message and write to serial interface
             command_length = buf[buf[2]+7] | (buf[buf[2]+8] << 8); // ready for v2
             memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], command_length);
             sentbytes = (int) write(USB, commandBuf, (size_t) command_length);
@@ -239,7 +223,9 @@ int main(int argc, char *argv[])
             // TODO: check for response on UART and send to DroneBridge proxy module on groundstation; beware we might block RC!
         }
 
+        // --------------------------------
         // Send a status update to status module on groundstation
+        // --------------------------------
         gettimeofday(&timecheck, NULL);
         rightnow = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
         if ((rightnow-start) >= status_report_update_rate){
@@ -249,14 +235,15 @@ int main(int argc, char *argv[])
                 status_seq_number++;
             }
             rc_status_update_data->bytes[0] = rssi;
-            rc_status_update_data->bytes[1] = (packet_count*packet_count_multi);
+            rc_status_update_data->bytes[1] = (int8_t) (packet_count * ((double) 1000 / (rightnow - start)));
+            // printf("Packetcount good about: %i per second  \n", (int8_t) (packet_count * ((double) 1000 / (rightnow - start))));
+            // printf("Bad packets about: %i per second \n", (int8_t) (packet_count_bad * ((double) 1000 / (rightnow - start))));
             send_packet_hp( DB_PORT_STATUS, (u_int16_t) 2, status_seq_number);
 
-            // reset values
-            packet_count = 0;
+            packet_count = 0; packet_count_bad = 0;
             gettimeofday(&timecheck, NULL);
             start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
-        }
+        }*/
     }
 
     close(socket_port_rc);

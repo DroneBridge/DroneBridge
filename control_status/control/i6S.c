@@ -56,14 +56,14 @@ int initialize_i6S(int new_Joy_IF, char calibrate_comm[]) {
  * @param adjustingValue A extra value that might add extra exponential behavior to the sticks etc.
  * @return 1000<=return_value<=2000
  */
-int16_t normalize_i6S(int16_t value, int16_t adjustingValue) {
-    return ((adjustingValue * value) / MAX) + 1500;
+uint16_t normalize_i6S(int16_t value, int16_t adjustingValue) {
+    return (uint16_t) (((adjustingValue * value) / MAX) + 1500);
 }
 
 
 int i6S(int Joy_IF, char calibrate_comm[]) {
     signal(SIGINT, intHandler);
-    unsigned short JoystickData[NUM_CHANNELS];
+    uint16_t JoystickData[NUM_CHANNELS];
     struct timespec tim, tim2;
     tim.tv_sec = 0;
     tim.tv_nsec = 16666666L; //60Hz
@@ -113,10 +113,6 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
     rc.pos_switch1 = 1000;
     rc.pos_switch2 = 1000;
 
-//    int count = 0;
-//    struct timeval  tv;
-//    gettimeofday(&tv, NULL);
-//    double begin = (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000;
     printf("DB_CONTROL_GROUND: Starting to send commands!\n");
     while (keepRunning) //send loop
     {
@@ -220,29 +216,21 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
 //        printf("pos_switch 2: %i          \n",rc.pos_switch2);
 //        printf("Button 5:     %i          \n",rc.button5);
 
-        JoystickData[0] = htons(normalize_i6S(rc.roll, 500));
-        JoystickData[1] = htons(normalize_i6S(rc.pitch, 500));
-        JoystickData[2] = htons(normalize_i6S(rc.yaw, 500));
-        JoystickData[3] = htons(normalize_i6S(rc.throttle, 500));
-        JoystickData[4] = htons(normalize_i6S(rc.cam_up, 500));
-        JoystickData[5] = htons(normalize_i6S(rc.cam_down, 500));
-        JoystickData[6] = htons(rc.button0);
-        JoystickData[7] = htons(rc.pos_switch1);
-        JoystickData[8] = htons(rc.pos_switch2);
-        JoystickData[9] = htons(rc.button5);
-        JoystickData[10] = htons(1000); // unused by i6s - used by app
-        JoystickData[11] = htons(1000); // unused by i6s - used by app
-        JoystickData[12] = htons(1000); // unused by i6s - used by app
-        JoystickData[13] = htons(1000); // unused by i6s - used by app
+        JoystickData[0] = normalize_i6S(rc.roll, 500);
+        JoystickData[1] = normalize_i6S(rc.pitch, 500);
+        JoystickData[2] = normalize_i6S(rc.yaw, 500);
+        JoystickData[3] = normalize_i6S(rc.throttle, 500);
+        JoystickData[4] = normalize_i6S(rc.cam_up, 500);
+        JoystickData[5] = normalize_i6S(rc.cam_down, 500);
+        JoystickData[6] = (uint16_t) rc.button0;
+        JoystickData[7] = (uint16_t) rc.pos_switch1;
+        JoystickData[8] = (uint16_t) rc.pos_switch2;
+        JoystickData[9] = (uint16_t) rc.button5;
+        JoystickData[10] = 1000; // unused by i6s - used by app
+        JoystickData[11] = 1000; // unused by i6s - used by app
+        JoystickData[12] = 1000; // unused by i6s - used by app
+        JoystickData[13] = 1000; // unused by i6s - used by app
         send_rc_packet(JoystickData);
-//            count++;
-//            if(count == 120){
-//                gettimeofday(&tv, NULL);
-//
-//                double end = (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000 ;
-//                printf("Duration to send %i times: %f ms",count,end-begin);
-//                keepRunning = false;
-//            }
     }
     close(fd);
     close_socket_send_receive();

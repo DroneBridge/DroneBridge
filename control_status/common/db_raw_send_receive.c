@@ -30,11 +30,11 @@
 uint8_t radiotap_header_pre[] = {
 
         0x00, 0x00, // <-- radiotap version
-        0x0c, 0x00, // <- radiotap header length
+        0x0d, 0x00, // <- radiotap header length
         0x04, 0x80, 0x00, 0x00, // <-- bitmap
-        0x24,       // data rate (will be overwritten)
+        0x18,       // data rate (will be overwritten)
         0x00,
-        0x18, 0x00
+        0x00, 0x00, 0x00
 };
 const uint8_t frame_control_pre_data[] =
         {
@@ -56,6 +56,7 @@ struct sockaddr_ll socket_address;
 char mode = 'm';
 int socket_send_receive;
 
+uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH] = {0};
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
 struct db_raw_v2_header *db_raw_header = (struct db_raw_v2_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
 struct data_uni *monitor_databuffer_internal = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);

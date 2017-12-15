@@ -9,7 +9,7 @@
 #ifndef DB_PROTOCOL_H_INCLUDED
 #define DB_PROTOCOL_H_INCLUDED
 
-#define RADIOTAP_LENGTH         12
+#define RADIOTAP_LENGTH         13
 #define DB_RAW_V2_HEADER_LENGTH 10
 
 #define MSP_DATA_LENTH          34      // size of MSP v1
@@ -88,7 +88,13 @@ typedef struct {
 	uint32_t lost_packets_wbc;
 	uint32_t kbitrate_wbc;
 	uint8_t crc;
-} __attribute__((packed)) DB_STATUS_FRAME;
+} __attribute__((packed)) DB_SYSTEM_STATUS_MESSAGE;
+
+typedef struct {
+	uint8_t ident[2];
+	uint8_t message_id;
+	uint16_t channels[NUM_CHANNELS];
+} __attribute__((packed)) DB_RC_STATUS_MESSAGE;
 
 typedef struct {
 	uint16_t ch[NUM_CHANNELS];

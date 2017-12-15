@@ -14,7 +14,7 @@
 wifibroadcast_rx_status_t *wbc_status_memory_open() {
     int fd;
     for(;;) {
-        fd = shm_open("/wifibroadcast_rx_status_0", O_RDWR, S_IRUSR | S_IWUSR);
+        fd = shm_open("/wifibroadcast_rx_status_0", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd > 0) {
             break;
         }

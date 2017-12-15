@@ -14,7 +14,7 @@
 // That is the buffer that will be sent over the socket. Create a pointer to a part of this array and fill it with your
 // data, like e.g.:
 // struct data_rc_status_update *rc_status_update_data = (struct data_rc_status_update *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
-uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH];
+extern uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH];
 
 
 int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option, uint8_t direction, 

@@ -14,9 +14,10 @@ interface_tel=$(awk -F "=" '/^interface_tel/ {gsub(/[ \t]/, "", $2); print $2}' 
 interface_video=$(awk -F "=" '/^interface_video/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 interface_comm=$(awk -F "=" '/^interface_comm/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 interface_gopro=$(awk -F "=" '/^interface_gopro/ {gsub(/[ \t]/, "", $2); print $2}' $file)
-interface_telemetry=$(awk -F "=" '/^interface_telemetry/ {gsub(/[ \t]/, "", $2); print $2}' $file)
-interface_MSP=$(awk -F "=" '/^interface_MSP/ {gsub(/[ \t]/, "", $2); print $2}' $file)
-port_telemetry=$(awk -F "=" '/^port_telemetry/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+serial_int_tel=$(awk -F "=" '/^serial_int_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+tel_proto=$(awk -F "=" '/^tel_proto/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+serial_int_cont=$(awk -F "=" '/^serial_int_cont/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+serial_prot=$(awk -F "=" '/^serial_prot/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 
 if [[ interface_selection=='auto' ]]; then
 	NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
@@ -54,21 +55,22 @@ if [ "$DRIVER" == "ath9k_htc" ]; then
 fi
 
 echo "DroneBridge-Air: Communication ID: $comm_id"
-echo "DroneBridge-Air: Interfaces: Control: $interface_control Telemetry: $interface_tel Video: $interface_video Communication: $interface_comm - Interface MSP: $interface_MSP - Mode: $mode"
+echo "DroneBridge-Air: Interfaces: Control: $interface_control Telemetry: $interface_tel Video: $interface_video Communication: $interface_comm"
+echo "DroneBridge-Air: Serial port MSP/MAVLInk: $serial_int_cont - Mode: $mode"
 echo "DroneBridge-Air: Frametypes: Control: $frametype_control Telemetry: $frametype_tel Video: $frametype_video Communication: $frametype_comm"
 echo "DroneBridge-Air: Trying to start individual modules..."
 
 if [ $en_comm = "Y" ]; then
 	echo "DroneBridge-Air: Starting communication module..."
-	python3 comm_telemetry/db_comm_air.py -i $interface_comm -p $port_telemetry -m $mode -a $frametype_comm -c $comm_id &
+	python3 comm_telemetry/db_comm_air.py -n $interface_comm -m $mode -a $frametype_comm -c $comm_id &
 fi
 
 if [ $en_tel = "Y" ]; then
 	echo "DroneBridge-Air: Starting telemetry module..."
-	python3 comm_telemetry/db_telemetry_air.py -i $interface_tel -f $interface_telemetry -p $port_telemetry -m $mode -t yes -a $frametype_tel -c $comm_id &
+	python3 comm_telemetry/db_telemetry_air.py -n $interface_tel -f $serial_int_tel -m $mode -a $frametype_tel -c $comm_id -l $tel_proto &
 fi
 
 if [ $en_control = "Y" ]; then
 	echo "DroneBridge-Air: Starting controller module..."
-	./control/air/control_air -n $interface_control -u $interface_MSP -m $mode -c $comm_id &
+	./control_status/control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $frametype_control -v $serial_prot &
 fi

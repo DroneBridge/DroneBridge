@@ -2,9 +2,6 @@ import json
 import configparser
 import binascii
 from itertools import chain
-
-
-# Creates JSON messages for DB Communication Protocol to be sent out
 import os
 
 tag = 'DB_COMM_MESSAGE: '
@@ -40,11 +37,12 @@ def new_settingsresponse_message(loaded_json, origin):
     return response.encode()+crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-"""returns a settings change success message"""
 def new_settingschangesuccess_message(origin, new_id):
+    """returns a settings change success message"""
     command = json.dumps({'destination': 4, 'type': 'settingssuccess', 'origin': origin, 'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode()+crc32.to_bytes(4, byteorder='little', signed=False)
+
 
 def change_settings_wbc(loaded_json, origin):
     try:
