@@ -1,3 +1,7 @@
+# This file is part of DroneBridge licenced under Apache Licence 2
+# https://github.com/seeul8er/DroneBridge/
+# Created by Wolfgang Christl
+
 import base64
 import json
 from socket import *
@@ -56,9 +60,9 @@ class DBProtocol:
         else:
             self.short_mode = 'm'
         if frame_type == '1':
-            self.fcf = b'\xb4\x00'  # RTS frames
+            self.fcf = b'\xb4\x00\x00\x00'  # RTS frames
         else:
-            self.fcf = b'\x08\x00'  # Data frames
+            self.fcf = b'\x08\x00\x00\x00'  # Data frames
         self.db_port = dronebridge_port
         self.comm_sock = self._open_comm_sock()
         if self.comm_direction == TO_DRONE:
@@ -67,6 +71,7 @@ class DBProtocol:
         self.changed = False
         self.signal = 0  # signal quality that is measured [dBm]
         self.first_run = True
+        self.seq_num = 0
 
     def receive_datafromdrone(self):
         """Check if new data from the drone arrived and return packet payload"""
@@ -298,7 +303,7 @@ class DBProtocol:
     def _sendto_rx_wifi(self, raw_data_bytes, port_bytes):
         """
         Send a packet to drone in wifi mode
-        depending on message type different ports/programmes aka frontends on the drone need to be addressed
+        depending on message type different ports/programmes aka front ends on the drone need to be addressed
         """
         if port_bytes == DB_PORT_CONTROLLER:
             print(self.tag + "Sending MSP command to RX Controller (wifi)")
@@ -306,7 +311,7 @@ class DBProtocol:
                 # TODO
                 num = 0
                 pass
-            except Exception as e:
+            except Exception:
                 return False
             print(self.tag + "Sent it!")
         else:
@@ -315,11 +320,14 @@ class DBProtocol:
         return num
 
     def _send_monitor(self, data_bytes, port_bytes, direction):
-        """Send a packet in monitor mode using DroneBridge raw protocol v2"""
+        """Send a packet in monitor mode using DroneBridge raw protocol v2. Return None on success"""
         payload_length_bytes = bytes(len(data_bytes).to_bytes(2, byteorder='little', signed=False))
-        # TODO: add sequence number
+        if self.seq_num == 255:
+            self.seq_num = 0
+        else:
+            self.seq_num += 1
         db_v2_raw_header = bytes(bytearray(self.fcf + direction + self.comm_id + port_bytes + payload_length_bytes +
-                                           b'\x00'))
+                                           bytes([self.seq_num])))
         while True:
             r, w, e = select.select([], [self.comm_sock], [], 0)
             if w:
@@ -378,7 +386,7 @@ class DBProtocol:
         self.comm_sock.setblocking(True)
 
     def _open_android_udpsocket(self):
-        print(self.tag + "Opening UDP-Socket to smartphone on port: "+str(self.udp_port_smartphone)+")")
+        print(self.tag + "Opening UDP-Socket to smartphone on port: "+str(self.udp_port_smartphone))
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)

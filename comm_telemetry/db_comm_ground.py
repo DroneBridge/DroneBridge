@@ -1,3 +1,7 @@
+# This file is part of DroneBridge licenced under Apache Licence 2
+# https://github.com/seeul8er/DroneBridge/
+# Created by Wolfgang Christl
+
 import argparse
 from DroneBridge_Protocol import DBProtocol
 from db_comm_helper import find_mac

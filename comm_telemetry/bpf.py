@@ -1,5 +1,8 @@
-# Credit goes to https://github.com/dw/scratch/blob/master/graceful_unlisten/server.py
-# Thanks for providing an example! :)
+# This file is part of DroneBridge licenced under Apache2
+# https://github.com/seeul8er/DroneBridge/
+# Created by Wolfgang Christl
+
+# Thanks for providing an example! https://github.com/dw/scratch/blob/master/graceful_unlisten/server.py
 
 import ctypes
 from socket import *
