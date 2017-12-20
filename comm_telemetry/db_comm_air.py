@@ -33,8 +33,6 @@ def parseArguments():
     parser.add_argument('-m', action='store', dest='mode',
                         help='Set the mode in which communication should happen. Use [wifi|monitor]',
                         default='monitor')
-    parser.add_argument('-a', action='store', dest='frame_type',
-                        help='Specify frame type. Options [1|2]', default='1')
     parser.add_argument('-c', action='store', type=int, dest='comm_id',
                         help='Communication ID must be the same on drone and groundstation. A number between 0-255 '
                              'Example: "125"', default='111')
@@ -46,13 +44,12 @@ def main():
     parsedArgs = parseArguments()
     UDP_Port_TX = 1604
     mode = parsedArgs.mode
-    frame_type = parsedArgs.frame_type
     DB_INTERFACE = parsedArgs.DB_INTERFACE
     src = find_mac(DB_INTERFACE)
     comm_id = bytes([parsedArgs.comm_id])
     # print("DB_TX_Comm: Communication ID: " + comm_id.hex()) # only works in python 3.5+
     print("DB_RX_Comm: Communication ID: " + str(comm_id))
-    dbprotocol = DBProtocol(src, UDP_Port_TX, IP_TX, 0, b'\x03', DB_INTERFACE, mode, comm_id, frame_type, b'\x04')
+    dbprotocol = DBProtocol(src, UDP_Port_TX, IP_TX, 0, b'\x03', DB_INTERFACE, mode, comm_id, b'\x04')
 
     while True:
         dbprotocol.receive_process_datafromgroundstation() # blocking

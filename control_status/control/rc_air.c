@@ -157,12 +157,6 @@ int deserialize_db_rc_protocol(uint8_t *db_rc_protocol_message) {
         rc_channels[9] = ((db_rc_protocol_message[11] & 0xFC) >> 2) | ((db_rc_protocol_message[12] & 0x0F) << 6);
         rc_channels[10] = ((db_rc_protocol_message[12] & 0xF0) >> 4) | ((db_rc_protocol_message[13] & 0x3F) << 4);
         rc_channels[11] = ((db_rc_protocol_message[13] & 0xC0) >> 6) | (db_rc_protocol_message[14] << 2);
-
-        // TODO remove
-        printf( "%c[;H", 27 );
-        printf("Roll:     %i          \n",rc_channels[0]);
-        printf("Pitch:    %i          \n",rc_channels[1]);
-        printf("Yaw:      %i          \n",rc_channels[2]);
         return 1;
     } else {
         return -1; // packet is damaged
@@ -192,10 +186,10 @@ int generate_rc_serial_message(uint8_t *db_rc_protocol){
             return 33;
         }else if (rc_protocol_air == 3){
             // TODO: MAVLink v1 - seems it is not recommended to do RC override with MAVLink...
-            perror("Unsupported for now");
+            perror("MAVLink v1 unsupported for now");
         }else if (rc_protocol_air == 4){
             // TODO: generate MAVLink v2 - seems it is not recommended to do RC override with MAVLink...
-            perror("Unsupported for now");
+            perror("MAVLink v2 unsupported for now");
         }
     }
     return -1;

@@ -63,3 +63,5 @@ control_status/control/common_lib/CMakeFiles/
 control_status/control/common_lib/Makefile
 
 *.a
+
+control_status/x86bin/

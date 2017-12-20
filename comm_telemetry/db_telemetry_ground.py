@@ -48,8 +48,6 @@ def parsearguments():
     parser.add_argument('-m', action='store', dest='mode',
                         help='Set the mode in which communication should happen. Use [wifi|monitor]',
                         default='monitor')
-    parser.add_argument('-a', action='store', dest='frame_type',
-                        help='Specify frame type. Options [1|2]', default='1')
     parser.add_argument('-c', action='store', type=int, dest='comm_id',
                         help='Communication ID must be the same on drone and groundstation. A number between 0-255 '
                              'Example: "125"', default='111')
@@ -63,14 +61,13 @@ def main():
     mode = parsedArgs.mode
     IP_RX = parsedArgs.ip_rx
     UDP_Port_RX = parsedArgs.udp_port_rx
-    frame_type = parsedArgs.frame_type
 
     src = find_mac(interface_drone_comm)
     comm_id = bytes([parsedArgs.comm_id])
     print("DB_TEL_GROUND: Communication ID: " + str(comm_id))
 
     dbprotocol = DBProtocol(src, UDP_Port_RX, IP_RX, 1606, b'\x01', interface_drone_comm, mode,
-                            comm_id, frame_type, b'\x02')
+                            comm_id, b'\x02')
     print("DB_TEL_GROUND: Opening /root/telemetryfifo1...")
     fifo_write = open("/root/telemetryfifo1", "wb")
     print("DB_TEL_GROUND: Opened /root/telemetryfifo1")

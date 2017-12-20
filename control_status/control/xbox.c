@@ -248,15 +248,14 @@ int xbox_one(SDL_Joystick *joystick){
 
         AdjustingValue = adjustingArray[sensLevel];
 
-        JoystickData[0] = htons(normalize_xbox(rc.roll, AdjustingValue, 3););
-        JoystickData[1] = htons(normalize_xbox(rc.pitch, AdjustingValue, 4));
-        JoystickData[2] = htons(normalize_xbox(rc.yaw, AdjustingValue, 0));
-        JoystickData[3] = htons(normalize_xbox(rc.throttle, AdjustingValue, 1));
-        // TODO
-        JoystickData[10] = htons(1000); // unused by i6s - used by app
-        JoystickData[11] = htons(1000); // unused by i6s - used by app
-        JoystickData[12] = htons(1000); // unused by i6s - used by app
-        JoystickData[13] = htons(1000); // unused by i6s - used by app
+        JoystickData[0] = normalize_xbox(rc.roll, AdjustingValue, 3);
+        JoystickData[1] = normalize_xbox(rc.pitch, AdjustingValue, 4);
+        JoystickData[2] = normalize_xbox(rc.yaw, AdjustingValue, 0);
+        JoystickData[3] = normalize_xbox(rc.throttle, AdjustingValue, 1);
+        JoystickData[10] = 1000; // unused by i6s - used by app
+        JoystickData[11] = 1000; // unused by i6s - used by app
+        JoystickData[12] = 1000; // unused by i6s - used by app
+        JoystickData[13] = 1000; // unused by i6s - used by app
         send_rc_packet(JoystickData);
     }
     close(fd);

@@ -38,7 +38,7 @@ def attach_filter(sock, byte_comm_id, byte_direction, byte_port):
                     [0x07,  0,  0, 0000000000],
                     [0x48,  0,  0, 0000000000],
                     [0x45,  1,  0, 0x0000b400],  # allow rts frames
-                    [0x45,  0,  5, 0x00008000],  # allow data frames
+                    [0x45,  0,  5, 0x00000800],  # allow data frames
                     [0x48,  0,  0, 0x00000004],
                     [0x15,  0,  3, u32_direction_comm],  # <direction><comm id>
                     [0x50,  0,  0, 0x00000006],

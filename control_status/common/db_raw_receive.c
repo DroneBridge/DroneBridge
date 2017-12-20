@@ -48,7 +48,7 @@ int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t 
                     { 0x07,  0,  0, 0000000000 },
                     { 0x48,  0,  0, 0000000000 },
                     { 0x45,  1,  0, 0x0000b400 },   // allow rts frames
-                    { 0x45,  0,  5, 0x00008000 },   // allow data frames
+                    { 0x45,  0,  5, 0x00000800 },   // allow data frames
                     { 0x48,  0,  0, 0x00000004 },
                     { 0x15,  0,  3, 0x00000301 },   // <direction><comm id>
                     { 0x50,  0,  0, 0x00000006 },

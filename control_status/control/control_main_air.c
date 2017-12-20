@@ -106,8 +106,7 @@ int main(int argc, char *argv[])
 //    Setting up UART Interface
 // -------------------------------
     int USB = -1;
-    // TODO remove
-/*    do
+    do
     {
         USB = open(usbIF, O_WRONLY | O_NOCTTY | O_NDELAY);
         if (USB == -1)
@@ -127,7 +126,7 @@ int main(int argc, char *argv[])
     options.c_oflag = 0;
     options.c_lflag = 0;
     tcflush(USB, TCIFLUSH);
-    tcsetattr(USB, TCSANOW, &options);*/
+    tcsetattr(USB, TCSANOW, &options);
 
 // ----------------------------------
 //       Loop
@@ -152,6 +151,7 @@ int main(int argc, char *argv[])
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
     while(keepRunning)
     {
+        // TODO: implement select() with these sockets! NO non blocking needed etc.
         // --------------------------------
         // DB_RC_PORT messages - has timeout - for DroneBridge RC packets
         // --------------------------------
@@ -166,8 +166,7 @@ int main(int argc, char *argv[])
             command_length = generate_rc_serial_message(commandBuf);
             if (command_length > 0){
                 packet_count++;
-                // TODO:
-                /*sentbytes = (int) write(USB, serial_data_buffer, (size_t) command_length);
+                sentbytes = (int) write(USB, serial_data_buffer, (size_t) command_length);
                 tcdrain(USB);
                 if(sentbytes == 0)
                 {
@@ -178,7 +177,7 @@ int main(int argc, char *argv[])
                     int errsv = errno;
                     printf(" RC NOT SENT because of error %s\n", strerror(errsv));
                 }
-                tcflush(USB, TCIOFLUSH);*/
+                tcflush(USB, TCIOFLUSH);
             } else {
                 packet_count_bad++;
             }
@@ -187,7 +186,7 @@ int main(int argc, char *argv[])
         // --------------------------------
         // DB_CONTROL_PORT messages - non blocking - for MSP/MAVLink
         // --------------------------------
-        /*length = recv(socket_port_control, buf, BUF_SIZ, 0); err = errno;
+        length = recv(socket_port_control, buf, BUF_SIZ, 0); err = errno;
         if (length <= 0)
         {
             if (err == EAGAIN)
@@ -236,14 +235,12 @@ int main(int argc, char *argv[])
             }
             rc_status_update_data->bytes[0] = rssi;
             rc_status_update_data->bytes[1] = (int8_t) (packet_count * ((double) 1000 / (rightnow - start)));
-            // printf("Packetcount good about: %i per second  \n", (int8_t) (packet_count * ((double) 1000 / (rightnow - start))));
-            // printf("Bad packets about: %i per second \n", (int8_t) (packet_count_bad * ((double) 1000 / (rightnow - start))));
             send_packet_hp( DB_PORT_STATUS, (u_int16_t) 2, status_seq_number);
 
             packet_count = 0; packet_count_bad = 0;
             gettimeofday(&timecheck, NULL);
             start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
-        }*/
+        }
     }
 
     close(socket_port_rc);

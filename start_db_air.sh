@@ -33,44 +33,44 @@ if [[ interface_selection=='auto' ]]; then
 fi
 
 # 1 = Ralink | 2 = Atheros
-frametype_video=1
-frametype_control=1
-frametype_tel=1
-frametype_comm=1
+chipset_video=1
+chipset_control=1
+chipset_tel=1
+chipset_comm=1
 DRIVER=`cat /sys/class/net/$interface_control/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
 if [ "$DRIVER" == "ath9k_htc" ]; then
-    frametype_control=2
+    chipset_control=2
 fi
 DRIVER=`cat /sys/class/net/$interface_tel/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
 if [ "$DRIVER" == "ath9k_htc" ]; then
-    frametype_tel=2
+    chipset_tel=2
 fi
 DRIVER=`cat /sys/class/net/$interface_video/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
 if [ "$DRIVER" == "ath9k_htc" ]; then
-    frametype_video=2
+    chipset_video=2
 fi
 DRIVER=`cat /sys/class/net/$interface_comm/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
 if [ "$DRIVER" == "ath9k_htc" ]; then
-    frametype_comm=2
+    chipset_comm=2
 fi
 
 echo "DroneBridge-Air: Communication ID: $comm_id"
 echo "DroneBridge-Air: Interfaces: Control: $interface_control Telemetry: $interface_tel Video: $interface_video Communication: $interface_comm"
 echo "DroneBridge-Air: Serial port MSP/MAVLInk: $serial_int_cont - Mode: $mode"
-echo "DroneBridge-Air: Frametypes: Control: $frametype_control Telemetry: $frametype_tel Video: $frametype_video Communication: $frametype_comm"
+echo "DroneBridge-Air: Frametypes: Control: $chipset_control Telemetry: $chipset_tel Video: $chipset_video Communication: $chipset_comm"
 echo "DroneBridge-Air: Trying to start individual modules..."
 
 if [ $en_comm = "Y" ]; then
 	echo "DroneBridge-Air: Starting communication module..."
-	python3 comm_telemetry/db_comm_air.py -n $interface_comm -m $mode -a $frametype_comm -c $comm_id &
+	python3 comm_telemetry/db_comm_air.py -n $interface_comm -m $mode -c $comm_id &
 fi
 
 if [ $en_tel = "Y" ]; then
 	echo "DroneBridge-Air: Starting telemetry module..."
-	python3 comm_telemetry/db_telemetry_air.py -n $interface_tel -f $serial_int_tel -m $mode -a $frametype_tel -c $comm_id -l $tel_proto &
+	python3 comm_telemetry/db_telemetry_air.py -n $interface_tel -f $serial_int_tel -m $mode -c $comm_id -l $tel_proto &
 fi
 
 if [ $en_control = "Y" ]; then
 	echo "DroneBridge-Air: Starting controller module..."
-	./control_status/control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $frametype_control -v $serial_prot &
+	./control_status/control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $chipset_control -v $serial_prot &
 fi

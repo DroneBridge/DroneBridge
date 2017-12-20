@@ -41,7 +41,7 @@ class DBProtocol:
     APP_PORT_COMM = 1603
 
     def __init__(self, src_mac, udp_port_rx, ip_rx, udp_port_smartphone, comm_direction, interface_drone_comm,
-                 mode, communication_id, frame_type, dronebridge_port):
+                 mode, communication_id, dronebridge_port):
         self.src_mac = src_mac
         self.comm_id = communication_id  # must be the same on drone and groundstation
         self.udp_port_rx = udp_port_rx  # 1604
@@ -59,10 +59,7 @@ class DBProtocol:
             self.short_mode = 'w'
         else:
             self.short_mode = 'm'
-        if frame_type == '1':
-            self.fcf = b'\xb4\x00\x00\x00'  # RTS frames
-        else:
-            self.fcf = b'\x08\x00\x00\x00'  # Data frames
+        self.fcf = b'\xb4\x00\x00\x00'  # RTS frames
         self.db_port = dronebridge_port
         self.comm_sock = self._open_comm_sock()
         if self.comm_direction == TO_DRONE:

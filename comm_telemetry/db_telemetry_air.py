@@ -106,8 +106,6 @@ def parseArguments():
     parser.add_argument('-m', action='store', dest='mode',
                         help='Set the mode in which communication should happen. Use [wifi|monitor]',
                         default='monitor')
-    parser.add_argument('-a', action='store', dest='frame_type',
-                        help='Specify frame type. Options [1|2]', default='1')
     parser.add_argument('-c', action='store', type=int, dest='comm_id',
                         help='Communication ID must be the same on drone and groundstation. A number between 0-255 '
                              'Example: "125"', default='111')
@@ -120,7 +118,6 @@ def main():
     SerialPort = parsedArgs.serialport
     UDP_Port_TX = parsedArgs.udp_port_tx
     mode = parsedArgs.mode
-    frame_type = parsedArgs.frame_type
     DB_INTERFACE = parsedArgs.DB_INTERFACE
     telemetry_selection_auto = False
     isLTMTel = True
@@ -133,8 +130,7 @@ def main():
     comm_id = bytes([parsedArgs.comm_id])
     # print("DB_RX_TEL: Communication ID: " + comm_id.hex()) # only works in python 3.5
     print("DB_TEL_AIR: Communication ID: " + str(comm_id))
-    dbprotocol = DBProtocol(src, UDP_Port_TX, IP_TX, 0, b'\x03', DB_INTERFACE, mode, comm_id, frame_type, b'\x02')
-
+    dbprotocol = DBProtocol(src, UDP_Port_TX, IP_TX, 0, b'\x03', DB_INTERFACE, mode, comm_id, b'\x02')
 
     tel_sock = openFCTel_Socket()
     time.sleep(0.3)

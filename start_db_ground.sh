@@ -36,31 +36,31 @@ if [[ interface_selection=='auto' ]]; then
 fi
 
 # 1 = Ralink | 2 = Atheros
-frametype_video=1
-frametype_control=1
-frametype_tel=1
-frametype_comm=1
+chipset_video=1
+chipset_control=1
+chipset_tel=1
+chipset_comm=1
 DRIVER=`cat /sys/class/net/$interface_control/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
 if [ "$DRIVER" == "ath9k_htc" ]; then
-    frametype_control=2
+    chipset_control=2
 fi
 DRIVER=`cat /sys/class/net/$interface_tel/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
 if [ "$DRIVER" == "ath9k_htc" ]; then
-    frametype_tel=2
+    chipset_tel=2
 fi
 DRIVER=`cat /sys/class/net/$interface_video/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
 if [ "$DRIVER" == "ath9k_htc" ]; then
-    frametype_video=2
+    chipset_video=2
 fi
 DRIVER=`cat /sys/class/net/$interface_comm/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
 if [ "$DRIVER" == "ath9k_htc" ]; then
-    frametype_comm=2
+    chipset_comm=2
 fi
 
 echo "DroneBridge-Ground: Communication ID: $comm_id RC-Protocol $rc_proto"
 echo "DroneBridge-Ground: Interfaces: Control: $interface_control Telemetry: $interface_tel Video: $interface_video Communication: $interface_comm"
 echo "DroneBridge-Ground: Joystick Interface: $joy_interface - Mode: $mode"
-echo "DroneBridge-Ground: Frametypes: Control: $frametype_control Telemetry-Status: $frametype_tel Video: $frametype_video Communication: $frametype_comm"
+echo "DroneBridge-Ground: Frametypes: Control: $chipset_control Telemetry-Status: $chipset_tel Video: $chipset_video Communication: $chipset_comm"
 echo "DroneBridge-Ground: Calibrating RC using: '$joy_cal'"
 
 echo "DroneBridge-Ground: Trying to start individual modules..."
@@ -69,18 +69,18 @@ python3 comm_telemetry/db_ip_checker.py &
 
 if [ $en_comm = "Y" ]; then
 	echo "DroneBridge-Ground: Starting communication module..."
-	python3 comm_telemetry/db_comm_ground.py -n $interface_comm -p $port_drone -r $ip_drone -u $port_local_smartphone -m $mode -a $frametype_comm -c $comm_id &
+	python3 comm_telemetry/db_comm_ground.py -n $interface_comm -p $port_drone -r $ip_drone -u $port_local_smartphone -m $mode -c $comm_id &
 fi
 
 echo "DroneBridge-Ground: Starting status module..."
-./control_status/status/status -n $interface_tel -m $mode -p -c $comm_id &
+./control_status/status/status -n $interface_tel -m $mode -c $comm_id &
 
 if [ $en_tel = "Y" ]; then
  echo "DroneBridge-Ground: Starting telemetry module..."
- python3 comm_telemetry/db_telemetry_ground.py -n $interface_tel -r $ip_drone -p $port_drone -m $mode -a $frametype_tel -c $comm_id &
+ python3 comm_telemetry/db_telemetry_ground.py -n $interface_tel -r $ip_drone -p $port_drone -m $mode -c $comm_id &
 fi
 
 if [ $en_control = "Y" ]; then
 	echo "DroneBridge-Ground: Starting controller module...\n"
-	./control_status/control/control_ground -n $interface_control -j $joy_interface -m $mode -v $rc_proto -g "$joy_cal" -a $frametype_control -c $comm_id &
+	./control_status/control/control_ground -n $interface_control -j $joy_interface -m $mode -v $rc_proto -g "$joy_cal" -a $chipset_control -c $comm_id &
 fi
