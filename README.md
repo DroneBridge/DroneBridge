@@ -90,6 +90,7 @@ Note: MavLink & MSP uplink still missing
  - See **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milestones)**
 
 <h2>You are a developer?</h2>
+
 Check out the **[wiki](https://github.com/seeul8er/DroneBridge/wiki)**
 
 Check out the **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milestones)** and suggest new ones!
