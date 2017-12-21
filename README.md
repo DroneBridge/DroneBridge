@@ -3,7 +3,7 @@
 
 A wifibroadcast extension to make iNAV & and MAVLink based flight controllers more usable for aerial photography. Intended to be a real alternative to DJI Lightbridge and other similar systems. Videodownlink and telemetry is provided by wifibroadcast. RC, smartphone app, alternative telemetry downlink and command modules are provided by this project.
 
-<b>Try iNAV and support development!</b>
+<b>Try iNAV and support the development!</b>
 
 Many people use Pixhawk based flight controllers for their UAVs. While Pixhawk is a excellent platform for aerial photography and other tasks it is also very expensive compared to iNAV based flight controllers. The iNAV Project aims to bring UAV capabilities to Cleanflight/Betaflight and has been very successfully so far. You can get high quality iNAV compatible FCs from 30€ an on, compared to the 60€ for a Pixracer which may has less interfaces or the hundreds of dollars for a Pixhawk 2.1.
 
@@ -41,20 +41,12 @@ To set it up please read the wiki and check out: https://github.com/bortek/EZ-Wi
  - Display distance between pilot (app) and drone
  - Support for MSPv1 (Betaflight/Cleanflight) and MSPv2 (iNAV)
 
-<b>Comming up...</b>
- - switch between GoPro preview and pi cam
- - creation and upload of waypoint missions
- - support for EZgui an mwp planner mission files
- - ...
+<h2>DroneBridge Modules</h2>
 
-<h2>Control Module</h2>
+DroneBridge is highly modularized to provide flexebility and make development easy. There is a common library for Python3 and C that handles everything involving the DroneBridge raw protocol. It configures the sockets, inits the protocol and provides methods for easy transmission.
 
-Programms for groundstation and drone to control the drone (RC link). One can choose whether to generate the flight controllers serial protocol on the groundstation or use the DroneBridge RC message. Since the latter one is much shorter in size it is recommended to use it. It allows for 12 channels.
-At the moment there is no support for MAVLink based flight controllers. If that is a problem for you feel free to create a issue. This helps developers to set priorities.
-The code is optimised for minimal system calls and super low latency.
+<h3>Control Module</h2>
 
-Currently only the i6S RC is supported as I only have access to that one. However it is very easy to implement support for your RC. You will find further information in the wiki.
-It is recommended you calibrate your RC before using it. It is the only way to make sure the full resolution of the RCs output is used.
 You can use the DroneBridge Android app to see what the control module is reading form your RC (channel data).
 
 <b>Features:</b>
@@ -72,19 +64,16 @@ You can use the DroneBridge Android app to see what the control module is readin
  - Supported by all betaflight/cleanflight based FC software including iNAV (MSP v2)!
  - Custom (raw) communication protocol for more security and less cpu usage
 
-<b>Comming up...</b>
- - XBOX controller support. Lot of adjustments to make it easy and convenient to use.
- - Dokumentation on how to integrate your own RC into the project
- - A super easy and fast way of calibrating the RC using the DroneBridge app
-
 Discalmer: Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals. The pilot is responsible for any harm or damage caused by using this software or parts of it.
 
-<h2>Communication Module</h2>
+<h3>Communication Module</h3>
 
 Allows to change and request settings of WifiBroadcast and DroneBridge modules on drone and groundstation using the DroneBridge app.
 
-<h2>Status Module</h2>
-Reports Wifibroadcast status to DroneBridge App. Reports the RC channels sent via DroneBridge control module to DroneBridge app
+<h3>Status Module</h3>
+
+ - Reports Wifibroadcast status to DroneBridge app
+ - Reports the RC channels sent via DroneBridge control module to DroneBridge app
 
 <h2>Future Milestones</h2>
 
@@ -92,13 +81,13 @@ Reports Wifibroadcast status to DroneBridge App. Reports the RC channels sent vi
 Note: MavLink & MSP uplink still missing
 ![Blackbox](https://github.com/seeul8er/DroneBridge/blob/master/wiki/Blackbox.png)
 
-### coming up:
+## coming up:
  - more documentation
  - add MavLink and MSP waypoint missions
  - make DroneBridge more indipendent of WifiBroadcast (video) > support of esp32 or esp8266 modules to allow integration in existing builds using analog video > no need for raspberry pi
  - integrate GoPro into project
- - implement a custom USB protocol based on android USB accessory so talbets with no sim can connect via USB
  - implement VR support. Gimbal and yaw of drone can be controlled by head movement
+ - See **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milestones)**
 
 <h2>You are a developer?</h2>
 Check out the **[wiki](https://github.com/seeul8er/DroneBridge/wiki)**
@@ -107,4 +96,4 @@ Check out the **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milest
 
 There is a nightly branch with the most up to date code! It is not guaranteed that the code in that branch is working or even compiling!
 
-Feel free to ask questions and criticize each and everything!
+**Feel free to ask questions and criticize each and everything!**
