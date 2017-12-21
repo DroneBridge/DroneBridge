@@ -95,12 +95,11 @@ int main(int argc, char *argv[])
 // -------------------------------
 // Setting up Network Interface
 // -------------------------------
-    int socket_port_rc = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_RC);
-    //int socket_port_rc = open_receive_socket(ifName, db_mode, comm_id, DB_DIREC_DRONE, DB_PORT_RC);
-    int socket_port_control = 0;
-    //int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND, DB_PORT_CONTROLLER);
-    //socket_port_rc = set_socket_timeout(socket_port_rc, 0, 25000);
-    //socket_port_control = set_socket_nonblocking(socket_port_control);
+    //int socket_port_rc = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_RC);
+    int socket_port_rc = open_receive_socket(ifName, db_mode, comm_id, DB_DIREC_DRONE, DB_PORT_RC);
+    int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND, DB_PORT_CONTROLLER);
+    socket_port_rc = set_socket_timeout(socket_port_rc, 0, 25000);
+    socket_port_control = set_socket_nonblocking(socket_port_control);
 
 // -------------------------------
 //    Setting up UART Interface
@@ -132,10 +131,10 @@ int main(int argc, char *argv[])
 //       Loop
 // ----------------------------------
     int err, sentbytes = 0, command_length = 0;
-    int8_t rssi = -100;
+    int8_t rssi = -110;
     long start, rightnow, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
 
-    uint8_t packet_count = 0, packet_count_bad = 0;
+    uint8_t lost_packet_count = 0, last_seq_numer = 0;
 
     ssize_t length;
     signal(SIGINT, intHandler);
@@ -145,6 +144,7 @@ int main(int argc, char *argv[])
     // create our data pointer directly inside the buffer (monitor_framebuffer) that is sent over the socket
     struct data_rc_status_update *rc_status_update_data = (struct data_rc_status_update *)
             (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+    memset(rc_status_update_data->bytes, 0xff, 6);
 
     printf("DB_CONTROL_AIR: Starting MSP/MAVLink pass through!\n");
     gettimeofday(&timecheck, NULL);
@@ -165,7 +165,8 @@ int main(int argc, char *argv[])
             memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], (buf[buf[2]+7] | (buf[buf[2]+8] << 8)));
             command_length = generate_rc_serial_message(commandBuf);
             if (command_length > 0){
-                packet_count++;
+                lost_packet_count += count_lost_packets(last_seq_numer, buf[buf[2]+9]);
+                last_seq_numer = buf[buf[2]+9];
                 sentbytes = (int) write(USB, serial_data_buffer, (size_t) command_length);
                 tcdrain(USB);
                 if(sentbytes == 0)
@@ -178,8 +179,6 @@ int main(int argc, char *argv[])
                     printf(" RC NOT SENT because of error %s\n", strerror(errsv));
                 }
                 tcflush(USB, TCIOFLUSH);
-            } else {
-                packet_count_bad++;
             }
         }
 
@@ -234,10 +233,10 @@ int main(int argc, char *argv[])
                 status_seq_number++;
             }
             rc_status_update_data->bytes[0] = rssi;
-            rc_status_update_data->bytes[1] = (int8_t) (packet_count * ((double) 1000 / (rightnow - start)));
-            send_packet_hp( DB_PORT_STATUS, (u_int16_t) 2, status_seq_number);
+            rc_status_update_data->bytes[1] = (int8_t) (lost_packet_count * ((double) 1000 / (rightnow - start)));
+            send_packet_hp( DB_PORT_STATUS, (u_int16_t) 6, status_seq_number);
 
-            packet_count = 0; packet_count_bad = 0;
+            lost_packet_count = 0;
             gettimeofday(&timecheck, NULL);
             start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
         }

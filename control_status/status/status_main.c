@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
         // status message
         // ---------------
         l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0);
-        if (l>0){
+        if (l > 0){
             // get payload
             radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
             // message_length = lr_buffer[radiotap_length+19] | (lr_buffer[radiotap_length+20] << 8);
@@ -168,9 +168,9 @@ int main(int argc, char *argv[]) {
                 best_dbm = wbc_rx_status->adapter[cardcounter].current_signal_dbm;
         }
         db_sys_status_message.rssi_ground = best_dbm;
-        db_sys_status_message.damaged_blocks_wbc = htonl(wbc_rx_status->damaged_block_cnt);
-        db_sys_status_message.lost_packets_wbc = htonl(wbc_rx_status->lost_packet_cnt);
-        db_sys_status_message.kbitrate_wbc = htonl(wbc_rx_status-> kbitrate);
+        db_sys_status_message.damaged_blocks_wbc = wbc_rx_status->damaged_block_cnt;
+        db_sys_status_message.lost_packets_wbc = wbc_rx_status->lost_packet_cnt;
+        db_sys_status_message.kbitrate_wbc = wbc_rx_status-> kbitrate;
         if (wbc_rx_status->tx_restart_cnt > restarts) {
             restarts++;
             usleep ((__useconds_t) 1e7);
@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
         // ---------------
         // RC message
         // ---------------
-        memcpy(db_rc_status_message.channels, rc_values->ch, NUM_CHANNELS);
+        memcpy(db_rc_status_message.channels, rc_values->ch, 2*NUM_CHANNELS);
         sendto (udp_socket, &db_rc_status_message, sizeof(DB_RC_STATUS_MESSAGE), 0, (struct sockaddr *) &remoteServAddr,
                 sizeof (remoteServAddr));
         // DEBUG
@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
 
 
 
-        usleep((__useconds_t) 1e5); // 10Hz
+        usleep((__useconds_t) 100000); // 10Hz
     }
     close(udp_socket);
     return 0;

@@ -26,12 +26,13 @@
 #include "db_protocol.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
+int expected_seq_num;
 
 /**
  * Set a BPF filter on the socket (DroneBridge raw protocol v2)
  * @param newsocket The socket file descriptor on which the BPF filter should be set
  * @param new_comm_id The communication ID that we filter for
- * @param direction packets with what kind of directions (DB_DIREC_DRONE or DB_V2_DIREC_GROUND) are allowed to pass the filter
+ * @param direction Packets with what kind of directions (DB_DIREC_DRONE or DB_V2_DIREC_GROUND) are allowed to pass the filter
  * @param port The port of the module using this function. See db_protocol.h (DB_PORT_CONTROLLER, DB_PORT_COMM, ...)
  * @return The socket with set BPF filter
  */
@@ -144,16 +145,30 @@ int set_socket_timeout(int the_socketfd, int time_out_s ,int time_out_us){
 }
 
 /**
+ * Counts the lost packets. Protocol fails if we lost more than 255 packets at once
+ * @param last_seq_num The sequence number of the previous packet we received
+ * @param received_seq_num The sequence number of the packet we received "right now"
+ * @return The number of packets we lost in between the previous packet and the most current one
+ */
+uint8_t count_lost_packets(uint8_t last_seq_num, uint8_t received_seq_num){
+    expected_seq_num = ((last_seq_num == 255) ? 0 : (last_seq_num + 1));
+    // Could be one statement. Less confusing this way.
+    if (expected_seq_num == received_seq_num) return 0;
+    return (uint8_t) ((received_seq_num > expected_seq_num) ? (received_seq_num - expected_seq_num) :
+               (255-expected_seq_num)+received_seq_num);
+}
+
+/**
  * Create a socket, bind it to a network interface and set the BPF filter. All in one function
  * @param newifName The name of the interface we want the socket to bind to
  * @param new_mode The DroneBridge mode we are in (monitor or wifi (unsupported))
  * @param comm_id The communication ID to set BPF to
- * @param new_direction packets with what kind of directions (DB_DIREC_DRONE or DB_DIREC_GROUND) are allowed to pass the
+ * @param revc_direction packets with what kind of directions (DB_DIREC_DRONE or DB_DIREC_GROUND) are allowed to pass the
  * filter.
  * @param new_port The port of the module using this function. See db_protocol.h (DB_PORT_CONTROLLER, DB_PORT_COMM, ...)
  * @return The socket file descriptor. Socket is bound and has a set BPF filter. Returns -1 if we screwed up.
  */
-int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id, uint8_t new_direction,
+int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id, uint8_t revc_direction,
                         uint8_t new_port)
 {
     int sockfd, sockopt;
@@ -189,7 +204,7 @@ int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id
             perror("DB_RECEIVE: error in monitor mode socket setup\n");
             return -1;
         }
-        sockfd = setBPF(sockfd, comm_id, new_direction, new_port);
+        sockfd = setBPF(sockfd, comm_id, revc_direction, new_port);
     }
     sockfd = bindsocket(sockfd, new_mode, newifName);
     return sockfd;

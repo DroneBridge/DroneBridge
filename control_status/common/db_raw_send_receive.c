@@ -94,16 +94,16 @@ void set_bitrate(int bitrate_option) {
  * @param comm_id
  * @param bitrate_option
  * @param frame_type
- * @param direction
+ * @param send_direction
  * @return The socket file descriptor in case of a success or -1 if we screwed up
  */
-int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t direction, uint8_t new_port) {
+int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t send_direction, uint8_t new_port) {
     memset(monitor_framebuffer, 0, (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH));
     set_bitrate(bitrate_option);
     memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
     // build custom DroneBridge v2 header
     memcpy(db_raw_header->fcf_duration, frame_control_pre_rts, 4);
-    db_raw_header->direction = direction;
+    db_raw_header->direction = send_direction;
     db_raw_header->comm_id = comm_id;
     if (setsockopt(socket_send_receive, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
         printf("DB_SEND: Error binding monitor socket to interface. Closing socket. Please restart.\n");
@@ -112,7 +112,8 @@ int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t direction, uint
     }
     /* Index of the network device */
     socket_address.sll_ifindex = raw_if_idx.ifr_ifindex;
-    socket_send_receive = setBPF(socket_send_receive, comm_id, direction, new_port);
+    uint8_t recv_direction = (uint8_t) ((send_direction == DB_DIREC_DRONE) ? DB_DIREC_GROUND : DB_DIREC_DRONE);
+    socket_send_receive = setBPF(socket_send_receive, comm_id, recv_direction, new_port);
     return socket_send_receive;
 }
 
@@ -124,12 +125,12 @@ int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t direction, uint
  * @param comm_id The communication ID
  * @param trans_mode The transmission mode (m|w) for monitor or wifi
  * @param bitrate_option Transmission bit rate. Only works with Ralink cards
- * @param direction Is the packet for the drone or the groundstation
+ * @param send_direction Are the sent packets for the drone or the groundstation
  * @param receive_new_port Port the BPF filter gets set to. Port open for receiving data.
  * @return the socket file descriptor or -1 if something went wrong
  */
 int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
-                             uint8_t direction, uint8_t receive_new_port){
+                             uint8_t send_direction, uint8_t receive_new_port){
     mode = trans_mode;
 
     if (mode == 'w') {
@@ -170,7 +171,7 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
         return -1;
         //return conf_ethernet(dest_mac);
     } else {
-        return conf_monitor_v2(comm_id, bitrate_option, direction, receive_new_port);
+        return conf_monitor_v2(comm_id, bitrate_option, send_direction, receive_new_port);
     }
 }
 

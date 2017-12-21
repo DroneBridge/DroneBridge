@@ -81,6 +81,6 @@ if [ $en_tel = "Y" ]; then
 fi
 
 if [ $en_control = "Y" ]; then
-	echo "DroneBridge-Ground: Starting controller module...\n"
-	./control_status/control/control_ground -n $interface_control -j $joy_interface -m $mode -v $rc_proto -g "$joy_cal" -a $chipset_control -c $comm_id &
+	echo "DroneBridge-Ground: Starting controller module..."
+	./control_status/control/control_ground -n $interface_control -j $joy_interface -m $mode -v $rc_proto -g "$joy_cal" -c $comm_id &
 fi

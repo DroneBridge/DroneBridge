@@ -25,8 +25,6 @@
 #define NUM_CHANNELS            14      // max number of channels sent over DroneBridge control module (ground)
 #define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge rc protocol
 
-#define DB_VERSION          0x01
-
 #define DB_PORT_CONTROLLER  0x01
 #define DB_PORT_TELEMETRY   0x02
 #define DB_PORT_VIDEO       0x03
@@ -38,17 +36,17 @@
 #define DB_DIREC_DRONE      0x01 // packet to/for drone
 #define DB_DIREC_GROUND   	0x03 // packet to/for groundstation
 
-#define APP_PORT_STATUS     1608
 #define APP_PORT_COMM       1603
 #define APP_PORT_TELEMETRY  1604 // accepts MAVLink and LTM telemetry messages. Non MAVLink telemetry messages get rerouted internally to 1607
 #define APP_PORT_MSPMAVLINK 1607 // use this port for all non telemetry MAVLink messages and all MSP messages
+#define APP_PORT_STATUS     1608
 
 
 struct data_uni{
 	uint8_t bytes[DATA_UNI_LENGTH];
 };
 struct data_rc_status_update {
-	int8_t bytes[2]; // [0] = rssi drone side; [1] = packets_received_per_second
+	int8_t bytes[6]; // [0] = rssi drone side; [1] = packets_received_per_second; [rest] = to make it long enough!?
 };
 struct radiotap_header {
 	uint8_t bytes[RADIOTAP_LENGTH];
