@@ -1,3 +1,9 @@
+/**
+ * Created by Wolfgang Christl
+ * This file is part of DroneBridge control module and licensed under Apache 2 license
+ * https://github.com/seeul8er/DroneBridge
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -199,7 +205,7 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         } else {
             rc.pos_switch2 = 2000;
         }
-        //adjust endpositions and buttons
+        //adjust endpositions and buttons (with proper calibration not necessary)
         if (rc.roll == 32766) rc.roll++;
         if (rc.pitch == 32766) rc.pitch++;
         if (rc.throttle == 32766) rc.throttle++;
@@ -216,10 +222,11 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
 //        printf("pos_switch 2: %i          \n",rc.pos_switch2);
 //        printf("Button 5:     %i          \n",rc.button5);
 
+        // Channel map should/must be AETR1234!
         JoystickData[0] = normalize_i6S(rc.roll, 500);
         JoystickData[1] = normalize_i6S(rc.pitch, 500);
-        JoystickData[2] = normalize_i6S(rc.yaw, 500);
-        JoystickData[3] = normalize_i6S(rc.throttle, 500);
+        JoystickData[2] = normalize_i6S(rc.throttle, 500);
+        JoystickData[3] = normalize_i6S(rc.yaw, 500);
         JoystickData[4] = normalize_i6S(rc.cam_up, 500);
         JoystickData[5] = normalize_i6S(rc.cam_down, 500);
         JoystickData[6] = (uint16_t) rc.button0;

@@ -30,10 +30,10 @@ void generate_msp(uint16_t *rc_channel_data) {
     //Pitch
     serial_data_buffer[7] = (uint8_t) ((rc_channel_data[1] >> 8) & 0xFF);
     serial_data_buffer[8] = (uint8_t) (rc_channel_data[1] & 0xFF);
-    //Yaw
+    //Throttle
     serial_data_buffer[9] = (uint8_t) ((rc_channel_data[2] >> 8) & 0xFF);
     serial_data_buffer[10] = (uint8_t) (rc_channel_data[2] & 0xFF);
-    //Throttle
+    //Yaw
     serial_data_buffer[11] = (uint8_t) ((rc_channel_data[3] >> 8) & 0xFF);
     serial_data_buffer[12] = (uint8_t) (rc_channel_data[3] & 0xFF);
     //AUX 1
@@ -83,10 +83,10 @@ void generate_mspv2(uint16_t *rc_channel_data) {
     //Pitch
     serial_data_buffer[10] = (uint8_t) ((rc_channel_data[1] >> 8) & 0xFF);
     serial_data_buffer[11] = (uint8_t) ( rc_channel_data[1] & 0xFF);
-    //Yaw
+    //Throttle
     serial_data_buffer[12] = (uint8_t) ((rc_channel_data[2] >> 8) & 0xFF);
     serial_data_buffer[13] = (uint8_t) (rc_channel_data[2] & 0xFF);
-    //Throttle
+    //Yaw
     serial_data_buffer[14] = (uint8_t) ((rc_channel_data[3] >> 8) & 0xFF);
     serial_data_buffer[15] = (uint8_t) (rc_channel_data[3] & 0xFF);
     //AUX 1
@@ -115,7 +115,7 @@ void generate_mspv2(uint16_t *rc_channel_data) {
     serial_data_buffer[31] = (uint8_t) (rc_channel_data[11] & 0xFF);
     // CRC
     crc_mspv2_air = 0;
-    for (i_rc_air = 0; i_rc_air < 32; i_rc_air++) {
+    for (i_rc_air = 3; i_rc_air < 32; i_rc_air++) {
         tbl_idx_air = crc_mspv2_air ^ serial_data_buffer[i_rc_air];
         crc_mspv2_air = crc_dvb_s2_table[tbl_idx_air] & 0xff;
     }

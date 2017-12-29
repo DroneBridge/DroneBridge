@@ -37,10 +37,10 @@ void generate_msp(unsigned short *newJoystickData) {
     //Pitch
     monitor_databuffer->bytes[7] = (uint8_t) ((newJoystickData[1] >> 8) & 0xFF);
     monitor_databuffer->bytes[8] = (uint8_t) (newJoystickData[1] & 0xFF);
-    //Yaw
+    //Throttle
     monitor_databuffer->bytes[9] = (uint8_t) ((newJoystickData[2] >> 8) & 0xFF);
     monitor_databuffer->bytes[10] = (uint8_t) (newJoystickData[2] & 0xFF);
-    //Throttle
+    //Yaw
     monitor_databuffer->bytes[11] = (uint8_t) ((newJoystickData[3] >> 8) & 0xFF);
     monitor_databuffer->bytes[12] = (uint8_t) (newJoystickData[3] & 0xFF);
     //AUX 1
@@ -96,10 +96,10 @@ void generate_mspv2(unsigned short *newJoystickData) {
     //Pitch
     monitor_databuffer->bytes[10] = (uint8_t) ((newJoystickData[1] >> 8) & 0xFF);
     monitor_databuffer->bytes[11] = (uint8_t) ( newJoystickData[1] & 0xFF);
-    //Yaw
+    //Throttle
     monitor_databuffer->bytes[12] = (uint8_t) ((newJoystickData[2] >> 8) & 0xFF);
     monitor_databuffer->bytes[13] = (uint8_t) (newJoystickData[2] & 0xFF);
-    //Throttle
+    //Yaw
     monitor_databuffer->bytes[14] = (uint8_t) ((newJoystickData[3] >> 8) & 0xFF);
     monitor_databuffer->bytes[15] = (uint8_t) (newJoystickData[3] & 0xFF);
     //AUX 1
@@ -134,7 +134,7 @@ void generate_mspv2(unsigned short *newJoystickData) {
     monitor_databuffer->bytes[35] = (uint8_t) (newJoystickData[13] & 0xFF);
     // CRC
     crc_mspv2 = 0;
-    for (int i = 0; i < 36; i++) {
+    for (int i = 3; i < 36; i++) {
         mspv2_tbl_idx = crc_mspv2 ^ monitor_databuffer->bytes[i];
         crc_mspv2 = crc_dvb_s2_table[mspv2_tbl_idx] & 0xff;
     }

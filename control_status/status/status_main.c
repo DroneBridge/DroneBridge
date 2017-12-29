@@ -37,8 +37,8 @@
 bool volatile keeprunning = true;
 char if_name[IFNAMSIZ];
 char db_mode;
-uint8_t comm_id;
-int c, comm_id_num = DEFAULT_V2_COMMID, app_port_status = APP_PORT_STATUS;
+uint8_t comm_id = DEFAULT_V2_COMMID;
+int c, app_port_status = APP_PORT_STATUS;
 // TODO: get RC send rate from control module
 float rc_send_rate = 60; // [packets/s]
 
@@ -63,7 +63,7 @@ int process_command_line_args(int argc, char *argv[]){
                 db_mode = *optarg;
                 break;
             case 'c':
-                comm_id_num = (int) strtol(optarg, NULL, 10);
+                comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'p':
                 app_port_status = (int) strtol(optarg, NULL, 10);
@@ -105,10 +105,11 @@ int main(int argc, char *argv[]) {
     db_sys_status_message.packetloss_rc = 0;
     db_sys_status_message.rssi_drone = 0;
     db_sys_status_message.crc = 0x66;
-    comm_id = (uint8_t) comm_id_num;
 
     process_command_line_args(argc, argv);
 
+    // open wbc rc shared memory to push rc rssi etc. to wbc OSD
+    wifibroadcast_rx_status_t_rc *wbc_rc_status = wbc_rc_status_memory_open();
     // open db rc shared memory
     db_rc_values *rc_values = db_rc_values_memory_open();
     // open wbc rx status shared memory
@@ -151,7 +152,7 @@ int main(int argc, char *argv[]) {
         // ---------------
         // status message
         // ---------------
-        l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0);
+        l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0); err = errno;
         if (l > 0){
             // get payload
             radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
@@ -161,6 +162,8 @@ int main(int argc, char *argv[]) {
             db_sys_status_message.rssi_drone = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH];
             db_sys_status_message.packetloss_rc = (uint8_t) (
                     (1 - (lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1] / rc_send_rate)) * 100);
+            wbc_rc_status->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
+            wbc_rc_status->lost_packet_cnt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1];
         }
         best_dbm = -1000;
         for(cardcounter=0; cardcounter<number_cards; ++cardcounter) {

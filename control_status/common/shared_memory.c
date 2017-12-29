@@ -35,6 +35,30 @@ wifibroadcast_rx_status_t *wbc_status_memory_open() {
     return (wifibroadcast_rx_status_t*)retval;
 }
 
+wifibroadcast_rx_status_t_rc *wbc_rc_status_memory_open() {
+    int fd;
+    for(;;) {
+        fd = shm_open("/wifibroadcast_rx_status_rc", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        if(fd > 0) {
+            break;
+        }
+        printf("wbc_rc_status_memory_open: Waiting for groundstation video to be started ... %s\n", strerror(errno));
+        usleep((__useconds_t) 1e5);
+    }
+
+    if (ftruncate(fd, sizeof(wifibroadcast_rx_status_t_rc)) == -1) {
+        perror("wbc_rc_status_memory_open: ftruncate");
+        exit(1);
+    }
+
+    void *retval = mmap(NULL, sizeof(wifibroadcast_rx_status_t_rc), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (retval == MAP_FAILED) {
+        perror("wbc_rc_status_memory_open: mmap");
+        exit(1);
+    }
+    return (wifibroadcast_rx_status_t_rc*)retval;
+}
+
 void db_rc_values_memory_init(db_rc_values *rc_values) {
     for(int i = 0; i < NUM_CHANNELS; i++) {
         rc_values->ch[i] = 1000;

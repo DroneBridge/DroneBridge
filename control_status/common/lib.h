@@ -43,13 +43,13 @@ typedef struct {
 	wifi_adapter_rx_status_t adapter[MAX_PENUMBRA_INTERFACES];
 } wifibroadcast_rx_status_t_rc;
 
+/*
 typedef struct {
 	int valid;
 	int crc_correct;
 	size_t len; //this is the actual length of the packet stored in data
 	uint8_t *data;
 } packet_buffer_t;
-
 
 //this sits at the payload of the wifi packet (outside of FEC)
 typedef struct {
@@ -61,16 +61,9 @@ typedef struct {
     uint32_t data_length;
 } __attribute__((packed)) payload_header_t;
 
-
-packet_buffer_t *lib_alloc_packet_buffer_list(size_t num_packets, size_t packet_length);
-
-
-
 // from OSD for rssitx and tx
 typedef struct {
     wifibroadcast_rx_status_t *rx_status;
     wifibroadcast_rx_status_t_rc *rx_status_rc;
 } telemetry_data_t;
-
-wifibroadcast_rx_status_t *telemetry_wbc_status_memory_open(void);
-wifibroadcast_rx_status_t_rc *telemetry_wbc_status_memory_open_rc(void);
+*/

@@ -70,7 +70,7 @@ int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t 
     int ret = setsockopt(newsocket, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
     if (ret < 0)
     {
-        perror("DB_RECEIVE: could not attach BPF: ");
+        perror("DB_RECEIVE: could not attach BPF ");
         close(newsocket);
         return -1;
     }
@@ -180,7 +180,7 @@ int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id
     {
         if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETHER_TYPE))) == -1)
         {
-            perror("DB_CONTROL_AIR: error in wifi socket setup\n");
+            perror("DB_RECEIVE: Error in wifi socket setup\n");
             return -1;
         }
         int flags = fcntl(sockfd,F_GETFL,0);
@@ -201,7 +201,7 @@ int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id
     {
         if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1)
         {
-            perror("DB_RECEIVE: error in monitor mode socket setup\n");
+            perror("DB_RECEIVE: Error in monitor mode socket setup\n");
             return -1;
         }
         sockfd = setBPF(sockfd, comm_id, revc_direction, new_port);

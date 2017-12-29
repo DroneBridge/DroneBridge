@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
     int USB = -1;
     do
     {
-        USB = open(usbIF, O_WRONLY | O_NOCTTY | O_NDELAY);
+        USB = open(usbIF, O_WRONLY | O_NOCTTY);
         if (USB == -1)
         {
             printf("DB_CONTROL_AIR: Error - Unable to open UART.  Ensure it is not in use by another application and the"
@@ -130,8 +130,8 @@ int main(int argc, char *argv[])
 // ----------------------------------
 //       Loop
 // ----------------------------------
-    int err, sentbytes = 0, command_length = 0;
-    int8_t rssi = -110;
+    int err, sentbytes = 0, command_length = 0, errsv;
+    int8_t rssi = 0;
     long start, rightnow, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
 
     uint8_t lost_packet_count = 0, last_seq_numer = 0;
@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
         // --------------------------------
         // DB_RC_PORT messages - has timeout - for DroneBridge RC packets
         // --------------------------------
-        length = recv(socket_port_rc, buf, BUF_SIZ, 0); err = errno;
+        length = recv(socket_port_rc, buf, BUF_SIZ, 0);
         if (length > 0){
             if (chipset_type == 1){
                 rssi = buf[14];
@@ -167,16 +167,11 @@ int main(int argc, char *argv[])
             if (command_length > 0){
                 lost_packet_count += count_lost_packets(last_seq_numer, buf[buf[2]+9]);
                 last_seq_numer = buf[buf[2]+9];
-                sentbytes = (int) write(USB, serial_data_buffer, (size_t) command_length);
+                sentbytes = (int) write(USB, serial_data_buffer, (size_t) command_length); errsv = errno;
                 tcdrain(USB);
-                if(sentbytes == 0)
+                if(sentbytes <= 0)
                 {
-                    printf(" RC NOT SENT!\n");
-                }
-                else
-                {
-                    int errsv = errno;
-                    printf(" RC NOT SENT because of error %s\n", strerror(errsv));
+                    printf(" RC NOT WRITTEN because of error: %s\n", strerror(errsv));
                 }
                 tcflush(USB, TCIOFLUSH);
             }
@@ -193,8 +188,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                printf("DB_CONTROL_AIR: recv returned unrecoverable error %s)\n", strerror(err));
-                return -1;
+                printf("DB_CONTROL_AIR: recv returned unrecoverable error %s \n", strerror(err));
             }
         }
         else
@@ -206,16 +200,11 @@ int main(int argc, char *argv[])
             }
             command_length = buf[buf[2]+7] | (buf[buf[2]+8] << 8); // ready for v2
             memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], command_length);
-            sentbytes = (int) write(USB, commandBuf, (size_t) command_length);
+            sentbytes = (int) write(USB, commandBuf, (size_t) command_length); errsv = errno;
             tcdrain(USB);
-            if(sentbytes == 0)
+            if(sentbytes <= 0)
             {
-                printf(" NOT SENT!\n");
-            }
-            else
-            {
-                int errsv = errno;
-                printf(" NOT SENT because of error %s\n", strerror(errsv));
+                printf(" NOT WRITTEN because of error: %s\n", strerror(errsv));
             }
             tcflush(USB, TCIOFLUSH);
             // TODO: check for response on UART and send to DroneBridge proxy module on groundstation; beware we might block RC!
@@ -233,6 +222,7 @@ int main(int argc, char *argv[])
                 status_seq_number++;
             }
             rc_status_update_data->bytes[0] = rssi;
+            // lost packets/second (it is a estimate)
             rc_status_update_data->bytes[1] = (int8_t) (lost_packet_count * ((double) 1000 / (rightnow - start)));
             send_packet_hp( DB_PORT_STATUS, (u_int16_t) 6, status_seq_number);
 
