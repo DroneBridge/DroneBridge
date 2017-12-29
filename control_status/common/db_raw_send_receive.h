@@ -19,6 +19,7 @@ extern uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + D
 
 int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option, uint8_t direction, 
                              uint8_t new_port);
+uint8_t update_seq_num(uint8_t *old_seq_num);
 int send_packet(int8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num);
 int send_packet_hp(uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num);
 void close_socket_send_receive();

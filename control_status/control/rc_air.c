@@ -186,10 +186,10 @@ int generate_rc_serial_message(uint8_t *db_rc_protocol){
             return 33;
         }else if (rc_protocol_air == 3){
             // TODO: MAVLink v1 - seems it is not recommended to do RC override with MAVLink...
-            perror("MAVLink v1 unsupported for now");
+            perror("MAVLink v1 RC unsupported for now");
         }else if (rc_protocol_air == 4){
             // TODO: generate MAVLink v2 - seems it is not recommended to do RC override with MAVLink...
-            perror("MAVLink v2 unsupported for now");
+            perror("MAVLink v2 RC unsupported for now");
         }
     }
     return -1;

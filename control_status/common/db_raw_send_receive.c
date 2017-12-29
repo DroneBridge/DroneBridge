@@ -175,6 +175,11 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
     }
 }
 
+uint8_t update_seq_num(uint8_t *old_seq_num){
+    (*old_seq_num == 255) ? *old_seq_num = 0 : (*old_seq_num)++;
+    return *old_seq_num;
+}
+
 /**
  * Overwrites payload set inside monitor_framebuffer with the provided payload.
  * @param payload The payload bytes of the message to be sent. Does use memcpy to write payload into buffer.
