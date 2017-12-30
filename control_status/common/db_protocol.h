@@ -30,7 +30,7 @@
 #define DB_PORT_VIDEO       0x03
 #define DB_PORT_COMM		0x04
 #define DB_PORT_STATUS		0x05
-#define DB_PORT_DBPROXY		0x06
+#define DB_PORT_PROXY		0x06
 #define DB_PORT_RC			0x07
 
 #define DB_DIREC_DRONE      0x01 // packet to/for drone
