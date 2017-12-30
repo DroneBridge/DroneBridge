@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include "parameter.h"
 #include "../common/db_raw_send_receive.h"
-#include "../common/db_rc_crc.h"
+#include "../common/db_crc.h"
 #include "../common/shared_memory.h"
 #include "../common/db_protocol.h"
 

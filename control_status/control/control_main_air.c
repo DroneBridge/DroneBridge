@@ -21,11 +21,11 @@
 #include "../common/db_raw_receive.h"
 #include "rc_air.h"
 #include "../common/mavlink_v2/common/mavlink.h"
-
+#include "../common/msp_serial.h"
 
 
 #define ETHER_TYPE	    0x88ab
-#define DEFAULT_IF      "18a6f716a511"
+#define DEFAULT_IF      "wlx000ee8dcaa2c"
 #define USB_IF          "/dev/ttyACM0"
 #define BUF_SIZ		                512 // should be enought?!
 #define COMMAND_BUF_SIZE            1024
@@ -165,6 +165,7 @@ int main(int argc, char *argv[])
     uint8_t lost_packet_count = 0, last_seq_numer = 0;
     mavlink_message_t mavlink_message;
     mavlink_status_t mavlink_status;
+    mspPort_t db_msp_port;
 
     fd_set fd_socket_set;
     struct timeval socket_timeout;
@@ -254,21 +255,42 @@ int main(int argc, char *argv[])
                 // The FC sent us a MSP/MAVLink message - no LTM telemetry here!
                 // --------------------------------
                 switch (serial_protocol_control){
+                    default:
                     case 1:
                     case 2:
                         // Parse MSP message - just pass it to DB Proxy module on groundstation
+                        continue_reading = 1;
+                        serial_read_bytes = 0;
+                        while (continue_reading){
+                            if (read(socket_control_serial, &serial_byte, 1) > 0) {
+                                serial_read_bytes++;
+                                // if MSP parser returns false stop reading from serial. We are reading shit or started
+                                // reading during the middle of a message
+                                if (mspSerialProcessReceivedData(&db_msp_port, serial_byte)){
+                                    data_uni_to_ground->bytes[(serial_read_bytes-1)] = serial_byte;
+                                    if (db_msp_port.c_state == MSP_COMMAND_RECEIVED){
+                                        continue_reading = 0; // stop reading from serial port --> got a complete message!
+                                        send_packet_hp(DB_PORT_PROXY, (u_int16_t) serial_read_bytes,
+                                                       update_seq_num(&proxy_seq_number));
+                                    }
+                                } else {
+                                    continue_reading = 0;
+                                }
+                            }
+                        }
                         break;
                     case 3:
                     case 4:
+                        // Parse complete MAVLink message - telemetry --> DB Telemetry module; other --> DB Proxy module
                         continue_reading = 1;
                         serial_read_bytes = 0;
-                        while(continue_reading){
-                            // Parse complete MAVLink message - telemetry --> DB Telemetry module; other --> DB Proxy module
+                        while (continue_reading){
                             if (read(socket_control_serial, &serial_byte, 1) > 0) {
                                 serial_read_bytes++;
                                 if (mavlink_parse_char(MAVLINK_COMM_0, (uint8_t) serial_byte, &mavlink_message,
                                                        &mavlink_status)) {
                                     continue_reading = 0; // stop reading from serial port --> got a complete message!
+                                    mavlink_msg_to_send_buffer(data_uni_to_ground->bytes, &mavlink_message);
                                     switch (mavlink_message.msgid) {
                                         case MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT:
                                         case MAVLINK_MSG_ID_SYS_STATUS:
@@ -281,16 +303,10 @@ int main(int argc, char *argv[])
                                         case MAVLINK_MSG_ID_VFR_HUD:
                                         case MAVLINK_MSG_ID_HEARTBEAT:
                                         case MAVLINK_MSG_ID_MISSION_CURRENT:
-                                            // TODO: send to telemetry module
-                                            memcpy(data_uni_to_ground->bytes, &mavlink_message,
-                                                   (size_t) serial_read_bytes);
                                             send_packet_hp(DB_PORT_TELEMETRY, (u_int16_t) serial_read_bytes,
                                                            update_seq_num(&telemetry_seq_number));
                                             break;
                                         default:
-                                            // TODO: send to proxy module
-                                            memcpy(data_uni_to_ground->bytes, &mavlink_message,
-                                                   (size_t) serial_read_bytes);
                                             send_packet_hp(DB_PORT_PROXY, (u_int16_t) serial_read_bytes,
                                                            update_seq_num(&proxy_seq_number));
                                             break;
@@ -299,11 +315,17 @@ int main(int argc, char *argv[])
                             }
                         }
                         break;
-                    default:
-                        break;
                 }
             }
         }
+
+/*      uint8_t commandBuf2[] = {0x24, 0x58, 0x3c, 0x00, 0x6c, 0x00, 0x00, 0x00, 0xd8};
+        sentbytes = (int) write(socket_control_serial, commandBuf2, (size_t) 9); errsv = errno;
+        tcdrain(socket_control_serial);
+        if(sentbytes <= 0)
+        {
+            printf(" DEBUGMESSAGE NOT WRITTEN because of error: %s\n", strerror(errsv));
+        }*/
 
         // --------------------------------
         // Send a status update to status module on groundstation

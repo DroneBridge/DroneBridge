@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include "rc_air.h"
 #include "../common/db_protocol.h"
-#include "../common/db_rc_crc.h"
+#include "../common/db_crc.h"
 
 int rc_protocol_air, i_rc_air;
 

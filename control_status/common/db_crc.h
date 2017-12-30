@@ -152,6 +152,8 @@ static inline crc_t crc_finalize(crc_t crc)
     return crc;
 }
 
+uint8_t crc8_dvb_s2(uint8_t crc, unsigned char a);
+uint8_t crc8_dvb_s2_table(uint8_t crc, unsigned char a);
 
 #ifdef __cplusplus
 }           /* closing brace for extern "C" */
