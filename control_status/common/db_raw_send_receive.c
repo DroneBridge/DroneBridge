@@ -207,8 +207,11 @@ int send_packet(int8_t payload[], uint8_t dest_port, u_int16_t payload_length, u
  * monitor_framebuffer array in your script. Fill that with your payload and call this function.
  * This function only sends the monitor_framebuffer. You need to make sure you get the payload inside it.
  * E.g. This will create such a pointer structure:
- * struct data_rc_status_update *rc_status_update_data = (struct data_rc_status_update *)
-            (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+ *
+ *     struct data_uni *data_uni_to_ground = (struct data_uni *)
+ *           (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+ *     memset(data_uni_to_ground->bytes, 0xff, DATA_UNI_LENGTH); // set some payload
+ *
  * Make sure you update your data every time before sending.
  * @param dest_port The DroneBridge destination port of the message (see db_protocol.h)
  * @param payload_length The length of the payload in bytes

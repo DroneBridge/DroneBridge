@@ -38,7 +38,7 @@ bool volatile keeprunning = true;
 char if_name[IFNAMSIZ];
 char db_mode;
 uint8_t comm_id = DEFAULT_V2_COMMID;
-int c, app_port_status = APP_PORT_STATUS;
+int c, app_port_proxy = APP_PORT_STATUS;
 // TODO: get RC send rate from control module
 float rc_send_rate = 60; // [packets/s]
 
@@ -50,7 +50,7 @@ void intHandler(int dummy)
 int process_command_line_args(int argc, char *argv[]){
     strncpy(if_name, DEFAULT_DB_IF, IFNAMSIZ);
     db_mode = DEFAULT_DB_MODE;
-    app_port_status = APP_PORT_STATUS;
+    app_port_proxy = APP_PORT_STATUS;
     opterr = 0;
     while ((c = getopt (argc, argv, "n:m:c:p:")) != -1)
     {
@@ -66,7 +66,7 @@ int process_command_line_args(int argc, char *argv[]){
                 comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'p':
-                app_port_status = (int) strtol(optarg, NULL, 10);
+                app_port_proxy = (int) strtol(optarg, NULL, 10);
                 break;
             case '?':
                 printf("This tool sends extra information about the video stream and RC via UDP to IP given by "
@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in remoteServAddr;
     remoteServAddr.sin_family = AF_INET;
     remoteServAddr.sin_addr.s_addr = inet_addr("192.168.2.2");
-    remoteServAddr.sin_port = htons(app_port_status);
+    remoteServAddr.sin_port = htons(app_port_proxy);
     udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
     if (udp_socket < 0) {
         printf ("DB_STATUS_GROUND: %s: Unable to open socket\n", strerror(errno));

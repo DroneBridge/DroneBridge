@@ -21,6 +21,7 @@
 #define DEFAULT_DB_MODE         'm'
 #define DEFAULT_DB_IF           "18a6f716a511"
 #define DEFAULT_V2_COMMID		0x01
+#define DEFAULT_BITRATE_OPTION  4
 
 #define NUM_CHANNELS            14      // max number of channels sent over DroneBridge control module (ground)
 #define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge rc protocol
@@ -37,8 +38,8 @@
 #define DB_DIREC_GROUND   	0x03 // packet to/for groundstation
 
 #define APP_PORT_COMM       1603
-#define APP_PORT_TELEMETRY  1604 // accepts MAVLink and LTM telemetry messages. Non MAVLink telemetry messages get rerouted internally to 1607
-#define APP_PORT_MSPMAVLINK 1607 // use this port for all non telemetry MAVLink messages and all MSP messages
+#define APP_PORT_TELEMETRY  1604 // accepts MAVLink and LTM telemetry messages. Non MAVLink telemetry messages get rerouted internally to APP_PORT_PROXY
+#define APP_PORT_PROXY 		1607 // use this port for all non telemetry MAVLink messages and all MSP messages
 #define APP_PORT_STATUS     1608
 
 

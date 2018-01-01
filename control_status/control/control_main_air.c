@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
 
         if(select_return == -1)
         {
-            perror("DB_CONTROL_AIR: select returned error: ");
+            perror("DB_CONTROL_AIR: select() returned error: ");
         }else if (select_return > 0){
             if (FD_ISSET(socket_port_rc, &fd_socket_set)){
                 // --------------------------------

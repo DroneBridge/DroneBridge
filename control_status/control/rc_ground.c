@@ -204,11 +204,6 @@ void open_rc_tx_shm(){
  */
 int send_rc_packet(uint16_t channel_data[]) {
     // TODO: check for RC overwrite!
-    if (rc_seq_number == 255){
-        rc_seq_number = 0;
-    } else {
-        rc_seq_number++;
-    }
     // Update shared memory so status module can read RC values
     for(i_rc = 0; i_rc < NUM_CHANNELS; i_rc++) {
         shm_rc_values->ch[i_rc] = channel_data[i_rc];
@@ -216,10 +211,10 @@ int send_rc_packet(uint16_t channel_data[]) {
 
     if (rc_protocol == 1){
         generate_msp(channel_data);
-        send_packet_hp(DB_PORT_CONTROLLER, MSP_DATA_LENTH, rc_seq_number);
+        send_packet_hp(DB_PORT_CONTROLLER, MSP_DATA_LENTH, update_seq_num(&rc_seq_number));
     }else if (rc_protocol == 2){
         generate_mspv2(channel_data);
-        send_packet_hp(DB_PORT_CONTROLLER, MSP_V2_DATA_LENGTH, rc_seq_number);
+        send_packet_hp(DB_PORT_CONTROLLER, MSP_V2_DATA_LENGTH, update_seq_num(&rc_seq_number));
     }else if (rc_protocol == 3){
         generate_mavlink_v1(channel_data);
         // TODO: set db_payload length, send MAVLink
@@ -231,7 +226,7 @@ int send_rc_packet(uint16_t channel_data[]) {
         printf("CH8:     %i          \n",channel_data[8]);
         printf("CH9:     %i          \n",channel_data[9]);
         printf("CH10:    %i          \n",channel_data[10]);
-        send_packet_hp(DB_PORT_RC, DB_RC_DATA_LENGTH, rc_seq_number);
+        send_packet_hp(DB_PORT_RC, DB_RC_DATA_LENGTH, update_seq_num(&rc_seq_number));
     }
     return 0;
 }
