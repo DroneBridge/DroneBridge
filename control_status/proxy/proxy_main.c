@@ -4,6 +4,7 @@
  *   https://github.com/seeul8er/DroneBridge
  *   This is the DroneBridge Proxy module. It routes UDP <-> DroneBridge Control module and is used to send MSP/MAVLink
  *   messages
+ *   This module might act as a reference design for future modules
  *   Link over DroneBridge Proxy module is fully transparent
  */
 
@@ -79,34 +80,42 @@ int process_command_line_args(int argc, char *argv[]){
 int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
-    int udp_socket, shID, err;
-
     process_command_line_args(argc, argv);
 
     // set up long range receiving socket
     int long_range_socket = open_socket_send_receive(if_name, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_PROXY);
+    int udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
 
-    // set up UDP socket
-    struct sockaddr_in remoteServAddr;
+    struct sockaddr_in remoteServAddr, servAddr;
+    // set up UDP socket remote address
     remoteServAddr.sin_family = AF_INET;
     remoteServAddr.sin_addr.s_addr = inet_addr("192.168.2.2");
     remoteServAddr.sin_port = htons(app_port_proxy);
-    udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
+
+    // local server port we bind to
+    servAddr.sin_family = AF_INET;
+    servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servAddr.sin_port = htons(app_port_proxy);
+    const int y = 1;
+    setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int));
+
     if (udp_socket < 0) {
-        printf ("DB_PROXY_GROUND: %s: Unable to open socket\n", strerror(errno));
+        printf ("DB_PROXY_GROUND: Unable to open socket (%s)\n", strerror(errno));
+        exit (EXIT_FAILURE);
+    }
+    if (bind(udp_socket, (struct sockaddr *) &servAddr, sizeof (servAddr)) < 0) {
+        printf ("DB_PROXY_GROUND: Unable to bind to port %i (%s)\n", app_port_proxy, strerror(errno));
         exit (EXIT_FAILURE);
     }
     int broadcast=1;
-    if (setsockopt(udp_socket,SOL_SOCKET,SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
-        printf("DB_PROXY_GROUND: %s\n",strerror(errno));
+    if (setsockopt(udp_socket, SOL_SOCKET, SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
+        printf("DB_PROXY_GROUND: Unable to set broadcast option %s\n",strerror(errno));
     }
 
     // init variables
-    shID = init_shared_memory_ip();
+    int shID = init_shared_memory_ip();
     fd_set fd_socket_set;
     struct timeval select_timeout;
-    select_timeout.tv_sec = 2;
-    select_timeout.tv_usec = 0;
     struct data_uni *data_uni_to_drone = (struct data_uni *)
             (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
     uint8_t seq_num = 0;
@@ -115,6 +124,8 @@ int main(int argc, char *argv[]) {
 
     printf("DB_PROXY_GROUND: started!\n");
     while(keeprunning) {
+        select_timeout.tv_sec = 2;
+        select_timeout.tv_usec = 0;
         FD_ZERO (&fd_socket_set);
         FD_SET (udp_socket, &fd_socket_set);
         FD_SET (long_range_socket, &fd_socket_set);
@@ -123,12 +134,12 @@ int main(int argc, char *argv[]) {
             // timeout
             remoteServAddr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
         } else if (select_return > 0){
-            remoteServAddr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
             if (FD_ISSET(udp_socket, &fd_socket_set)){
                 // ---------------
                 // Message app/UDP --> DB_CONTROL_AIR
                 // ---------------
-                ssize_t l = recv(long_range_socket, udp_buffer, (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH), 0); err = errno;
+                ssize_t l = recv(udp_socket, udp_buffer, (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH), 0);
+                int err = errno;
                 if (l > 0){
                     memcpy(data_uni_to_drone->bytes, udp_buffer, (size_t) l);
                     send_packet_hp(DB_PORT_CONTROLLER, (u_int16_t) l, update_seq_num(&seq_num));
@@ -140,7 +151,7 @@ int main(int argc, char *argv[]) {
                 // ---------------
                 // Message DB_CONTROL_AIR --> app/UDP
                 // ---------------
-                ssize_t l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0); err = errno;
+                ssize_t l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0); int err = errno;
                 if (l > 0){
                     int radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
                     size_t message_length = lr_buffer[radiotap_length+7] | (lr_buffer[radiotap_length+8] << 8); // DB_v2

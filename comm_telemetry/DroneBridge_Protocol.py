@@ -204,17 +204,21 @@ class DBProtocol:
         try:
             raw_data_decoded = bytes.decode(raw_data)
             print(self.tag + "Received from SP: " + raw_data_decoded)
-        except UnicodeDecodeError as unicodeerr:
+        except UnicodeDecodeError:
             pass
         if not self._route_db_comm_protocol(raw_data):
-            print(self.tag + "smartphone command could not be processed correctly")
+            print(self.tag + "smartphone command could not be processed correctly!")
         return thelast_keepalive
 
     def _route_db_comm_protocol(self, raw_data_encoded):
         """Routing of the DroneBridge communication protocol packets"""
         status = False
         extracted_info = comm_message_extract_info(raw_data_encoded)  # returns json bytes [0] and crc bytes [1]
-        loaded_json = json.loads(extracted_info[0].decode())
+        try:
+            loaded_json = json.loads(extracted_info[0].decode())
+        except UnicodeDecodeError:
+            print(self.tag + "Invalid command: Could not decode json message")
+            return False
 
         if loaded_json['destination'] == 1 and self.comm_direction == TO_DRONE and check_package_good(extracted_info):
             message = self._process_db_comm_protocol_type(loaded_json)

@@ -189,6 +189,8 @@ int main(int argc, char *argv[])
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
     while(keepRunning)
     {
+        socket_timeout.tv_sec = 0;
+        socket_timeout.tv_usec = status_report_update_rate*1000;
         FD_ZERO (&fd_socket_set);
         FD_SET (socket_port_rc, &fd_socket_set);
         FD_SET (socket_port_control, &fd_socket_set);
