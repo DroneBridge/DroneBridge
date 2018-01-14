@@ -86,11 +86,12 @@ int main(int argc, char *argv[]) {
     int long_range_socket = open_socket_send_receive(if_name, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_PROXY);
     int udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
 
-    struct sockaddr_in remoteServAddr, servAddr;
+    struct sockaddr_in clientAddr, servAddr;
     // set up UDP socket remote address
-    remoteServAddr.sin_family = AF_INET;
-    remoteServAddr.sin_addr.s_addr = inet_addr("192.168.2.2");
-    remoteServAddr.sin_port = htons(app_port_proxy);
+    clientAddr.sin_family = AF_INET;
+    clientAddr.sin_addr.s_addr = inet_addr("192.168.2.2");
+    clientAddr.sin_port = htons(app_port_proxy);
+    socklen_t len_client_addr = sizeof(clientAddr);
 
     // local server port we bind to
     servAddr.sin_family = AF_INET;
@@ -124,21 +125,23 @@ int main(int argc, char *argv[]) {
 
     printf("DB_PROXY_GROUND: started!\n");
     while(keeprunning) {
-        select_timeout.tv_sec = 2;
+        select_timeout.tv_sec = 5;
         select_timeout.tv_usec = 0;
         FD_ZERO (&fd_socket_set);
         FD_SET (udp_socket, &fd_socket_set);
         FD_SET (long_range_socket, &fd_socket_set);
         int select_return = select (FD_SETSIZE, &fd_socket_set, NULL, NULL, &select_timeout);
         if(select_return == 0){
-            // timeout
-            remoteServAddr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
+            // timeout: get IP from IP checker although we always return messages to last knows client ip:port
+            clientAddr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
         } else if (select_return > 0){
             if (FD_ISSET(udp_socket, &fd_socket_set)){
                 // ---------------
                 // Message app/UDP --> DB_CONTROL_AIR
+                // Proxy returns messages to last known client port
                 // ---------------
-                ssize_t l = recv(udp_socket, udp_buffer, (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH), 0);
+                ssize_t l = recvfrom(udp_socket, udp_buffer, (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH), 0,
+                                     (struct sockaddr *)&clientAddr, &len_client_addr);
                 int err = errno;
                 if (l > 0){
                     memcpy(data_uni_to_drone->bytes, udp_buffer, (size_t) l);
@@ -156,8 +159,8 @@ int main(int argc, char *argv[]) {
                     int radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
                     size_t message_length = lr_buffer[radiotap_length+7] | (lr_buffer[radiotap_length+8] << 8); // DB_v2
                     memcpy(udp_buffer, lr_buffer+(radiotap_length + DB_RAW_V2_HEADER_LENGTH), message_length);
-                    sendto (udp_socket, udp_buffer, message_length, 0, (struct sockaddr *) &remoteServAddr,
-                            sizeof (remoteServAddr));
+                    sendto (udp_socket, udp_buffer, message_length, 0, (struct sockaddr *) &clientAddr,
+                            sizeof (clientAddr));
                 } else {
                     printf("DB_PROXY_GROUND: Long range socket received an error: %s\n", strerror(err));
                 }

@@ -67,3 +67,9 @@ control_status/control/common_lib/Makefile
 control_status/x86bin/
 
 control_status/proxy/tcp_server_test\.c
+
+\.idea/
+
+cmake-build-debug/
+
+x86bin/

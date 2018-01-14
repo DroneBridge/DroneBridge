@@ -233,7 +233,7 @@ int main(int argc, char *argv[])
                 // DB_CONTROL_PORT for MSP/MAVLink
                 // --------------------------------
                 length = recv(socket_port_control, buf, BUF_SIZ, 0);
-                if (length <= 0)
+                if (length > 0)
                 {
                     if (chipset_type == 1){
                         rssi = buf[14];
@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
                         rssi = buf[30];
                     }
                     command_length = buf[buf[2]+7] | (buf[buf[2]+8] << 8); // ready for v2
-                    memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], command_length);
+                    memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], (size_t) command_length);
                     sentbytes = (int) write(socket_control_serial, commandBuf, (size_t) command_length); errsv = errno;
                     tcdrain(socket_control_serial);
                     if(sentbytes <= 0)
@@ -320,14 +320,6 @@ int main(int argc, char *argv[])
                 }
             }
         }
-
-/*      uint8_t commandBuf2[] = {0x24, 0x58, 0x3c, 0x00, 0x6c, 0x00, 0x00, 0x00, 0xd8};
-        sentbytes = (int) write(socket_control_serial, commandBuf2, (size_t) 9); errsv = errno;
-        tcdrain(socket_control_serial);
-        if(sentbytes <= 0)
-        {
-            printf(" DEBUGMESSAGE NOT WRITTEN because of error: %s\n", strerror(errsv));
-        }*/
 
         // --------------------------------
         // Send a status update to status module on groundstation

@@ -72,10 +72,10 @@ if [ $en_comm = "Y" ]; then
 fi
 
 echo "DroneBridge-Ground: Starting status module..."
-./control_status/status/status -n $interface_tel -m $mode -c $comm_id &
+./status/status -n $interface_tel -m $mode -c $comm_id &
 
 echo "DroneBridge-Ground: Starting proxy module..."
-./control_status/proxy/proxy -n $interface_proxy -m $mode -p $proxy_port_local_remote -c $comm_id &
+./proxy/proxy -n $interface_proxy -m $mode -p $proxy_port_local_remote -c $comm_id &
 
 if [ $en_tel = "Y" ]; then
  echo "DroneBridge-Ground: Starting telemetry module..."
@@ -84,5 +84,5 @@ fi
 
 if [ $en_control = "Y" ]; then
 	echo "DroneBridge-Ground: Starting controller module..."
-	./control_status/control/control_ground -n $interface_control -j $joy_interface -m $mode -v $rc_proto -g "$joy_cal" -c $comm_id &
+	./control/control_ground -n $interface_control -j $joy_interface -m $mode -v $rc_proto -g "$joy_cal" -c $comm_id &
 fi

@@ -73,5 +73,5 @@ fi
 
 if [ $en_control = "Y" ]; then
 	echo "DroneBridge-Air: Starting controller module..."
-	./control_status/control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $chipset_control -v $serial_prot -r $baud_control &
+	./control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $chipset_control -v $serial_prot -r $baud_control &
 fi

@@ -41,6 +41,12 @@ To set it up please read the wiki and check out: https://github.com/bortek/EZ-Wi
  - Display distance between pilot (app) and drone
  - Support for MSPv1 (Betaflight/Cleanflight) and MSPv2 (iNAV)
 
+<h2>Exemplary hardware setup</h2>
+
+![possible hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/Hardware_setup.png)
+
+Other configurations where a laptop functions as the groundstation or a HDMI screen/goggles are connected to the ground Pi should be possible but are untested. Other SBC might work.
+
 <h2>DroneBridge Modules</h2>
 
 DroneBridge is highly modularized to provide flexebility and make development easy. There is a common library for Python3 and C that handles everything involving the DroneBridge raw protocol. It configures the sockets, inits the protocol and provides methods for easy transmission.
