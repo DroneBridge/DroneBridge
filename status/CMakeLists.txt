@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
-project(status)
+project(status_ground)
 
 set(CMAKE_C_STANDARD 11)
-set(SOURCE_FILES main.c lib.h wifibroadcast.h)
+set(CMAKE_C_FLAGS "-O3") ## Optimize
+
+add_subdirectory(../common common_lib)
+set(SOURCE_FILES status_main.c)
+
 add_executable(status ${SOURCE_FILES})
-if(UNIX AND NOT APPLE)
-    target_link_libraries(status rt)
-endif()
+target_link_libraries(status common_lib)

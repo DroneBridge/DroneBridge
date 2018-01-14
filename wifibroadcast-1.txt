@@ -4,7 +4,8 @@
 # ============================================================
 #
 # Desired frequency in MHz
-FREQ=2447
+FREQ=2402
+#FREQ=2337
 #
 # Set to "Y" on the RX for auto-scanning. Frequency still has to be set on TX!
 # Feature might be buggy or not work at all!
@@ -85,8 +86,7 @@ VIDEO_BLOCKLENGTH=1024
 #
 #
 # Telemetry transmission method:
-# db = to be able to use DroneBridge telemetry module for LTM downlink 
-# --> currently needed for DroneBridge app - make sure you enable the module in DroneBridgeTX.ini and DroneBridgeRX.ini as well!
+# db = to be able to use DroneBridge telemetry module for LTM/MAVLink downlink - make sure you enable the module!
 # wbc = use wifibroadcast as telemetry up/downlink
 # external = use external means as telemetry up/downlink (LRS or 3DR dongles)
 # if set to external, set serialport to which LRS or 3DR dongle is connected
@@ -123,7 +123,7 @@ HEIGHT=730
 KEYFRAMERATE=7
 #
 # Set additional raspivid parameters here
-EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -ex sports -mm average -awb horizon"
+EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -ex sports -mm average -awb horizon -rot 180"
 #
 #
 # Serial port and baudrate (19200 is minimum) to use for the R/C connection between air Pi and flight control
@@ -149,7 +149,7 @@ FC_MSP_BAUDRATE=115200
 # set this to "Y" to enable Wifi Hotspot. Default SSID is "DroneBridge", password is "dronebridge".
 # See apconfig.txt for configuration. This will forward the received video and telemetry streams to a
 # smartphone/tablet or computer connected to the RX Pi via WiFi.
-WIFI_HOTSPOT=N
+WIFI_HOTSPOT=Y
 #
 # Set to "internal" to use the interal Pi3 wifi chip or the MAC address of the USB wifi card you want to use
 WIFI_HOTSPOT_NIC=internal

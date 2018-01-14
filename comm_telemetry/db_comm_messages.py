@@ -1,18 +1,19 @@
+# This file is part of DroneBridge licenced under Apache Licence 2
+# https://github.com/seeul8er/DroneBridge/
+# Created by Wolfgang Christl
+
 import json
 import configparser
 import binascii
 from itertools import chain
-
-
-# Creates JSON messages for DB Communication Protocol to be sent out
 import os
 
 tag = 'DB_COMM_MESSAGE: '
-PATH_DRONEBRIDGE_TX_SETTINGS = "/boot/DroneBridgeTX.ini"
-PATH_DRONEBRIDGE_RX_SETTINGS = "/boot/DroneBridgeRX.ini"
+PATH_DRONEBRIDGE_GROUND_SETTINGS = "/boot/DroneBridgeGround.ini"
+PATH_DRONEBRIDGE_AIR_SETTINGS = "/boot/DroneBridgeAir.ini"
 PATH_WBC_SETTINGS = "/boot/wifibroadcast-1.txt"
 
-# As we send it as a single frame we do not want the payload to be unnecessarily big. Only respond important settings
+# Used with general settings requests
 wbc_settings_blacklist = ["TXMODE", "MAC_RX[0]", "FREQ_RX[0]", "MAC_RX[1]", "FREQ_RX[1]", "MAC_RX[2]", "FREQ_RX[2]",
                           "MAC_RX[3]", "FREQ_RX[3]", "MAC_TX[0]", "FREQ_TX[0]", "MAC_TX[1]", "FREQ_TX[1]",
                           "WIFI_HOTSPOT_NIC", "RELAY", "RELAY_NIC", "RELAY_FREQ", "QUIET", "FREQSCAN",
@@ -24,27 +25,39 @@ db_settings_blacklist = ["ip_drone", "interface_selection", "interface_control",
 
 
 def new_settingsresponse_message(loaded_json, origin):
-    """takes in a request - executes search for settings and creates a response as bytes"""
+    """
+    takes in a request - executes search for settings and creates a response as bytes
+    :param loaded_json:
+    :param origin: is this a response of drone or groundstation
+    :return: a complete response packet as bytes
+    """
     complete_response = {}
     complete_response['destination'] = 4
     complete_response['type'] = 'settingsresponse'
     complete_response['response'] = loaded_json['request']
     complete_response['origin'] = origin
     complete_response['id'] = loaded_json['id']
-    if loaded_json['request'] == 'dronebridge':
-        complete_response = read_dronebridge_settings(complete_response, origin)
-    elif loaded_json['request'] == 'wifibroadcast':
-        complete_response = read_wbc_settings(complete_response)
+    if loaded_json['request'] == 'db':
+        if 'settings' in loaded_json:
+            complete_response = read_dronebridge_settings(complete_response, origin, True, loaded_json['settings'])
+        else:
+            complete_response = read_dronebridge_settings(complete_response, origin, False, None)
+    elif loaded_json['request'] == 'wbc':
+        if 'settings' in loaded_json:
+            complete_response = read_wbc_settings(complete_response, True, loaded_json['settings'])
+        else:
+            complete_response = read_wbc_settings(complete_response, False, None)
     response = json.dumps(complete_response)
     crc32 = binascii.crc32(str.encode(response))
     return response.encode()+crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-"""returns a settings change success message"""
 def new_settingschangesuccess_message(origin, new_id):
+    """returns a settings change success message"""
     command = json.dumps({'destination': 4, 'type': 'settingssuccess', 'origin': origin, 'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode()+crc32.to_bytes(4, byteorder='little', signed=False)
+
 
 def change_settings_wbc(loaded_json, origin):
     try:
@@ -70,12 +83,12 @@ def change_settings_db(loaded_json, origin):
     try:
         section = ''
         filepath = ''
-        if origin=='groundstation':
-            section = 'TX'
-            filepath = PATH_DRONEBRIDGE_TX_SETTINGS
+        if origin == 'groundstation':
+            section = 'Ground'
+            filepath = PATH_DRONEBRIDGE_GROUND_SETTINGS
         elif origin == 'drone':
-            section = 'RX'
-            filepath = PATH_DRONEBRIDGE_RX_SETTINGS
+            section = 'Air'
+            filepath = PATH_DRONEBRIDGE_AIR_SETTINGS
         with open(filepath, 'r+') as file:
             lines = file.readlines()
             for key in loaded_json['settings'][section]:
@@ -112,27 +125,48 @@ def change_settings_gopro(loaded_json):
     pass
 
 
-def read_dronebridge_settings(response_header, origin):
+def read_dronebridge_settings(response_header, origin, specific_request, requestet_settings):
+    """
+    Read settings from file and create a valid packet
+    :param response_header: Everything but the settings part of the message as a dict
+    :param origin: Are we drone|groundstation
+    :param specific_request: Is it a general or specific settings request: True|False
+    :return: The complete json with settings
+    """
     config = configparser.ConfigParser()
     config.optionxform = str
-    section = ''
-    settings = {}
+    section = ''  # section in the DroneBridge config file
+    comm_ident = ''  # array descriptor in the settings request
+    settings = {}  # settings object that gets sent
     if origin == 'groundstation':
-        config.read(PATH_DRONEBRIDGE_TX_SETTINGS)
-        section = 'TX'
+        config.read(PATH_DRONEBRIDGE_GROUND_SETTINGS)
+        section = 'GROUND'
+        comm_ident = 'Ground'
     elif origin == 'drone':
-        config.read(PATH_DRONEBRIDGE_RX_SETTINGS)
-        section = 'RX'
+        config.read(PATH_DRONEBRIDGE_AIR_SETTINGS)
+        section = 'AIR'
+        comm_ident = 'Air'
 
-    for key in config[section]:
-        if key not in db_settings_blacklist:
-            settings[key] = config.get(section, key)
+    if specific_request:
+        for requested_set in requestet_settings[comm_ident]:
+            if requested_set in config[section]:
+                settings[requested_set] = config.get(section, requested_set)
+    else:
+        for key in config[section]:
+            if key not in db_settings_blacklist:
+                settings[key] = config.get(section, key)
 
     response_header['settings'] = settings
     return response_header
 
 
-def read_wbc_settings(response_header):
+def read_wbc_settings(response_header, specific_request, requestet_settings):
+    """
+    Read settings from file and create a valid packet
+    :param response_header: Everything but the settings part of the message as a dict
+    :param specific_request: Is it a general or specific settings request: True|False
+    :return: The complete json with settings
+    """
     virtual_section = 'root'
     settings = {}
     config = configparser.ConfigParser()
@@ -141,9 +175,14 @@ def read_wbc_settings(response_header):
         lines = chain(('['+virtual_section+']',), lines)
         config.read_file(lines)
 
-    for key in config[virtual_section]:
-        if key not in wbc_settings_blacklist:
-            settings[key] = config.get(virtual_section, key)
+    if specific_request:
+        for requested_set in requestet_settings['wbc']:
+            if requested_set in config[virtual_section]:
+                    settings[requested_set] = config.get(virtual_section, requested_set)
+    else:
+        for key in config[virtual_section]:
+            if key not in wbc_settings_blacklist:
+                settings[key] = config.get(virtual_section, key)
 
     response_header['settings'] = settings
     return response_header
@@ -163,6 +202,11 @@ def comm_message_extract_info(message):
 
 
 def check_package_good(extracted_info):
+    """
+    Checks the CRC32 of the message contained in extracted_info[1]
+    :param extracted_info: extracted_info[0] is the message as json, extracted_info[1] are the four crc bytes
+    :return: True if message has valid CRC32
+    """
     if binascii.crc32(extracted_info[0]).to_bytes(4, byteorder='little', signed=False) == extracted_info[1]:
         return True
     print(tag+"Bad CRC!")
