@@ -22,9 +22,9 @@ Range is the same as with the WifiBroadcast project. Reported ranges are:
 
 Range strongly depends on your setup and environment. The user must ensure that the system is operated within the legal framework of the respective country.
 
-<h2>DroneBridge Beta 0.3 release - Get it here</h2>
+<h2>DroneBridge Beta 0.3 release coming soon!</h2>
 
-**[Download DroneBridge Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.3)**
+**[Download DroneBridge Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.2)**
 
 **[Download DroneBridge Android App](https://forstudents-my.sharepoint.com/personal/ga25puh_forstudents_onmicrosoft_com/_layouts/15/guestaccess.aspx?docid=06b1ff2fa69744f45921789b52f88d853&authkey=AeCN4yiqgmL06Mq-rO1Lz6Y&expiration=2018-01-31T23%3A00%3A00.000Z&e=7422989d8eee49e28a268767350b10b1)**
 
