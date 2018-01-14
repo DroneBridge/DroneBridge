@@ -13,6 +13,15 @@ Many people use Pixhawk based flight controllers for their UAVs. While Pixhawk i
 
 Visit <b>http://wolfgangchristl.de/2017/not-just-another-drone-project/</b> for additional information about the project and its goals
 
+**What range can one expect?**
+Range is the same as with the WifiBroadcast project. Reported ranges are:
+* [2.4Ghz] [3dbi omni antennas] [70mw]: ~1km
+* [2.4Ghz] [3dbi omni antennas][300mW high-power cards]: ~2km
+* [5Ghz][3dbi omni antennas][25mW]: ~250m
+* [5Ghz][3dbi omni antennas][300mW high-power cards]: ~1km
+
+Range strongly depends on your setup and environment. The user must ensure that the system is operated within the legal framework of the respective country.
+
 <h2>DroneBridge Beta 0.3 release - Get it here</h2>
 
 **[Download DroneBridge Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.3)**
