@@ -93,7 +93,6 @@ Allows to change and request settings of WifiBroadcast and DroneBridge modules o
 <h2>Future Milestones</h2>
 
 ### Blackbox concept
-Note: MavLink & MSP uplink still missing
 ![Blackbox](https://github.com/seeul8er/DroneBridge/blob/master/wiki/Blackbox.png)
 
 ## coming up:
