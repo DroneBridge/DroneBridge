@@ -90,8 +90,8 @@ Note: MavLink & MSP uplink still missing
 ## coming up:
  - more documentation
  - add MavLink and MSP waypoint missions
- - make DroneBridge more indipendent of WifiBroadcast (video) > support of esp32 or esp8266 modules to allow integration in existing builds using analog video > no need for raspberry pi
- - integrate GoPro into project
+ - make DroneBridge more indipendent of WifiBroadcast (video) > support of esp32 or esp8266 modules to allow integration in existing builds using analog video > no need for raspberry pi: This will provide all features but video. Range will be reduced to 150-300m (no antenna mod) as we use esp-modules to do transmission. If you want video you will need your standard analog FPV cameras and googles etc.. Support for analog video grabbers might be added to android app.
+ - (integrate GoPro into project) - wifi seems to interfere with GPS- might be a bad idea...
  - implement VR support. Gimbal and yaw of drone can be controlled by head movement
  - See **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milestones)**
 
