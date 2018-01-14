@@ -11,9 +11,14 @@ status/\.idea/
 
 status/cmake-build-debug/
 
-<<<<<<< Updated upstream
-comm_telemetry/\.idea/vcs\.xml
 
-=======
->>>>>>> Stashed changes
-comm_telemetry/\.idea/
+
+\.idea/
+
+cmake-build-debug/
+
+status/common_lib/CMakeFiles/
+
+*.cmake
+
+x86bin/
