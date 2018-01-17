@@ -109,6 +109,8 @@ Check out the **[wiki](https://github.com/seeul8er/DroneBridge/wiki)**
 
 Check out the **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milestones)** and suggest new ones!
 
+Join the **[Gitter room](https://gitter.im/DroneBridge/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)** and discuss issues, ask questions or give feedback
+
 There is a nightly branch with the most up to date code! It is not guaranteed that the code in that branch is working or even compiling!
 
 **Feel free to ask questions and criticize each and everything!**
