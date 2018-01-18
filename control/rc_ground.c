@@ -32,47 +32,47 @@ void generate_msp(unsigned short *newJoystickData) {
     monitor_databuffer->bytes[3] = 0x1c;
     monitor_databuffer->bytes[4] = 0xc8;
     //Roll
-    monitor_databuffer->bytes[5] = (uint8_t) ((newJoystickData[0] >> 8) & 0xFF);
-    monitor_databuffer->bytes[6] = (uint8_t) (newJoystickData[0] & 0xFF);
+    monitor_databuffer->bytes[5] = (uint8_t) (newJoystickData[0] & 0xFF);
+    monitor_databuffer->bytes[6] = (uint8_t) ((newJoystickData[0] >> 8) & 0xFF);
     //Pitch
-    monitor_databuffer->bytes[7] = (uint8_t) ((newJoystickData[1] >> 8) & 0xFF);
-    monitor_databuffer->bytes[8] = (uint8_t) (newJoystickData[1] & 0xFF);
+    monitor_databuffer->bytes[7] = (uint8_t) ( newJoystickData[1] & 0xFF);
+    monitor_databuffer->bytes[8] = (uint8_t) ((newJoystickData[1] >> 8) & 0xFF);
     //Throttle
-    monitor_databuffer->bytes[9] = (uint8_t) ((newJoystickData[2] >> 8) & 0xFF);
-    monitor_databuffer->bytes[10] = (uint8_t) (newJoystickData[2] & 0xFF);
+    monitor_databuffer->bytes[9] = (uint8_t) (newJoystickData[2] & 0xFF);
+    monitor_databuffer->bytes[10] = (uint8_t) ((newJoystickData[2] >> 8) & 0xFF);
     //Yaw
-    monitor_databuffer->bytes[11] = (uint8_t) ((newJoystickData[3] >> 8) & 0xFF);
-    monitor_databuffer->bytes[12] = (uint8_t) (newJoystickData[3] & 0xFF);
+    monitor_databuffer->bytes[11] = (uint8_t) (newJoystickData[3] & 0xFF);
+    monitor_databuffer->bytes[12] = (uint8_t) ((newJoystickData[3] >> 8) & 0xFF);
     //AUX 1
-    monitor_databuffer->bytes[13] = (uint8_t) ((newJoystickData[4] >> 8) & 0xFF);
-    monitor_databuffer->bytes[14] = (uint8_t) (newJoystickData[4] & 0xFF);
+    monitor_databuffer->bytes[13] = (uint8_t) (newJoystickData[4] & 0xFF);
+    monitor_databuffer->bytes[14] = (uint8_t) ((newJoystickData[4] >> 8) & 0xFF);
     //AUX 2
-    monitor_databuffer->bytes[15] = (uint8_t) ((newJoystickData[5] >> 8) & 0xFF);
-    monitor_databuffer->bytes[16] = (uint8_t) (newJoystickData[5] & 0xFF);
+    monitor_databuffer->bytes[15] = (uint8_t) (newJoystickData[5] & 0xFF);
+    monitor_databuffer->bytes[16] = (uint8_t) ((newJoystickData[5] >> 8) & 0xFF);
     //AUX 3
-    monitor_databuffer->bytes[17] = (uint8_t) ((newJoystickData[6] >> 8) & 0xFF);
-    monitor_databuffer->bytes[18] = (uint8_t) (newJoystickData[6] & 0xFF);
+    monitor_databuffer->bytes[17] = (uint8_t) (newJoystickData[6] & 0xFF);
+    monitor_databuffer->bytes[18] = (uint8_t) ((newJoystickData[6] >> 8) & 0xFF);
     //AUX 4
-    monitor_databuffer->bytes[19] = (uint8_t) ((newJoystickData[7] >> 8) & 0xFF);
-    monitor_databuffer->bytes[20] = (uint8_t) (newJoystickData[7] & 0xFF);
+    monitor_databuffer->bytes[19] = (uint8_t) (newJoystickData[7] & 0xFF);
+    monitor_databuffer->bytes[20] = (uint8_t) ((newJoystickData[7] >> 8) & 0xFF);
     //AUX 5
-    monitor_databuffer->bytes[21] = (uint8_t) ((newJoystickData[8] >> 8) & 0xFF);
-    monitor_databuffer->bytes[22] = (uint8_t) (newJoystickData[8] & 0xFF);
+    monitor_databuffer->bytes[21] = (uint8_t) (newJoystickData[8] & 0xFF);
+    monitor_databuffer->bytes[22] = (uint8_t) ((newJoystickData[8] >> 8) & 0xFF);
     //AUX 6
-    monitor_databuffer->bytes[23] = (uint8_t) ((newJoystickData[9] >> 8) & 0xFF);
-    monitor_databuffer->bytes[24] = (uint8_t) (newJoystickData[9] & 0xFF);
+    monitor_databuffer->bytes[23] = (uint8_t) (newJoystickData[9] & 0xFF);
+    monitor_databuffer->bytes[24] = (uint8_t) ((newJoystickData[9] >> 8) & 0xFF);
     //AUX 7
-    monitor_databuffer->bytes[25] = (uint8_t) ((newJoystickData[10] >> 8) & 0xFF);
-    monitor_databuffer->bytes[26] = (uint8_t) (newJoystickData[10] & 0xFF);
+    monitor_databuffer->bytes[25] = (uint8_t) (newJoystickData[10] & 0xFF);
+    monitor_databuffer->bytes[26] = (uint8_t) ((newJoystickData[10] >> 8) & 0xFF);
     //AUX 8
-    monitor_databuffer->bytes[27] = (uint8_t) ((newJoystickData[11] >> 8) & 0xFF);
-    monitor_databuffer->bytes[28] = (uint8_t) (newJoystickData[11] & 0xFF);
+    monitor_databuffer->bytes[27] = (uint8_t) (newJoystickData[11] & 0xFF);
+    monitor_databuffer->bytes[28] = (uint8_t) ((newJoystickData[11] >> 8) & 0xFF);
     //AUX 9
-    monitor_databuffer->bytes[29] = (uint8_t) ((newJoystickData[12] >> 8) & 0xFF);
-    monitor_databuffer->bytes[30] = (uint8_t) (newJoystickData[12] & 0xFF);
+    monitor_databuffer->bytes[29] = (uint8_t) (newJoystickData[12] & 0xFF);
+    monitor_databuffer->bytes[30] = (uint8_t) ((newJoystickData[12] >> 8) & 0xFF);
     //AUX 10
-    monitor_databuffer->bytes[31] = (uint8_t) ((newJoystickData[13] >> 8) & 0xFF);
-    monitor_databuffer->bytes[32] = (uint8_t) (newJoystickData[13] & 0xFF);
+    monitor_databuffer->bytes[31] = (uint8_t) (newJoystickData[13] & 0xFF);
+    monitor_databuffer->bytes[32] = (uint8_t) ((newJoystickData[13] >> 8) & 0xFF);
     // CRC
     crc8 = 0; // not really a crc more a checksum
     for (int i = 3; i < 33; i++) {
@@ -91,47 +91,47 @@ void generate_mspv2(unsigned short *newJoystickData) {
     monitor_databuffer->bytes[6] = 0x1c; // payload size
     monitor_databuffer->bytes[7] = 0x00; // payload size
     //Roll
-    monitor_databuffer->bytes[8] = (uint8_t) ((newJoystickData[0] >> 8) & 0xFF);
-    monitor_databuffer->bytes[9] = (uint8_t) (newJoystickData[0] & 0xFF);
+    monitor_databuffer->bytes[8] = (uint8_t) (newJoystickData[0] & 0xFF);
+    monitor_databuffer->bytes[9] = (uint8_t) ((newJoystickData[0] >> 8) & 0xFF);
     //Pitch
-    monitor_databuffer->bytes[10] = (uint8_t) ((newJoystickData[1] >> 8) & 0xFF);
-    monitor_databuffer->bytes[11] = (uint8_t) ( newJoystickData[1] & 0xFF);
+    monitor_databuffer->bytes[10] = (uint8_t) ( newJoystickData[1] & 0xFF);
+    monitor_databuffer->bytes[11] = (uint8_t) ((newJoystickData[1] >> 8) & 0xFF);
     //Throttle
-    monitor_databuffer->bytes[12] = (uint8_t) ((newJoystickData[2] >> 8) & 0xFF);
-    monitor_databuffer->bytes[13] = (uint8_t) (newJoystickData[2] & 0xFF);
+    monitor_databuffer->bytes[12] = (uint8_t) (newJoystickData[2] & 0xFF);
+    monitor_databuffer->bytes[13] = (uint8_t) ((newJoystickData[2] >> 8) & 0xFF);
     //Yaw
-    monitor_databuffer->bytes[14] = (uint8_t) ((newJoystickData[3] >> 8) & 0xFF);
-    monitor_databuffer->bytes[15] = (uint8_t) (newJoystickData[3] & 0xFF);
+    monitor_databuffer->bytes[14] = (uint8_t) (newJoystickData[3] & 0xFF);
+    monitor_databuffer->bytes[15] = (uint8_t) ((newJoystickData[3] >> 8) & 0xFF);
     //AUX 1
-    monitor_databuffer->bytes[16] = (uint8_t) ((newJoystickData[4] >> 8) & 0xFF);
-    monitor_databuffer->bytes[17] = (uint8_t) (newJoystickData[4] & 0xFF);
+    monitor_databuffer->bytes[16] = (uint8_t) (newJoystickData[4] & 0xFF);
+    monitor_databuffer->bytes[17] = (uint8_t) ((newJoystickData[4] >> 8) & 0xFF);
     //AUX 2
-    monitor_databuffer->bytes[18] = (uint8_t) ((newJoystickData[5] >> 8) & 0xFF);
-    monitor_databuffer->bytes[19] = (uint8_t) (newJoystickData[5] & 0xFF);
+    monitor_databuffer->bytes[18] = (uint8_t) (newJoystickData[5] & 0xFF);
+    monitor_databuffer->bytes[19] = (uint8_t) ((newJoystickData[5] >> 8) & 0xFF);
     //AUX 3
-    monitor_databuffer->bytes[20] = (uint8_t) ((newJoystickData[6] >> 8) & 0xFF);
-    monitor_databuffer->bytes[21] = (uint8_t) (newJoystickData[6] & 0xFF);
+    monitor_databuffer->bytes[20] = (uint8_t) (newJoystickData[6] & 0xFF);
+    monitor_databuffer->bytes[21] = (uint8_t) ((newJoystickData[6] >> 8) & 0xFF);
     //AUX 4
-    monitor_databuffer->bytes[22] = (uint8_t) ((newJoystickData[7] >> 8) & 0xFF);
-    monitor_databuffer->bytes[23] = (uint8_t) (newJoystickData[7] & 0xFF);
+    monitor_databuffer->bytes[22] = (uint8_t) (newJoystickData[7] & 0xFF);
+    monitor_databuffer->bytes[23] = (uint8_t) ((newJoystickData[7] >> 8) & 0xFF);
     //AUX 5
-    monitor_databuffer->bytes[24] = (uint8_t) ((newJoystickData[8] >> 8) & 0xFF);
-    monitor_databuffer->bytes[25] = (uint8_t) (newJoystickData[8] & 0xFF);
+    monitor_databuffer->bytes[24] = (uint8_t) (newJoystickData[8] & 0xFF);
+    monitor_databuffer->bytes[25] = (uint8_t) ((newJoystickData[8] >> 8) & 0xFF);
     //AUX 6
-    monitor_databuffer->bytes[26] = (uint8_t) ((newJoystickData[9] >> 8) & 0xFF);
-    monitor_databuffer->bytes[27] = (uint8_t) (newJoystickData[9] & 0xFF);
+    monitor_databuffer->bytes[26] = (uint8_t) (newJoystickData[9] & 0xFF);
+    monitor_databuffer->bytes[27] = (uint8_t) ((newJoystickData[9] >> 8) & 0xFF);
     //AUX 7
-    monitor_databuffer->bytes[28] = (uint8_t) ((newJoystickData[10] >> 8) & 0xFF);
-    monitor_databuffer->bytes[29] = (uint8_t) (newJoystickData[10] & 0xFF);
+    monitor_databuffer->bytes[28] = (uint8_t) (newJoystickData[10] & 0xFF);
+    monitor_databuffer->bytes[29] = (uint8_t) ((newJoystickData[10] >> 8) & 0xFF);
     //AUX 8
-    monitor_databuffer->bytes[30] = (uint8_t) ((newJoystickData[11] >> 8) & 0xFF);
-    monitor_databuffer->bytes[31] = (uint8_t) (newJoystickData[11] & 0xFF);
+    monitor_databuffer->bytes[30] = (uint8_t) (newJoystickData[11] & 0xFF);
+    monitor_databuffer->bytes[31] = (uint8_t) ((newJoystickData[11] >> 8) & 0xFF);
     //AUX 9
-    monitor_databuffer->bytes[32] = (uint8_t) ((newJoystickData[12] >> 8) & 0xFF);
-    monitor_databuffer->bytes[33] = (uint8_t) (newJoystickData[12] & 0xFF);
+    monitor_databuffer->bytes[32] = (uint8_t) (newJoystickData[12] & 0xFF);
+    monitor_databuffer->bytes[33] = (uint8_t) ((newJoystickData[12] >> 8) & 0xFF);
     //AUX 10
-    monitor_databuffer->bytes[34] = (uint8_t) ((newJoystickData[13] >> 8) & 0xFF);
-    monitor_databuffer->bytes[35] = (uint8_t) (newJoystickData[13] & 0xFF);
+    monitor_databuffer->bytes[34] = (uint8_t) (newJoystickData[13] & 0xFF);
+    monitor_databuffer->bytes[35] = (uint8_t) ((newJoystickData[13] >> 8) & 0xFF);
     // CRC
     crc_mspv2 = 0;
     for (int i = 3; i < 36; i++) {
@@ -222,10 +222,6 @@ int send_rc_packet(uint16_t channel_data[]) {
         // TODO: generate MAVLink v2
     } else if (rc_protocol == 5){
         generate_db_rc_message(channel_data);
-        printf( "%c[;H", 27 );
-        printf("CH8:     %i          \n",channel_data[8]);
-        printf("CH9:     %i          \n",channel_data[9]);
-        printf("CH10:    %i          \n",channel_data[10]);
         send_packet_hp(DB_PORT_RC, DB_RC_DATA_LENGTH, update_seq_num(&rc_seq_number));
     }
     return 0;

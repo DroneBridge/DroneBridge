@@ -9,14 +9,62 @@
 #include "../common/db_protocol.h"
 #include "../common/db_crc.h"
 
-int rc_protocol_air, i_rc_air;
+int serial_rc_protocol, i_rc_air, i_sumd_air;
 
 uint8_t serial_data_buffer[1024] = {0}; // write the data for the serial port in here!
 
-uint16_t rc_channels[DB_RC_NUM_CHANNELS] = {0};
+uint16_t rc_channels[DB_RC_NUM_CHANNELS] = {0}, sumd_multiplier = 8, crc_sumd_air = 0;;
 uint8_t crc_mspv1_air = 0, crc_mspv2_air = 0, crc_db_rc = 0;
-unsigned int tbl_idx_air;
 
+void generate_sumd(uint16_t *rc_channel_data){
+    for (int i = 0; i < DB_RC_NUM_CHANNELS; ++i) rc_channel_data[i] = rc_channel_data[i] * sumd_multiplier;
+    serial_data_buffer[0] = 0xa8;
+    serial_data_buffer[1] = 0x01;
+    serial_data_buffer[2] = 0x0c;   // 12 channels
+    // A
+    serial_data_buffer[3] = (uint8_t) ((rc_channel_data[0] >> 8) & 0xFF);
+    serial_data_buffer[4] = (uint8_t) (rc_channel_data[0] & 0xFF);
+    // E
+    serial_data_buffer[5] = (uint8_t) ((rc_channel_data[1] >> 8) & 0xFF);
+    serial_data_buffer[6] = (uint8_t) (rc_channel_data[1] & 0xFF);
+    // T
+    serial_data_buffer[7] = (uint8_t) ((rc_channel_data[2] >> 8) & 0xFF);
+    serial_data_buffer[8] = (uint8_t) (rc_channel_data[2] & 0xFF);
+    // R
+    serial_data_buffer[9] = (uint8_t) ((rc_channel_data[3] >> 8) & 0xFF);
+    serial_data_buffer[10] = (uint8_t) (rc_channel_data[3] & 0xFF);
+    // 5
+    serial_data_buffer[11] = (uint8_t) ((rc_channel_data[4] >> 8) & 0xFF);
+    serial_data_buffer[12] = (uint8_t) (rc_channel_data[4] & 0xFF);
+    // 6
+    serial_data_buffer[13] = (uint8_t) ((rc_channel_data[5] >> 8) & 0xFF);
+    serial_data_buffer[14] = (uint8_t) (rc_channel_data[5] & 0xFF);
+    // 7
+    serial_data_buffer[15] = (uint8_t) ((rc_channel_data[6] >> 8) & 0xFF);
+    serial_data_buffer[16] = (uint8_t) (rc_channel_data[6] & 0xFF);
+    // 8
+    serial_data_buffer[17] = (uint8_t) ((rc_channel_data[7] >> 8) & 0xFF);
+    serial_data_buffer[18] = (uint8_t) (rc_channel_data[7] & 0xFF);
+    // 9
+    serial_data_buffer[19] = (uint8_t) ((rc_channel_data[8] >> 8) & 0xFF);
+    serial_data_buffer[20] = (uint8_t) (rc_channel_data[8] & 0xFF);
+    // 10
+    serial_data_buffer[21] = (uint8_t) ((rc_channel_data[9] >> 8) & 0xFF);
+    serial_data_buffer[22] = (uint8_t) (rc_channel_data[9] & 0xFF);
+    // 11
+    serial_data_buffer[23] = (uint8_t) ((rc_channel_data[10] >> 8) & 0xFF);
+    serial_data_buffer[24] = (uint8_t) (rc_channel_data[10] & 0xFF);
+    // 12
+    serial_data_buffer[25] = (uint8_t) ((rc_channel_data[11] >> 8) & 0xFF);
+    serial_data_buffer[26] = (uint8_t) (rc_channel_data[11] & 0xFF);
+    // crc
+    for (i_sumd_air = 0; i_sumd_air < 27; i_sumd_air++) {
+        crc_sumd_air = (crc_sumd_air << 8) ^ crc_sumd_table[(crc_sumd_air >> 8) ^ serial_data_buffer[i_sumd_air]];
+    }
+    crc_sumd_air = 0;
+    serial_data_buffer[27] = (uint8_t) ((crc_sumd_air >> 8) & 0xFF);
+    serial_data_buffer[28] = (uint8_t) (crc_sumd_air & 0xFF);
+}
 
 void generate_msp(uint16_t *rc_channel_data) {
     serial_data_buffer[0] = 0x24;
@@ -24,42 +72,42 @@ void generate_msp(uint16_t *rc_channel_data) {
     serial_data_buffer[2] = 0x3c;
     serial_data_buffer[3] = 0x18;   // payload size
     serial_data_buffer[4] = 0xc8;
-    //Roll
-    serial_data_buffer[5] = (uint8_t) ((rc_channel_data[0] >> 8) & 0xFF);
-    serial_data_buffer[6] = (uint8_t) (rc_channel_data[0] & 0xFF);
-    //Pitch
-    serial_data_buffer[7] = (uint8_t) ((rc_channel_data[1] >> 8) & 0xFF);
-    serial_data_buffer[8] = (uint8_t) (rc_channel_data[1] & 0xFF);
-    //Throttle
-    serial_data_buffer[9] = (uint8_t) ((rc_channel_data[2] >> 8) & 0xFF);
-    serial_data_buffer[10] = (uint8_t) (rc_channel_data[2] & 0xFF);
-    //Yaw
-    serial_data_buffer[11] = (uint8_t) ((rc_channel_data[3] >> 8) & 0xFF);
-    serial_data_buffer[12] = (uint8_t) (rc_channel_data[3] & 0xFF);
-    //AUX 1
-    serial_data_buffer[13] = (uint8_t) ((rc_channel_data[4] >> 8) & 0xFF);
-    serial_data_buffer[14] = (uint8_t) (rc_channel_data[4] & 0xFF);
-    //AUX 2
-    serial_data_buffer[15] = (uint8_t) ((rc_channel_data[5] >> 8) & 0xFF);
-    serial_data_buffer[16] = (uint8_t) (rc_channel_data[5] & 0xFF);
-    //AUX 3
-    serial_data_buffer[17] = (uint8_t) ((rc_channel_data[6] >> 8) & 0xFF);
-    serial_data_buffer[18] = (uint8_t) (rc_channel_data[6] & 0xFF);
-    //AUX 4
-    serial_data_buffer[19] = (uint8_t) ((rc_channel_data[7] >> 8) & 0xFF);
-    serial_data_buffer[20] = (uint8_t) (rc_channel_data[7] & 0xFF);
-    //AUX 5
-    serial_data_buffer[21] = (uint8_t) ((rc_channel_data[8] >> 8) & 0xFF);
-    serial_data_buffer[22] = (uint8_t) (rc_channel_data[8] & 0xFF);
-    //AUX 6
-    serial_data_buffer[23] = (uint8_t) ((rc_channel_data[9] >> 8) & 0xFF);
-    serial_data_buffer[24] = (uint8_t) (rc_channel_data[9] & 0xFF);
-    //AUX 7
-    serial_data_buffer[25] = (uint8_t) ((rc_channel_data[10] >> 8) & 0xFF);
-    serial_data_buffer[26] = (uint8_t) (rc_channel_data[10] & 0xFF);
-    //AUX 8
-    serial_data_buffer[27] = (uint8_t) ((rc_channel_data[11] >> 8) & 0xFF);
-    serial_data_buffer[28] = (uint8_t) (rc_channel_data[11] & 0xFF);
+    // A
+    serial_data_buffer[8] = (uint8_t) (rc_channel_data[0] & 0xFF);
+    serial_data_buffer[9] = (uint8_t) ((rc_channel_data[0] >> 8) & 0xFF);
+    // E
+    serial_data_buffer[10] = (uint8_t) (rc_channel_data[1] & 0xFF);
+    serial_data_buffer[11] = (uint8_t) ((rc_channel_data[1] >> 8) & 0xFF);
+    // T
+    serial_data_buffer[12] = (uint8_t) (rc_channel_data[2] & 0xFF);
+    serial_data_buffer[13] = (uint8_t) ((rc_channel_data[2] >> 8) & 0xFF);
+    // R
+    serial_data_buffer[14] = (uint8_t) (rc_channel_data[3] & 0xFF);
+    serial_data_buffer[15] = (uint8_t) ((rc_channel_data[3] >> 8) & 0xFF);
+    // 5
+    serial_data_buffer[16] = (uint8_t) (rc_channel_data[4] & 0xFF);
+    serial_data_buffer[17] = (uint8_t) ((rc_channel_data[4] >> 8) & 0xFF);
+    // 6
+    serial_data_buffer[18] = (uint8_t) (rc_channel_data[5] & 0xFF);
+    serial_data_buffer[19] = (uint8_t) ((rc_channel_data[5] >> 8) & 0xFF);
+    // 7
+    serial_data_buffer[20] = (uint8_t) (rc_channel_data[6] & 0xFF);
+    serial_data_buffer[21] = (uint8_t) ((rc_channel_data[6] >> 8) & 0xFF);
+    // 8
+    serial_data_buffer[22] = (uint8_t) (rc_channel_data[7] & 0xFF);
+    serial_data_buffer[23] = (uint8_t) ((rc_channel_data[7] >> 8) & 0xFF);
+    // 9
+    serial_data_buffer[24] = (uint8_t) (rc_channel_data[8] & 0xFF);
+    serial_data_buffer[25] = (uint8_t) ((rc_channel_data[8] >> 8) & 0xFF);
+    // 10
+    serial_data_buffer[26] = (uint8_t) (rc_channel_data[9] & 0xFF);
+    serial_data_buffer[27] = (uint8_t) ((rc_channel_data[9] >> 8) & 0xFF);
+    // 11
+    serial_data_buffer[28] = (uint8_t) (rc_channel_data[10] & 0xFF);
+    serial_data_buffer[29] = (uint8_t) ((rc_channel_data[10] >> 8) & 0xFF);
+    // 12
+    serial_data_buffer[30] = (uint8_t) (rc_channel_data[11] & 0xFF);
+    serial_data_buffer[31] = (uint8_t) ((rc_channel_data[11] >> 8) & 0xFF);
     // CRC
     crc_mspv1_air = 0; // I think it is just a simple xor of bytes so no real crc really but a simple check sum
     for (int i = 3; i < 29; i++) {
@@ -77,58 +125,57 @@ void generate_mspv2(uint16_t *rc_channel_data) {
     serial_data_buffer[5] = 0x00; // function
     serial_data_buffer[6] = 0x18; // payload size
     serial_data_buffer[7] = 0x00; // payload size
-    //Roll
-    serial_data_buffer[8] = (uint8_t) ((rc_channel_data[0] >> 8) & 0xFF);
-    serial_data_buffer[9] = (uint8_t) (rc_channel_data[0] & 0xFF);
-    //Pitch
-    serial_data_buffer[10] = (uint8_t) ((rc_channel_data[1] >> 8) & 0xFF);
-    serial_data_buffer[11] = (uint8_t) ( rc_channel_data[1] & 0xFF);
-    //Throttle
-    serial_data_buffer[12] = (uint8_t) ((rc_channel_data[2] >> 8) & 0xFF);
-    serial_data_buffer[13] = (uint8_t) (rc_channel_data[2] & 0xFF);
-    //Yaw
-    serial_data_buffer[14] = (uint8_t) ((rc_channel_data[3] >> 8) & 0xFF);
-    serial_data_buffer[15] = (uint8_t) (rc_channel_data[3] & 0xFF);
-    //AUX 1
-    serial_data_buffer[16] = (uint8_t) ((rc_channel_data[4] >> 8) & 0xFF);
-    serial_data_buffer[17] = (uint8_t) (rc_channel_data[4] & 0xFF);
-    //AUX 2
-    serial_data_buffer[18] = (uint8_t) ((rc_channel_data[5] >> 8) & 0xFF);
-    serial_data_buffer[19] = (uint8_t) (rc_channel_data[5] & 0xFF);
-    //AUX 3
-    serial_data_buffer[20] = (uint8_t) ((rc_channel_data[6] >> 8) & 0xFF);
-    serial_data_buffer[21] = (uint8_t) (rc_channel_data[6] & 0xFF);
-    //AUX 4
-    serial_data_buffer[22] = (uint8_t) ((rc_channel_data[7] >> 8) & 0xFF);
-    serial_data_buffer[23] = (uint8_t) (rc_channel_data[7] & 0xFF);
-    //AUX 5
-    serial_data_buffer[24] = (uint8_t) ((rc_channel_data[8] >> 8) & 0xFF);
-    serial_data_buffer[25] = (uint8_t) (rc_channel_data[8] & 0xFF);
-    //AUX 6
-    serial_data_buffer[26] = (uint8_t) ((rc_channel_data[9] >> 8) & 0xFF);
-    serial_data_buffer[27] = (uint8_t) (rc_channel_data[9] & 0xFF);
-    //AUX 7
-    serial_data_buffer[28] = (uint8_t) ((rc_channel_data[10] >> 8) & 0xFF);
-    serial_data_buffer[29] = (uint8_t) (rc_channel_data[10] & 0xFF);
-    //AUX 8
-    serial_data_buffer[30] = (uint8_t) ((rc_channel_data[11] >> 8) & 0xFF);
-    serial_data_buffer[31] = (uint8_t) (rc_channel_data[11] & 0xFF);
+    // A
+    serial_data_buffer[8] = (uint8_t) (rc_channel_data[0] & 0xFF);
+    serial_data_buffer[9] = (uint8_t) ((rc_channel_data[0] >> 8) & 0xFF);
+    // E
+    serial_data_buffer[10] = (uint8_t) (rc_channel_data[1] & 0xFF);
+    serial_data_buffer[11] = (uint8_t) ((rc_channel_data[1] >> 8) & 0xFF);
+    // T
+    serial_data_buffer[12] = (uint8_t) (rc_channel_data[2] & 0xFF);
+    serial_data_buffer[13] = (uint8_t) ((rc_channel_data[2] >> 8) & 0xFF);
+    // R
+    serial_data_buffer[14] = (uint8_t) (rc_channel_data[3] & 0xFF);
+    serial_data_buffer[15] = (uint8_t) ((rc_channel_data[3] >> 8) & 0xFF);
+    // 5
+    serial_data_buffer[16] = (uint8_t) (rc_channel_data[4] & 0xFF);
+    serial_data_buffer[17] = (uint8_t) ((rc_channel_data[4] >> 8) & 0xFF);
+    // 6
+    serial_data_buffer[18] = (uint8_t) (rc_channel_data[5] & 0xFF);
+    serial_data_buffer[19] = (uint8_t) ((rc_channel_data[5] >> 8) & 0xFF);
+    // 7
+    serial_data_buffer[20] = (uint8_t) (rc_channel_data[6] & 0xFF);
+    serial_data_buffer[21] = (uint8_t) ((rc_channel_data[6] >> 8) & 0xFF);
+    // 8
+    serial_data_buffer[22] = (uint8_t) (rc_channel_data[7] & 0xFF);
+    serial_data_buffer[23] = (uint8_t) ((rc_channel_data[7] >> 8) & 0xFF);
+    // 9
+    serial_data_buffer[24] = (uint8_t) (rc_channel_data[8] & 0xFF);
+    serial_data_buffer[25] = (uint8_t) ((rc_channel_data[8] >> 8) & 0xFF);
+    // 10
+    serial_data_buffer[26] = (uint8_t) (rc_channel_data[9] & 0xFF);
+    serial_data_buffer[27] = (uint8_t) ((rc_channel_data[9] >> 8) & 0xFF);
+    // 11
+    serial_data_buffer[28] = (uint8_t) (rc_channel_data[10] & 0xFF);
+    serial_data_buffer[29] = (uint8_t) ((rc_channel_data[10] >> 8) & 0xFF);
+    // 12
+    serial_data_buffer[30] = (uint8_t) (rc_channel_data[11] & 0xFF);
+    serial_data_buffer[31] = (uint8_t) ((rc_channel_data[11] >> 8) & 0xFF);
     // CRC
     crc_mspv2_air = 0;
     for (i_rc_air = 3; i_rc_air < 32; i_rc_air++) {
-        tbl_idx_air = crc_mspv2_air ^ serial_data_buffer[i_rc_air];
-        crc_mspv2_air = crc_dvb_s2_table[tbl_idx_air] & 0xff;
+        crc_mspv2_air = crc_dvb_s2_table[(crc_mspv2_air ^ serial_data_buffer[i_rc_air])] & 0xff;
     }
     serial_data_buffer[32] = crc_mspv2_air;
 }
 
 /**
  * Sets the desired RC protocol that is outputted to serial port
- * @param new_rc_protocol 1:MSPv1, 2:MSPv2, 3:MAVLink v1, 4:MAVLink v2
+ * @param new_serial_protocol 1:MSPv1, 2:MSPv2, 3:MAVLink v1, 4:MAVLink v2, 5: SUMD
  * @return
  */
 int conf_rc_serial_protocol_air(int new_serial_protocol){
-    rc_protocol_air = new_serial_protocol;
+    serial_rc_protocol = new_serial_protocol;
 }
 
 /**
@@ -139,8 +186,7 @@ int conf_rc_serial_protocol_air(int new_serial_protocol){
 int deserialize_db_rc_protocol(uint8_t *db_rc_protocol_message) {
     crc_db_rc = 0x00;
     for (i_rc_air = 0; i_rc_air < 15; i_rc_air++) {
-        tbl_idx_air = crc_db_rc ^ db_rc_protocol_message[i_rc_air];
-        crc_db_rc = crc_table_db_rc[tbl_idx_air] & 0xff;
+        crc_db_rc = crc_table_db_rc[(crc_db_rc ^ db_rc_protocol_message[i_rc_air])] & 0xff;
     }
     if (crc_db_rc == db_rc_protocol_message[15]){
         rc_channels[0] = db_rc_protocol_message[0] | ((db_rc_protocol_message[1] & 0x03) << 8);
@@ -178,18 +224,21 @@ int generate_rc_serial_message(uint8_t *db_rc_protocol){
 /*        for(i_rc_air = 0; i_rc_air < DB_RC_NUM_CHANNELS; i_rc_air++) {
             rc_channels[i_rc_air] += 1000;
         }*/
-        if (rc_protocol_air == 1){
+        if (serial_rc_protocol == 1){
             generate_msp(rc_channels);
             return 30;
-        }else if (rc_protocol_air == 2){
+        }else if (serial_rc_protocol == 2){
             generate_mspv2(rc_channels);
             return 33;
-        }else if (rc_protocol_air == 3){
+        }else if (serial_rc_protocol == 3)
             // TODO: MAVLink v1 - seems it is not recommended to do RC override with MAVLink...
             perror("MAVLink v1 RC unsupported for now");
-        }else if (rc_protocol_air == 4){
+        else if (serial_rc_protocol == 4)
             // TODO: generate MAVLink v2 - seems it is not recommended to do RC override with MAVLink...
             perror("MAVLink v2 RC unsupported for now");
+        else if (serial_rc_protocol == 5) {
+            generate_sumd(rc_channels);
+            return 29;
         }
     }
     return -1;

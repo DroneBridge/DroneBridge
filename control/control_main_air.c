@@ -59,9 +59,10 @@ speed_t interpret_baud(int user_baud){
 
 int main(int argc, char *argv[])
 {
-    //TODO: Integrate telemetry module! Multi core option: We launch an extra thread to do telemetry
     int c, chipset_type = 1, bitrate_op = 4;
     int serial_protocol_control = 2, baud_rate = 115200;
+    char use_sumd = 'N';
+    char sumd_interface[IFNAMSIZ];
     char ifName[IFNAMSIZ];
     char usbIF[IFNAMSIZ];
     uint8_t comm_id = DEFAULT_V2_COMMID;
@@ -73,8 +74,9 @@ int main(int argc, char *argv[])
 // -------------------------------
     strncpy(ifName, DEFAULT_IF, IFNAMSIZ);
     strcpy(usbIF, USB_IF);
+    strcpy(sumd_interface, USB_IF);
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:u:m:c:a:b:v:r:")) != -1)
+    while ((c = getopt (argc, argv, "n:u:m:c:a:b:v:e:s:r:")) != -1)
     {
         switch (c)
         {
@@ -93,6 +95,12 @@ int main(int argc, char *argv[])
             case 'v':
                 serial_protocol_control = (int) strtol(optarg, NULL, 10);
                 break;
+            case 'e':
+                use_sumd = *optarg;
+                break;
+            case 's':
+                strcpy(sumd_interface, optarg);
+                break;
             case 'a':
                 chipset_type = (int) strtol(optarg, NULL, 10);
                 break;
@@ -109,6 +117,9 @@ int main(int argc, char *argv[])
                                "\n\t-m [w|m] (m = default)"
                                "\n\t-v Protocol over serial port [1|2|3|4]: 1 = MSPv1 [Betaflight/Cleanflight]; "
                                "2 = MSPv2 [iNAV] (default); 3 = MAVLink (RC unsupported); 4 = MAVLink v2 (RC unsupported)"
+                               "\n\t-e [Y|N] enable/disable RC over SUMD. If disabled -v & -u options are used for RC."
+                               "\n\t-s Specify a serial port for use with SUMD. Ignored if SUMD is deactivated. Must be "
+                               "different from one specified with -u"
                                "\n\t-c <communication_id> Choose a number from 0-255. Same on groundstation and drone!"
                                "\n\t-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
                                "\n\t-r Baud rate of the serial interface (2400, 4800, 9600, 19200, 38400, 57600, 115200 (default))"
@@ -119,16 +130,18 @@ int main(int argc, char *argv[])
                 abort ();
         }
     }
-    conf_rc_serial_protocol_air(serial_protocol_control);
+    if (use_sumd == 'Y')
+        conf_rc_serial_protocol_air(5);
+    else
+        conf_rc_serial_protocol_air(serial_protocol_control);
 // -------------------------------
-// Setting up Network Interface
+// Setting up network interface
 // -------------------------------
-    //int socket_port_rc = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_RC);
     int socket_port_rc = open_receive_socket(ifName, db_mode, comm_id, DB_DIREC_DRONE, DB_PORT_RC);
     int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND, DB_PORT_CONTROLLER);
 
 // -------------------------------
-//    Setting up UART Interface
+//    Setting up UART interface for MSP/MAVLink stream
 // -------------------------------
     int socket_control_serial = -1;
     do
@@ -136,8 +149,8 @@ int main(int argc, char *argv[])
         socket_control_serial = open(usbIF, O_RDWR | O_NOCTTY);
         if (socket_control_serial == -1)
         {
-            printf("DB_CONTROL_AIR: Error - Unable to open UART.  Ensure it is not in use by another application and the"
-                           " FC is connected\n");
+            printf("DB_CONTROL_AIR: Error - Unable to open UART for MSP/MAVLink.  Ensure it is not in use by another "
+                           "application and the FC is connected\n");
             printf("DB_CONTROL_AIR: retrying ...\n");
             sleep(1);
         }
@@ -154,6 +167,36 @@ int main(int argc, char *argv[])
     options.c_cc[VTIME] = 0;           // timeout 0 second
     tcflush(socket_control_serial, TCIFLUSH);
     tcsetattr(socket_control_serial, TCSANOW, &options);
+    int rc_serial_socket = socket_control_serial;
+
+// -------------------------------
+//    Setting up UART interface for RC commands over SUMD
+// -------------------------------
+    int socket_rc_serial = -1;
+    if (use_sumd == 'Y'){
+        do
+        {
+            socket_rc_serial = open(usbIF, O_RDWR | O_NOCTTY);
+            if (socket_rc_serial == -1)
+            {
+                printf("DB_CONTROL_AIR: Error - Unable to open UART for SUMD RC.  Ensure it is not in use by another "
+                               "application and the FC is connected\n");
+                printf("DB_CONTROL_AIR: retrying ...\n");
+                sleep(1);
+            }
+        }
+        while(socket_rc_serial == -1);
+
+        struct termios options_rc;
+        tcgetattr(socket_rc_serial, &options_rc);
+        options_rc.c_cflag = B115200 | CS8 | CLOCAL;
+        options_rc.c_iflag = IGNPAR;
+        options_rc.c_oflag = 0;
+        options_rc.c_lflag = 0;
+        tcflush(socket_rc_serial, TCIFLUSH);
+        tcsetattr(socket_rc_serial, TCSANOW, &options_rc);
+        rc_serial_socket = socket_rc_serial;
+    }
 
 // ----------------------------------
 //       Loop
@@ -217,14 +260,14 @@ int main(int argc, char *argv[])
                     if (command_length > 0){
                         lost_packet_count += count_lost_packets(last_seq_numer, buf[buf[2]+9]);
                         last_seq_numer = buf[buf[2]+9];
-                        sentbytes = (int) write(socket_control_serial, serial_data_buffer, (size_t) command_length); errsv = errno;
-                        tcdrain(socket_control_serial);
+                        sentbytes = (int) write(rc_serial_socket, serial_data_buffer, (size_t) command_length); errsv = errno;
+                        tcdrain(rc_serial_socket);
                         if(sentbytes <= 0)
                         {
                             printf(" RC NOT WRITTEN because of error: %s\n", strerror(errsv));
                         }
                         // TODO: check if necessary. It shouldn't as we use blocking UART socket
-                        tcflush(socket_control_serial, TCOFLUSH);
+                        tcflush(rc_serial_socket, TCOFLUSH);
                     }
                 }
             }
@@ -254,7 +297,7 @@ int main(int argc, char *argv[])
             }
             if (FD_ISSET(socket_control_serial, &fd_socket_set)){
                 // --------------------------------
-                // The FC sent us a MSP/MAVLink message - no LTM telemetry here!
+                // The FC sent us a MSP/MAVLink message - LTM telemetry will be ignored!
                 // --------------------------------
                 switch (serial_protocol_control){
                     default:
