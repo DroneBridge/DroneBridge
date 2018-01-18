@@ -188,7 +188,7 @@ uint8_t update_seq_num(uint8_t *old_seq_num){
  * @param new_seq_num Specify the seqence number of the packet
  * @return 0 if success or -1 if failure
  */
-int send_packet(int8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num){
+int send_packet(uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> 8) & 0xFF);
     db_raw_header->port = dest_port;

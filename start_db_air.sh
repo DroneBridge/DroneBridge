@@ -19,6 +19,8 @@ tel_proto=$(awk -F "=" '/^tel_proto/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 serial_int_cont=$(awk -F "=" '/^serial_int_cont/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 serial_prot=$(awk -F "=" '/^serial_prot/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 baud_control=$(awk -F "=" '/^baud_control/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+enable_sumd_rc=$(awk -F "=" '/^enable_sumd_rc/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+serial_int_sumd=$(awk -F "=" '/^serial_int_sumd/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 
 if [[ interface_selection=='auto' ]]; then
 	NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
@@ -57,7 +59,7 @@ fi
 
 echo "DroneBridge-Air: Communication ID: $comm_id"
 echo "DroneBridge-Air: Long range interfaces - Control:$interface_control Telemetry:$interface_tel Video:$interface_video Communication:$interface_comm"
-echo "DroneBridge-Air: Serial port MSP/MAVLInk: $serial_int_cont - Mode: $mode"
+echo "DroneBridge-Air: Serial portocol MSP/MAVLInk: $serial_int_cont, SUMD activated: $enable_sumd_rc (on port $serial_int_sumd)"
 echo "DroneBridge-Air: Chipset types: Control: $chipset_control"
 echo "DroneBridge-Air: Trying to start individual modules..."
 
@@ -73,5 +75,5 @@ fi
 
 if [ $en_control = "Y" ]; then
 	echo "DroneBridge-Air: Starting controller module..."
-	./control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $chipset_control -v $serial_prot -r $baud_control &
+	./control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $chipset_control -v $serial_prot -r $baud_control -e $enable_sumd_rc -s $serial_int_sumd &
 fi

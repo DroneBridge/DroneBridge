@@ -32,6 +32,9 @@
 
 static volatile int keepRunning = 1;
 uint8_t buf[BUF_SIZ];
+uint8_t mavlink_telemetry_buf[2048] = {0}, mavlink_message_buf[256] = {0};
+uint8_t telemetry_seq_number = 0;
+int mav_tel_message_counter = 0, mav_tel_buf_length = 0;
 
 void intHandler(int dummy)
 {
@@ -57,6 +60,22 @@ speed_t interpret_baud(int user_baud){
     }
 }
 
+/**
+ * Buffer 5 MAVLink telemetry messages befor sending packet to groundstation
+ * @param length_message Length of new MAVLink message
+ * @param mav_message The pointer to a new MAVLink message
+ */
+void send_buffered_mavlink_tel(int length_message, mavlink_message_t *mav_message) {
+    mav_tel_message_counter++;  // Number of messages in buffer
+    mavlink_msg_to_send_buffer(mavlink_message_buf, mav_message);   // Get over the wire representation of message
+    // Copy message bytes into buffer
+    memcpy(&mavlink_telemetry_buf[mav_tel_buf_length], mavlink_message_buf, (size_t) length_message);
+    mav_tel_buf_length += length_message;   // Overall length of buffer
+    if (mav_tel_message_counter == 5)
+        send_packet(mavlink_telemetry_buf, DB_PORT_TELEMETRY,
+                                                  (u_int16_t) mav_tel_buf_length, update_seq_num(&telemetry_seq_number));
+}
+
 int main(int argc, char *argv[])
 {
     int c, chipset_type = 1, bitrate_op = 4;
@@ -66,7 +85,7 @@ int main(int argc, char *argv[])
     char ifName[IFNAMSIZ];
     char usbIF[IFNAMSIZ];
     uint8_t comm_id = DEFAULT_V2_COMMID;
-    uint8_t status_seq_number = 0, proxy_seq_number = 0, telemetry_seq_number = 0, serial_byte;
+    uint8_t status_seq_number = 0, proxy_seq_number = 0, serial_byte;
     char db_mode = 'm';
 
 // -------------------------------
@@ -122,7 +141,8 @@ int main(int argc, char *argv[])
                                "different from one specified with -u"
                                "\n\t-c <communication_id> Choose a number from 0-255. Same on groundstation and drone!"
                                "\n\t-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
-                               "\n\t-r Baud rate of the serial interface (2400, 4800, 9600, 19200, 38400, 57600, 115200 (default))"
+                               "\n\t-r Baud rate of the serial interface (MSP/MAVLink) (2400, 4800, 9600, 19200, 38400, "
+                               "57600, 115200 (default))"
                                "\n\t-b bit rate: \n\t\t1 = 2.5Mbit\n\t\t2 = 4.5Mbit\n\t\t3 = 6Mbit\n\t\t4 = 12Mbit (default)\n\t\t"
                                "5 = 18Mbit\n\t\t(bitrate option only supported with Ralink chipsets)");
                 break;
@@ -335,7 +355,6 @@ int main(int argc, char *argv[])
                                 if (mavlink_parse_char(MAVLINK_COMM_0, (uint8_t) serial_byte, &mavlink_message,
                                                        &mavlink_status)) {
                                     continue_reading = 0; // stop reading from serial port --> got a complete message!
-                                    mavlink_msg_to_send_buffer(data_uni_to_ground->bytes, &mavlink_message);
                                     switch (mavlink_message.msgid) {
                                         case MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT:
                                         case MAVLINK_MSG_ID_SYS_STATUS:
@@ -348,10 +367,10 @@ int main(int argc, char *argv[])
                                         case MAVLINK_MSG_ID_VFR_HUD:
                                         case MAVLINK_MSG_ID_HEARTBEAT:
                                         case MAVLINK_MSG_ID_MISSION_CURRENT:
-                                            send_packet_hp(DB_PORT_TELEMETRY, (u_int16_t) serial_read_bytes,
-                                                           update_seq_num(&telemetry_seq_number));
+                                            send_buffered_mavlink_tel(serial_read_bytes, &mavlink_message);
                                             break;
                                         default:
+                                            mavlink_msg_to_send_buffer(data_uni_to_ground->bytes, &mavlink_message);
                                             send_packet_hp(DB_PORT_PROXY, (u_int16_t) serial_read_bytes,
                                                            update_seq_num(&proxy_seq_number));
                                             break;
@@ -385,6 +404,7 @@ int main(int argc, char *argv[])
     close(socket_port_rc);
     close(socket_port_control);
     close(socket_control_serial);
+    close(rc_serial_socket);
     printf("DB_CONTROL_AIR: Sockets closed!\n");
     return 1;
 }
