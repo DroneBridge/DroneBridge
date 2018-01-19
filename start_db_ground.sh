@@ -59,7 +59,7 @@ fi
 
 echo "DroneBridge-Ground: Communication ID: $comm_id RC-Protocol $rc_proto"
 echo "DroneBridge-Ground: Long range interfaces - Control:$interface_control Telemetry:$interface_tel Video:$interface_video Communication:$interface_comm Proxy:$interface_proxy"
-echo "DroneBridge-Ground: Joystick Interface: $joy_interface - Mode: $mode"
+echo "DroneBridge-Ground: Joystick Interface: $joy_interface"
 echo "DroneBridge-Ground: Calibrating RC using: '$joy_cal'"
 
 echo "DroneBridge-Ground: Trying to start individual modules..."
