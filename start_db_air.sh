@@ -22,11 +22,11 @@ baud_control=$(awk -F "=" '/^baud_control/ {gsub(/[ \t]/, "", $2); print $2}' $f
 enable_sumd_rc=$(awk -F "=" '/^enable_sumd_rc/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 serial_int_sumd=$(awk -F "=" '/^serial_int_sumd/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 
-if [[ interface_selection=='auto' ]]; then
-	NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
+if [ "$interface_selection" = 'auto' ]; then
+    NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
     echo -n "NICS:"
     echo $NICS
-    for NIC in $NICS 
+    for NIC in $NICS
 	do
 		interface_control=$NIC
 		interface_tel=$NIC
@@ -41,20 +41,30 @@ chipset_control=1
 chipset_tel=1
 chipset_comm=1
 DRIVER=`cat /sys/class/net/$interface_control/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
-if [ "$DRIVER" == "ath9k_htc" ]; then
+if [ "$DRIVER" = "ath9k_htc" ]; then
     chipset_control=2
 fi
 DRIVER=`cat /sys/class/net/$interface_tel/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
-if [ "$DRIVER" == "ath9k_htc" ]; then
+if [ "$DRIVER" = "ath9k_htc" ]; then
     chipset_tel=2
 fi
 DRIVER=`cat /sys/class/net/$interface_video/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
-if [ "$DRIVER" == "ath9k_htc" ]; then
+if [ "$DRIVER" = "ath9k_htc" ]; then
     chipset_video=2
 fi
 DRIVER=`cat /sys/class/net/$interface_comm/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
-if [ "$DRIVER" == "ath9k_htc" ]; then
+if [ "$DRIVER" = "ath9k_htc" ]; then
     chipset_comm=2
+fi
+
+if ["$serial_int_cont" = "$serial_int_tel"] && ["$en_tel" = "Y"]; then
+	echo "Error: Control module and telemetry module are assigned to the same serial port. Disabling telemetry module. Control module only supports MAVLink telemetry."
+	en_tel = "N"
+fi
+
+if ["$serial_int_cont" = "$serial_int_sumd"] && ["$enable_sumd_rc" = "Y"]; then
+	echo "Error: Control module and SUMD output are assigned to the same serial port. Disabling SUMD."
+	enable_sumd_rc = "N"
 fi
 
 echo "DroneBridge-Air: Communication ID: $comm_id"
@@ -63,17 +73,17 @@ echo "DroneBridge-Air: Serial portocol MSP/MAVLInk: $serial_int_cont, SUMD activ
 echo "DroneBridge-Air: Chipset types: Control: $chipset_control"
 echo "DroneBridge-Air: Trying to start individual modules..."
 
-if [ $en_comm = "Y" ]; then
+if [ "$en_comm" = "Y" ]; then
 	echo "DroneBridge-Air: Starting communication module..."
 	python3 comm_telemetry/db_comm_air.py -n $interface_comm -m $mode -c $comm_id &
 fi
 
-if [ $en_tel = "Y" ]; then
+if [ "$en_tel" = "Y" ]; then
 	echo "DroneBridge-Air: Starting telemetry module..."
 	python3 comm_telemetry/db_telemetry_air.py -n $interface_tel -f $serial_int_tel -m $mode -c $comm_id -l $tel_proto &
 fi
 
-if [ $en_control = "Y" ]; then
+if [ "$en_control" = "Y" ]; then
 	echo "DroneBridge-Air: Starting controller module..."
 	./control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $chipset_control -v $serial_prot -r $baud_control -e $enable_sumd_rc -s $serial_int_sumd &
 fi

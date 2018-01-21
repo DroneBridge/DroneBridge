@@ -21,11 +21,11 @@ comm_port_local=$(awk -F "=" '/^comm_port_local/ {gsub(/[ \t]/, "", $2); print $
 joy_interface=$(awk -F "=" '/^joy_interface/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 joy_cal=$(sed -n -e 's/^\s*joy_cal\s*=\s*//p' $file)
 
-if [[ interface_selection=='auto' ]]; then
+if [ "$interface_selection" = 'auto' ]; then
 	NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
     echo -n "NICS:"
     echo $NICS
-    for NIC in $NICS 
+    for NIC in $NICS
 	do
 		interface_control=$NIC
 		interface_tel=$NIC
@@ -41,19 +41,19 @@ chipset_control=1
 chipset_tel=1
 chipset_comm=1
 DRIVER=`cat /sys/class/net/$interface_control/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
-if [ "$DRIVER" == "ath9k_htc" ]; then
+if [ "$DRIVER" = 'ath9k_htc' ]; then
     chipset_control=2
 fi
 DRIVER=`cat /sys/class/net/$interface_tel/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
-if [ "$DRIVER" == "ath9k_htc" ]; then
+if [ "$DRIVER" = 'ath9k_htc' ]; then
     chipset_tel=2
 fi
 DRIVER=`cat /sys/class/net/$interface_video/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
-if [ "$DRIVER" == "ath9k_htc" ]; then
+if [ "$DRIVER" = 'ath9k_htc' ]; then
     chipset_video=2
 fi
 DRIVER=`cat /sys/class/net/$interface_comm/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
-if [ "$DRIVER" == "ath9k_htc" ]; then
+if [ "$DRIVER" = 'ath9k_htc' ]; then
     chipset_comm=2
 fi
 

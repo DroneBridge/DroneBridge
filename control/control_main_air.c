@@ -180,9 +180,11 @@ int main(int argc, char *argv[])
     struct termios options;
     tcgetattr(socket_control_serial, &options);
     options.c_cflag = interpret_baud(baud_rate) | CS8 | CLOCAL;
-    options.c_iflag = IGNPAR;
-    options.c_oflag = 0;
-    options.c_lflag = 0;
+    options.c_cflag &= ~CSIZE;
+    options.c_cflag &= ~PARENB; // Set no parity
+    options.c_cflag &= ~CSTOPB; // 1 stop bit
+    options.c_lflag &= ~ECHO; // no echo
+    options.c_cflag &= ~CRTSCTS; // no RTS/CTS Flow Control
     options.c_cc[VMIN]  = 1;            // wait for min. 1 byte (select trigger)
     options.c_cc[VTIME] = 0;           // timeout 0 second
     tcflush(socket_control_serial, TCIFLUSH);

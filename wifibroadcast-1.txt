@@ -1,11 +1,14 @@
 #!/bin/bash
+# ============================================================
+# IMPORTANT: IT IS NOT RECOMMENDED TO USE WIFIBROADCAST TELEMETRY/UPLINK/RC WITH DRONEBRIDGE
+# PLEASE USE DRONEBRIDGE MODULES!
+# ONLY USE/CONFIGURE WIFIBROADCAST FOR VIDEO DOWNLINK, NOTHING ELSE!
 #
 # Common settings (need to be kept in sync for both TX and RX!)
 # ============================================================
 #
 # Desired frequency in MHz
-FREQ=2402
-#FREQ=2337
+FREQ=2462
 #
 # Set to "Y" on the RX for auto-scanning. Frequency still has to be set on TX!
 # Feature might be buggy or not work at all!
@@ -20,7 +23,15 @@ FREQSCAN=N
 # 5500, 5520, 5540, 5560, 5580, 5600, 5620, 5640, 5660, 5680, 5700
 # 5745, 5765, 5785, 5805, 5825
 #
-# (2.3Ghz and 2.5-2.7Ghz band only works with Atheros cards. Check your local regulations before transmitting!)
+# 2.3Ghz and 2.5-2.7Ghz band only works with Atheros cards. Check your local regulations before transmitting!
+# Frequencies higher than 2512MHz work with Atheros, but with a lot lower transmit power and sensitivity and
+# thus greatly reduced range. Only useable for short-range applications!
+#
+#
+# Set to "Y" to scan for wifi networks with airodump-ng before starting RX
+AIRODUMP=N
+# Number of seconds wifi scanner is shown. Minimum recommended scanning time is 15 seconds.
+AIRODUMP_SECONDS=15
 #
 #
 #
@@ -30,10 +41,10 @@ FREQSCAN=N
 TXMODE=single
 #
 MAC_RX[0]=ec086b1c7834
-FREQ_RX[0]=2489
+FREQ_RX[0]=2472
 #
 MAC_RX[1]=00c0ca849ea1
-FREQ_RX[1]=2489
+FREQ_RX[1]=2472
 #
 MAC_RX[2]=24050f953373
 FREQ_RX[2]=5745
@@ -46,7 +57,7 @@ MAC_TX[0]=24050f0f3eaa
 FREQ_TX[0]=5745
 #
 MAC_TX[1]=ec086b1c7834
-FREQ_TX[1]=2342
+FREQ_TX[1]=2472
 #
 #
 #
@@ -58,17 +69,24 @@ CTS_PROTECTION=auto
 # Wifi Datarate. Lower settings yield higher range and vice versa.
 # 1=5.5Mbit, 2=11Mbit, 3=12Mbit, 4=19.5Mbit/18Mbit, 5=24Mbit, 6=36Mbit
 DATARATE=4
-
+#
+#
 # set to "auto" for automatic video bitrate measuring. Set to a fixed value to
 # disable automatic measuring
 VIDEO_BITRATE=auto
-
+#
 # if VIDEO_BITRATE above is set to "auto" the videobitrate will be determined
 # by measuring the available bitrate and multiplying it with BITRATE_PERCENT
 # Depending on channel utilization by other wifi networks you may need to set
 # this to a lower value like 60% to avoid a delayed video stream.
 # On free channels you may set this to a higher value like 75% to get a higher
 # bitrate and thus image quality.
+#
+#
+# Set this to "Y" to show the measured bitrate in the upper right corner
+SHOW_BITRATE=Y
+#
+#
 BITRATE_PERCENT=65
 #
 #
@@ -86,8 +104,8 @@ VIDEO_BLOCKLENGTH=1024
 #
 #
 # Telemetry transmission method:
-# db = to be able to use DroneBridge telemetry module for LTM/MAVLink downlink - make sure you enable the module!
-# wbc = use wifibroadcast as telemetry up/downlink
+# wbc = use wifibroadcast as telemetry up/downlink (unsupported with app)
+# db = use DroneBridge telemetry methods (recommended)
 # external = use external means as telemetry up/downlink (LRS or 3DR dongles)
 # if set to external, set serialport to which LRS or 3DR dongle is connected
 # both on ground and air pi
@@ -101,9 +119,8 @@ TELEMETRY_UPLINK=disabled
 #
 #
 #
-# Set this to "disabled" to disable or to be able to use DroneBridge control module
 # Set this to "mavlink" to enable R/C over wifibroadcast using mavlink protocol or "msp" for MSP protocol
-# Set to "sumd" for Graupner SUMD, "ibus" for Flysky IBUS, "srxl" for Multiplex SRXL / XBUS Mode B.
+# Set to "sumd" for Graupner SUMD, "ibus" for Flysky IBUS, "srxl" for Multiplex SRXL / XBUS Mode B. Set to "disabled" to disable
 # See joyconfig.txt for other settings, default settings work for Taranis in USB Joystick mode
 RC=disabled
 #
@@ -112,29 +129,29 @@ RC=disabled
 # ============================================================
 #
 # Camera image settings
-# V1 cam: 640x480: 59.9fps, 1280x720: 30fps, 48fps. 1920x1080: 30fps
-# V2 cam: 640x480: 59.9fps, 1280x720: 30fps, 48fps, 59.9fps. 1640x922: 30fps, 40fps. 1920x1080: 30fps
-WIDTH=1296
-HEIGHT=730
+# V1 cam: 1280x720: 30fps, 48fps. 1920x1080: 30fps
+# V2 cam: 1280x720: 30fps, 48fps, 59.9fps. 1640x922: 30fps, 40fps. 1920x1080: 30fps
+WIDTH=1280
+HEIGHT=720
 #
 # Lower values mean faster glitch-recovery, but also lower video quality.
 # With fps=48 and keyframerate=5, glitches will stay visible for around 100ms in worst case.
 # You can set this higher or lower according to your needs. Minimum value is 2.
-KEYFRAMERATE=7
+KEYFRAMERATE=5
 #
 # Set additional raspivid parameters here
-EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -ex sports -mm average -awb horizon -rot 180"
+EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -if both -ex sports -mm average -awb horizon"
 #
 #
 # Serial port and baudrate (19200 is minimum) to use for the R/C connection between air Pi and flight control
 # Set this to "/dev/serial0" for Pi onboard serial port or  "/dev/ttyUSB0" for USB-to-serial adapter
 FC_RC_SERIALPORT=/dev/serial0
-FC_RC_BAUDRATE=115200
+FC_RC_BAUDRATE=57600
 #
 # Serial port and baudrate to use for the telemetry connection between air Pi and flight control
 # Set this to "/dev/serial0" for Pi onboard serial port or  "/dev/ttyUSB0" for USB-to-serial adapter
 FC_TELEMETRY_SERIALPORT=/dev/serial0
-FC_TELEMETRY_BAUDRATE=9600
+FC_TELEMETRY_BAUDRATE=57600
 #
 #
 # not supported yet, do not change
@@ -146,7 +163,7 @@ FC_MSP_BAUDRATE=115200
 # RX settings
 # ============================================================
 #
-# set this to "Y" to enable Wifi Hotspot. Default SSID is "DroneBridge", password is "dronebridge".
+# set this to "Y" to enable wifi hotspot. Default SSID is "DroneBridge", password is "dronebridge".
 # See apconfig.txt for configuration. This will forward the received video and telemetry streams to a
 # smartphone/tablet or computer connected to the RX Pi via WiFi.
 WIFI_HOTSPOT=Y
@@ -192,9 +209,20 @@ TELEMETRY_OUTPUT_SERIALPORT_GROUND=/dev/serial0
 TELEMETRY_OUTPUT_SERIALPORT_GROUND_BAUDRATE=57600
 #
 #
-# Set this to "raw" to forward a raw h264 stream to 2nd display devices (for FPV_VR app and DroneBridge app)
+# Set this to "raw" to forward a raw h264 stream to 2nd display devices (for DroneBridge app)
 # Set to "rtp" to forward RTP h264 stream (for Tower app and gstreamer etc.)
 FORWARD_STREAM=raw
 #
-# UDP port to send video stream to, set to 5000 for FPV_VR app and DroneBridge app or 5600 for Mission Planner
+# UDP port to send video stream to, set to 5000 for DroneBridge app or 5600 for Mission Planner
 VIDEO_UDP_PORT=5000
+#
+#
+# Mavlink forwarder to use. Choose "mavlink-routerd" or "cmavnode" or "disabled"
+MAVLINK_FORWARDER=disabled
+#
+#
+# Set this to "Y" to enable collection of extra debug logs. If you experience any issues,
+# please reproduce them with debug set to "Y" and plug a USB memory stick afterwards, you
+# will find the debug logs on the memory stick.
+DEBUG=N
+#
