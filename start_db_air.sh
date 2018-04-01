@@ -57,12 +57,12 @@ if [ "$DRIVER" = "ath9k_htc" ]; then
     chipset_comm=2
 fi
 
-if ["$serial_int_cont" = "$serial_int_tel"] && ["$en_tel" = "Y"]; then
+if [ "$serial_int_cont" = "$serial_int_tel" ] && [ "$en_tel" = "Y" ]; then
 	echo "Error: Control module and telemetry module are assigned to the same serial port. Disabling telemetry module. Control module only supports MAVLink telemetry."
 	en_tel = "N"
 fi
 
-if ["$serial_int_cont" = "$serial_int_sumd"] && ["$enable_sumd_rc" = "Y"]; then
+if [ "$serial_int_cont" = "$serial_int_sumd" ] && [ "$enable_sumd_rc" = "Y" ]; then
 	echo "Error: Control module and SUMD output are assigned to the same serial port. Disabling SUMD."
 	enable_sumd_rc = "N"
 fi

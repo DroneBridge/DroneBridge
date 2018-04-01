@@ -71,9 +71,12 @@ void send_buffered_mavlink_tel(int length_message, mavlink_message_t *mav_messag
     // Copy message bytes into buffer
     memcpy(&mavlink_telemetry_buf[mav_tel_buf_length], mavlink_message_buf, (size_t) length_message);
     mav_tel_buf_length += length_message;   // Overall length of buffer
-    if (mav_tel_message_counter == 5)
+    if (mav_tel_message_counter == 5){
         send_packet(mavlink_telemetry_buf, DB_PORT_TELEMETRY,
-                                                  (u_int16_t) mav_tel_buf_length, update_seq_num(&telemetry_seq_number));
+                    (u_int16_t) mav_tel_buf_length, update_seq_num(&telemetry_seq_number));
+        mav_tel_message_counter = 0;
+        mav_tel_buf_length = 0;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -179,12 +182,14 @@ int main(int argc, char *argv[])
 
     struct termios options;
     tcgetattr(socket_control_serial, &options);
-    options.c_cflag = interpret_baud(baud_rate) | CS8 | CLOCAL;
-    options.c_cflag &= ~CSIZE;
-    options.c_cflag &= ~PARENB; // Set no parity
-    options.c_cflag &= ~CSTOPB; // 1 stop bit
-    options.c_lflag &= ~ECHO; // no echo
-    options.c_cflag &= ~CRTSCTS; // no RTS/CTS Flow Control
+    options.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+    options.c_oflag &= ~(OCRNL | ONLCR | ONLRET | ONOCR | OFILL | OPOST);
+    options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+    options.c_cflag &= ~(CSIZE | PARENB);
+    options.c_cflag |= CS8;
+    cfsetispeed(&options, interpret_baud(baud_rate));
+    cfsetospeed(&options, interpret_baud(baud_rate));
+
     options.c_cc[VMIN]  = 1;            // wait for min. 1 byte (select trigger)
     options.c_cc[VTIME] = 0;           // timeout 0 second
     tcflush(socket_control_serial, TCIFLUSH);

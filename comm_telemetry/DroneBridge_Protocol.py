@@ -219,6 +219,9 @@ class DBProtocol:
         except UnicodeDecodeError:
             print(self.tag + "Invalid command: Could not decode json message")
             return False
+        except ValueError:
+            print(self.tag + "ValueError on decoding extracted_info[0]")
+            return False
 
         if loaded_json['destination'] == 1 and self.comm_direction == TO_DRONE and check_package_good(extracted_info):
             message = self._process_db_comm_protocol_type(loaded_json)
