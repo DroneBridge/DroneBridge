@@ -13,7 +13,7 @@ Many people use Pixhawk based flight controllers for their UAVs. While Pixhawk i
 
 Visit <b>http://wolfgangchristl.de/2017/not-just-another-drone-project/</b> for additional information about the project and its goals
 
-**What range can one expect?**
+**What range can you expect?**
 Range is the same as with the WifiBroadcast project. Reported ranges are:
 * [2.4Ghz] [3dbi omni antennas] [70mw]: ~1km
 * [2.4Ghz] [3dbi omni antennas][300mW high-power cards]: ~2km
@@ -28,7 +28,9 @@ Range strongly depends on your setup and environment. The user must ensure that 
 
 **[Download DroneBridge Android App](https://forstudents-my.sharepoint.com/personal/ga25puh_forstudents_onmicrosoft_com/_layouts/15/guestaccess.aspx?docid=06b1ff2fa69744f45921789b52f88d853&authkey=AeCN4yiqgmL06Mq-rO1Lz6Y&expiration=2018-01-31T23%3A00%3A00.000Z&e=7422989d8eee49e28a268767350b10b1)**
 
-To set it up please read the wiki and check out: https://github.com/bortek/EZ-WifiBroadcast/wiki#installation--setup
+**[Get started](https://github.com/seeul8er/DroneBridge/wiki/Setup-Guide)**
+
+To set it up please read the wiki and check out: [WifiBroadcast installation guide](https://github.com/bortek/EZ-WifiBroadcast/wiki#installation--setup)
 
 
 **Discalmer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals. The pilot is responsible for any harm or damage caused by using the provided software or parts of it.**
