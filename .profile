@@ -1,7 +1,6 @@
-# /root/.profile - main DroneBridge v0.3 Beta script
-# (c) 2017 by Rodizio. Modified to be used with DroneBridge by Wolfgang Christl.
-# Licensed under GPL2
-#
+# /root/.profile - main EZ-Wifibroadcast script
+# (c) 2017 by Rodizio. Licensed under GPL2
+# Modified to be used with DroneBridge by Wolfgang Christl
 
 #
 # functions
@@ -13,7 +12,7 @@ function tmessage {
     fi
 }
 
-function collect_debug {
+function collect_errorlog {
     sleep 3
     echo
     if nice dmesg | nice grep -q over-current; then
@@ -25,11 +24,29 @@ function collect_debug {
         echo "ERROR: USB disconnect detected - potential power supply problems!"
     fi
 
-    if nice vcgencmd get_throttled | nice nice grep -q -v "0x0"; then
-	echo "ERROR: Over-temperature or unstable power supply!"
+    nice mount -o remount,rw /boot
+
+    # check if over-temp or under-voltage occured
+    if vcgencmd get_throttled | nice grep -q -v "0x0"; then
+	TEMP=`cat /sys/class/thermal/thermal_zone0/temp`
+	TEMP_C=$(($TEMP/1000))
+	if [ "$TEMP_C" -lt 75 ]; then # it must be under-voltage
+	    echo
+	    echo "  ---------------------------------------------------------------------------------------------------"
+	    echo "  | ERROR: Under-Voltage detected on the TX Pi. Your Pi is not supplied with stable 5 Volts.        |"
+	    echo "  | Either your power-supply or wiring is not sufficent, check the wiring instructions in the Wiki. |"
+	    echo "  | Video Bitrate will be reduced to 1000kbit to reduce current consumption!                        |"
+	    echo "  ---------------------------------------------------------------------------------------------------"
+	    echo
+	    echo "  ---------------------------------------------------------------------------------------------------" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | ERROR: Under-Voltage detected on the TX Pi. Your Pi is not supplied with stable 5 Volts.        |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | Either your power-supply or wiring is not sufficent, check the wiring instructions in the Wiki. |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | Video Bitrate will be reduced to 1000kbit to reduce current consumption!                        |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | When you have fixed wiring/power-supply, delete this file and make sure it doesn't re-appear!   |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  ---------------------------------------------------------------------------------------------------" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	fi
     fi
 
-    nice mount -o remount,rw /boot
     mv /boot/errorlog.txt /boot/errorlog-old.txt > /dev/null 2>&1
     mv /boot/errorlog.png /boot/errorlog-old.png > /dev/null 2>&1
     echo -n "Camera: "
@@ -53,6 +70,7 @@ function collect_debug {
 	iwconfig $NIC | grep $NIC
     done
     echo
+    echo "Detected USB devices:"
     lsusb
 
     nice iwconfig >>/boot/errorlog.txt > /dev/null 2>&1
@@ -83,18 +101,15 @@ function collect_debug {
     echo >>/boot/errorlog.txt
 
     nice lsusb >>/boot/errorlog.txt
-    echo
     nice lsusb -v >>/boot/errorlog.txt
     echo >>/boot/errorlog.txt
-    echo
     nice ls -la /dev >>/boot/errorlog.txt
-    echo
     nice ls -la /dev/input >>/boot/errorlog.txt
     echo
-    nice vcgencmd measure_volts
     nice vcgencmd measure_temp
     nice vcgencmd get_throttled
     echo >>/boot/errorlog.txt
+    nice vcgencmd measure_volts >>/boot/errorlog.txt
     nice vcgencmd measure_temp >>/boot/errorlog.txt
     nice vcgencmd get_throttled >>/boot/errorlog.txt
     echo >>/boot/errorlog.txt
@@ -127,106 +142,123 @@ function collect_debug {
     nice mount -o remount,ro /boot
 }
 
-function collect_debug2 {
-    sleep 20
+function collect_debug {
+    sleep 25
 
-    uptime >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    echo -n "Camera: " >>/wbc_tmp/debug.txt
-    nice /usr/bin/vcgencmd get_camera >>/wbc_tmp/debug.txt
-    nice dmesg | nice grep disconnect >>/wbc_tmp/debug.txt
-    nice dmesg | nice grep over-current >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    DEBUGPATH=$1
+    if [ "$DEBUGPATH" == "/boot" ]; then # if debugpath is boot partition, make it writeable first and move old logs
+	nice mount -o remount,rw /boot
+	mv /boot/debug.txt /boot/debug-old.txt > /dev/null 2>&1
+    fi
 
-    nice tvservice -s >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice tvservice -m CEA >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice tvservice -m DMT >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    uptime >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    echo -n "Camera: " >>$DEBUGPATH/debug.txt
+    nice /usr/bin/vcgencmd get_camera >>$DEBUGPATH/debug.txt
+    nice dmesg | nice grep disconnect >>$DEBUGPATH/debug.txt
+    nice dmesg | nice grep over-current >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    nice iwconfig >>/wbc_tmp/debug.txt > /dev/null 2>&1
-    echo >>/wbc_tmp/debug.txt
-    nice ifconfig >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    nice tvservice -s >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice tvservice -m CEA >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice tvservice -m DMT >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    nice iw reg get >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    nice iwconfig >>$DEBUGPATH/debug.txt > /dev/null 2>&1
+    echo >>$DEBUGPATH/debug.txt
+    nice ifconfig >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    nice iw list >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    nice iw reg get >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    nice ps ax >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    nice iw list >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    nice df -h >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    nice ps ax >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    nice mount >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    nice df -h >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    nice fdisk -l /dev/mmcblk0 >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    nice mount >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    nice lsmod >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    nice fdisk -l /dev/mmcblk0 >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    nice lsusb >>/wbc_tmp/debug.txt
-    nice lsusb -v >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice ls -la /dev >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice ls -la /dev/input >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice vcgencmd measure_temp >>/wbc_tmp/debug.txt
-    nice vcgencmd get_throttled >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice vcgencmd get_config int >>/wbc_tmp/debug.txt
+    nice lsmod >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    echo >>/wbc_tmp/debug.txt
-    nice dmesg >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
+    nice lsusb >>$DEBUGPATH/debug.txt
+    nice lsusb -v >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice ls -la /dev >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice ls -la /dev/input >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice vcgencmd measure_temp >>$DEBUGPATH/debug.txt
+    nice vcgencmd get_throttled >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice vcgencmd get_config int >>$DEBUGPATH/debug.txt
 
-    nice cat /etc/modprobe.d/rt2800usb.conf >> /wbc_tmp/debug.txt
-    nice cat /etc/modprobe.d/ath9k_htc.conf >> /wbc_tmp/debug.txt
-    nice cat /etc/modprobe.d/ath9k_hw.conf >> /wbc_tmp/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice dmesg >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
 
-    echo >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice cat /boot/wifibroadcast-1.txt | egrep -v "^(#|$)" >> /wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice cat /boot/osdconfig.txt | egrep -v "^(//|$)" >> /wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice cat /boot/joyconfig.txt | egrep -v "^(//|$)" >> /wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    echo >>/wbc_tmp/debug.txt
-    nice cat /boot/apconfig.txt | egrep -v "^(#|$)" >> /wbc_tmp/debug.txt
+    nice cat /etc/modprobe.d/rt2800usb.conf >> $DEBUGPATH/debug.txt
+    nice cat /etc/modprobe.d/ath9k_htc.conf >> $DEBUGPATH/debug.txt
+    nice cat /etc/modprobe.d/ath9k_hw.conf >> $DEBUGPATH/debug.txt
+
+    echo >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice cat /boot/wifibroadcast-1.txt | egrep -v "^(#|$)" >> $DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice cat /boot/osdconfig.txt | egrep -v "^(//|$)" >> $DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice cat /boot/joyconfig.txt | egrep -v "^(//|$)" >> $DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    echo >>$DEBUGPATH/debug.txt
+    nice cat /boot/apconfig.txt | egrep -v "^(#|$)" >> $DEBUGPATH/debug.txt
+
+    nice top -n 3 -b -d 2 >>$DEBUGPATH/debug.txt
+
+    if [ "$DEBUGPATH" == "/boot" ]; then # if debugpath is boot partition, sync and remount ro
+	sync
+	nice mount -o remount,ro /boot
+    fi
+
 }
 
 
 function prepare_nic {
     DRIVER=`cat /sys/class/net/$1/device/uevent | nice grep DRIVER | sed 's/DRIVER=//'`
+    if [ "$DRIVER" != "rt2800usb" ] && [ "$DRIVER" != "mt7601u" ] && [ "$DRIVER" != "ath9k_htc" ]; then
+	tmessage "WARNING: Unsupported or experimental wifi card: $DRIVER"
+    fi
+
     tmessage -n "Setting up $1: "
     if [ "$DRIVER" == "ath9k_htc" ]; then # set bitrates for Atheros via iw
 	ifconfig $1 up || {
 	    echo
 	    echo "ERROR: Bringing up interface $1 failed!"
-	    collect_debug
+	    collect_errorlog
 	    sleep 365d
 	}
 	sleep 0.2
 
 	if [ "$CAM" == "0" ]; then # we are RX, set bitrate to uplink bitrate
-	    #tmessage -n "bitrate "
-	    #tmessage -n "$UPLINK_WIFI_BITRATE Mbit "
+	    #tmessage -n "bitrate $UPLINK_WIFI_BITRATE Mbit "
 	    if [ "$UPLINK_WIFI_BITRATE" != "19.5" ]; then # only set bitrate if something else than 19.5 is requested (19.5 is default compiled in ath9k_htc firmware)
 		iw dev $1 set bitrates legacy-2.4 $UPLINK_WIFI_BITRATE || {
 		    echo
 		    echo "ERROR: Setting bitrate on $1 failed!"
-		    collect_debug
+		    collect_errorlog
 		    sleep 365d
 		}
 	    fi
@@ -239,7 +271,7 @@ function prepare_nic {
 		iw dev $1 set bitrates legacy-2.4 $VIDEO_WIFI_BITRATE || {
 		    echo
 		    echo "ERROR: Setting bitrate on $1 failed!"
-		    collect_debug
+		    collect_errorlog
 		    sleep 365d
 		}
 	    else
@@ -252,7 +284,7 @@ function prepare_nic {
 	ifconfig $1 down || {
 	    echo
 	    echo "ERROR: Bringing down interface $1 failed!"
-	    collect_debug
+	    collect_errorlog
 	    sleep 365d
 	}
 	sleep 0.2
@@ -261,7 +293,7 @@ function prepare_nic {
 	iw dev $1 set monitor none || {
 	    echo
 	    echo "ERROR: Setting monitor mode on $1 failed!"
-	    collect_debug
+	    collect_errorlog
 	    sleep 365d
 	}
 	sleep 0.2
@@ -270,7 +302,7 @@ function prepare_nic {
 	ifconfig $1 up || {
 	    echo
 	    echo "ERROR: Bringing up interface $1 failed!"
-	    collect_debug
+	    collect_errorlog
 	    sleep 365d
 	}
 	sleep 0.2
@@ -280,7 +312,7 @@ function prepare_nic {
 	    iw dev $1 set freq $2 || {
 		echo
 		echo "ERROR: Setting frequency $2 MHz on $1 failed!"
-		collect_debug
+		collect_errorlog
 		sleep 365d
 	    }
 	    tmessage "done!"
@@ -290,13 +322,12 @@ function prepare_nic {
 
     fi
 
-    if [ "$DRIVER" == "rt2800usb" ] || [ "$DRIVER" == "rtl8192cu" ] || [ "$DRIVER" == "8812au" ]; then # do not set bitrate for Ralink or Realtek, done through tx parameter
-
+    if [ "$DRIVER" == "rt2800usb" ] || [ "$DRIVER" == "mt7601u" ] || [ "$DRIVER" == "rtl8192cu" ] || [ "$DRIVER" == "8812au" ]; then # do not set bitrate for Ralink, Mediatek, Realtek, done through tx parameter
 	tmessage -n "monitor mode.. "
 	iw dev $1 set monitor none || {
 	    echo
 	    echo "ERROR: Setting monitor mode on $1 failed!"
-	    collect_debug
+	    collect_errorlog
 	    sleep 365d
 	}
 	sleep 0.2
@@ -306,7 +337,7 @@ function prepare_nic {
 	ifconfig $1 up || {
 	    echo
 	    echo "ERROR: Bringing up interface $1 failed!"
-	    collect_debug
+	    collect_errorlog
 	    sleep 365d
 	}
 	sleep 0.2
@@ -317,7 +348,7 @@ function prepare_nic {
 	    iw dev $1 set freq $2 || {
 		echo
 		echo "ERROR: Setting frequency $2 MHz on $1 failed!"
-		collect_debug
+		collect_errorlog
 		sleep 365d
 	    }
 	    tmessage "done!"
@@ -353,7 +384,7 @@ function detect_nics {
 
 	if [ "$NUM_CARDS" == "-1" ]; then
 	    echo "ERROR: No wifi cards detected"
-	    collect_debug
+	    collect_errorlog
 	    sleep 365d
 	fi
 
@@ -463,6 +494,8 @@ function detect_nics {
 		done
 	    fi
 	fi
+
+	touch /tmp/nics_configured # let other processes know nics are setup and ready
 }
 
 
@@ -523,6 +556,8 @@ function check_exitstatus {
 function tx_function {
     killall wbc_status > /dev/null 2>&1
 
+    /root/wifibroadcast/sharedmem_init_tx
+
     if [ "$TXMODE" == "single" ]; then
 	echo -n "Waiting for wifi card to become ready ..."
 	COUNTER=0
@@ -549,17 +584,14 @@ function tx_function {
     sleep 1
     echo
 
-    if [ "$TELEMETRY_TRANSMISSION" == "wbc" ]; then
-    	if [ -e "$FC_TELEMETRY_SERIALPORT" ]; then
-			echo "Configured serial port $FC_TELEMETRY_SERIALPORT found ..."
-    	else
-			echo "ERROR: $FC_TELEMETRY_SERIALPORT not found!"
-			collect_debug
-			sleep 365d
-    	fi
-    echo
+    if [ -e "$FC_TELEMETRY_SERIALPORT" ]; then
+	echo "Configured serial port $FC_TELEMETRY_SERIALPORT found ..."
+    else
+	echo "ERROR: $FC_TELEMETRY_SERIALPORT not found!"
+	collect_errorlog
+	sleep 365d
     fi
-
+    echo
 
     RALINK=0
 
@@ -574,7 +606,7 @@ function tx_function {
 	RALINK=1
     fi
 
-    echo "Wifi bitrate: $VIDEO_WIFI_BITRATE, Video frametype: $VIDEO_FRAMETYPE"
+    #echo "Wifi bitrate: $VIDEO_WIFI_BITRATE, Video frametype: $VIDEO_FRAMETYPE"
 
     if [ "$VIDEO_WIFI_BITRATE" == "19.5" ]; then # set back to 18 to make sure -d parameter works (supports only 802.11b/g datarates)
 	VIDEO_WIFI_BITRATE=18
@@ -612,6 +644,39 @@ function tx_function {
 	fi
     fi
 
+    # check if over-temp or under-voltage occured before bitrate measuring
+    if vcgencmd get_throttled | nice grep -q -v "0x0"; then
+	TEMP=`cat /sys/class/thermal/thermal_zone0/temp`
+	TEMP_C=$(($TEMP/1000))
+	if [ "$TEMP_C" -lt 75 ]; then # it must be under-voltage
+	    echo
+	    echo "  ---------------------------------------------------------------------------------------------------"
+	    echo "  | ERROR: Under-Voltage detected on the TX Pi. Your Pi is not supplied with stable 5 Volts.        |"
+	    echo "  | Either your power-supply or wiring is not sufficent, check the wiring instructions in the Wiki. |"
+	    echo "  | Video Bitrate will be reduced to 1000kbit to reduce current consumption!                        |"
+	    echo "  ---------------------------------------------------------------------------------------------------"
+	    echo
+	    mount -o remount,rw /boot
+	    echo "  ---------------------------------------------------------------------------------------------------" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | ERROR: Under-Voltage detected on the TX Pi. Your Pi is not supplied with stable 5 Volts.        |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | Either your power-supply or wiring is not sufficent, check the wiring instructions in the Wiki. |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | Video Bitrate will be reduced to 1000kbit to reduce current consumption!                        |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | When you have fixed wiring/power-supply, delete this file and make sure it doesn't re-appear!   |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  ---------------------------------------------------------------------------------------------------" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    mount -o remount,ro /boot
+	    UNDERVOLT=1
+	    echo "1" > /tmp/undervolt
+	else # it was either over-temp or both undervolt and over-temp, we set undervolt to 0 anyway, since overtemp can be seen at the temp display on the rx
+	    UNDERVOLT=0
+	    echo "0" > /tmp/undervolt
+	fi
+    else
+	UNDERVOLT=0
+	echo "0" > /tmp/undervolt
+    fi
+
+    # if yes, we don't do the bitrate measuring to increase chances we "survive"
+   if [ "$UNDERVOLT" == "0" ]; then
     if [ "$VIDEO_BITRATE" == "auto" ]; then
 	echo -n "Measuring max. available bitrate .. "
 	BITRATE_MEASURED=`/root/wifibroadcast/tx_measure -p 77 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH -t $VIDEO_FRAMETYPE -d $VIDEO_WIFI_BITRATE -y 0 $NICS`
@@ -619,51 +684,89 @@ function tx_function {
 	BITRATE_KBIT=$((BITRATE/1000))
 	BITRATE_MEASURED_KBIT=$((BITRATE_MEASURED/1000))
 	echo "$BITRATE_MEASURED_KBIT kBit/s * $BITRATE_PERCENT% = $BITRATE_KBIT kBit/s video bitrate"
-	#sleep 0.5
     else
 	BITRATE=$(($VIDEO_BITRATE*1000))
-	echo "Using fixed bitrate: $BITRATE kBit"
+	echo "Using fixed bitrate: $VIDEO_BITRATE kBit"
     fi
+   else
+	BITRATE=$((1000*1000))
+	BITRATE_KBIT=1000
+	BITRATE_MEASURED_KBIT=2000
+	echo "Using reduced bitrate: 1000 kBit due to undervoltage!"
+   fi
 
-    # check if over-temperature or under-voltage occured
+    # check again if over-temp or under-voltage occured after bitrate measuring (but only if it didn't occur before yet)
+   if [ "$UNDERVOLT" == "0" ]; then
     if vcgencmd get_throttled | nice grep -q -v "0x0"; then
-        TEMP=`nice vcgencmd measure_temp | cut -f 2 -d "="`
-        echo "ERROR: Over-Temperature or unstable power supply! Temp:$TEMP"
-        collect_debug
-	nice -n -9 raspivid -w $WIDTH -h $HEIGHT -fps $FPS -b 3000000 -g $KEYFRAMERATE -t 0 $EXTRAPARAMS -ae 40,0x00,0x8080FF -a "\n\nunder-voltage or over-temperature on TX!" -o - | nice -n -9 /root/wifibroadcast/tx_rawsock -p 0 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH -t $VIDEO_FRAMETYPE -d $VIDEO_WIFI_BITRATE -y 0 $NICS
-	sleep 365d
+	TEMP=`cat /sys/class/thermal/thermal_zone0/temp`
+	TEMP_C=$(($TEMP/1000))
+	if [ "$TEMP_C" -lt 75 ]; then # it must be under-voltage
+	    echo
+	    echo "  ---------------------------------------------------------------------------------------------------"
+	    echo "  | ERROR: Under-Voltage detected on the TX Pi. Your Pi is not supplied with stable 5 Volts.        |"
+	    echo "  | Either your power-supply or wiring is not sufficent, check the wiring instructions in the Wiki. |"
+	    echo "  | Video Bitrate will be reduced to 1000kbit to reduce current consumption!                        |"
+	    echo "  ---------------------------------------------------------------------------------------------------"
+	    echo
+	    mount -o remount,rw /boot
+	    echo "  ---------------------------------------------------------------------------------------------------" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | ERROR: Under-Voltage detected on the TX Pi. Your Pi is not supplied with stable 5 Volts.        |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | Either your power-supply or wiring is not sufficent, check the wiring instructions in the Wiki. |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | Video Bitrate will be reduced to 1000kbit to reduce current consumption!                        |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  | When you have fixed wiring/power-supply, delete this file and make sure it doesn't re-appear!   |" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    echo "  ---------------------------------------------------------------------------------------------------" >> /boot/UNDERVOLTAGE-ERROR!!!.txt
+	    mount -o remount,ro /boot
+	    UNDERVOLT=1
+	    echo "1" > /tmp/undervolt
+	    BITRATE=$((1000*1000))
+	    BITRATE_KBIT=1000
+	    BITRATE_MEASURED_KBIT=2000
+	else # it was either over-temp or both undervolt and over-temp, we set undervolt to 0 anyway, since overtemp can be seen at the temp display on the rx
+	    UNDERVOLT=0
+	    echo "0" > /tmp/undervolt
+	fi
+    else
+	UNDERVOLT=0
+	echo "0" > /tmp/undervolt
     fi
+   fi
 
-    # check for potential power-supply problems
+    # check for over-current on USB bus (due to card being powered via usb instead directly)
     if nice dmesg | nice grep -q over-current; then
         echo "ERROR: Over-current detected - potential power supply problems!"
-        collect_debug
+        collect_errorlog
     sleep 365d
     fi
 
     # check for USB disconnects (due to power-supply problems)
     if nice dmesg | nice grep -q disconnect; then
         echo "ERROR: USB disconnect detected - potential power supply problems!"
-        collect_debug
+        collect_errorlog
     sleep 365d
     fi
 
-    #### temporary
-    #VIDEO_FRAMETYPE=0
+    echo $BITRATE_KBIT > /tmp/bitrate_kbit
+    echo $BITRATE_MEASURED_KBIT > /tmp/bitrate_measured_kbit
 
     if [ "$CTS" == "N" ]; then
-	ANNOTATION="                                               $BITRATE_KBIT ($BITRATE_MEASURED_KBIT) kBit"
+	echo "0" > /tmp/cts
     else
-	ANNOTATION="                                               $BITRATE_KBIT ($BITRATE_MEASURED_KBIT) kBit -CTS-"
+	if [ "$VIDEO_WIFI_BITRATE" == "11" ] || [ "$VIDEO_WIFI_BITRATE" == "5" ]; then # 11mbit and 5mbit bitrates don't support CTS, so set to 0
+	    echo "0" > /tmp/cts
+	else
+	    echo "1" > /tmp/cts
+	fi
     fi
+
+    if [ "$DEBUG" == "Y" ]; then
+	collect_debug /boot &
+    fi
+
+    /root/wifibroadcast/rssitx $NICS &
 
     echo
     echo "Starting transmission in $TXMODE mode, FEC $VIDEO_BLOCKS/$VIDEO_FECS/$VIDEO_BLOCKLENGTH: $WIDTH x $HEIGHT $FPS fps, video bitrate: $BITRATE_KBIT kBit/s, Keyframerate: $KEYFRAMERATE"
-    if [ "$SHOW_BITRATE" == "Y" ]; then
-	nice -n -9 raspivid -w $WIDTH -h $HEIGHT -fps $FPS -b $BITRATE -g $KEYFRAMERATE -t 0 $EXTRAPARAMS -a "$ANNOTATION" -ae 22 -o - | nice -n -9 /root/wifibroadcast/tx_rawsock -p 0 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH -t $VIDEO_FRAMETYPE -d $VIDEO_WIFI_BITRATE -y 0 $NICS
-    else
-	nice -n -9 raspivid -w $WIDTH -h $HEIGHT -fps $FPS -b $BITRATE -g $KEYFRAMERATE -t 0 $EXTRAPARAMS -o - | nice -n -9 /root/wifibroadcast/tx_rawsock -p 0 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH -t $VIDEO_FRAMETYPE -d $VIDEO_WIFI_BITRATE -y 0 $NICS
-    fi
+    nice -n -9 raspivid -w $WIDTH -h $HEIGHT -fps $FPS -b $BITRATE -g $KEYFRAMERATE -t 0 $EXTRAPARAMS -o - | nice -n -9 /root/wifibroadcast/tx_rawsock -p 0 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH -t $VIDEO_FRAMETYPE -d $VIDEO_WIFI_BITRATE -y 0 $NICS
 
 #    v4l2-ctl -d /dev/video0 --set-fmt-video=width=1280,height=720,pixelformat='H264' -p 48 --set-ctrl video_bitrate=7000000,repeat_sequence_header=1,h264_i_frame_period=7,white_balance_auto_preset=5
 #    nice -n -9 cat /dev/video0 | /root/wifibroadcast/tx_rawsock -p 0 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH -t $VIDEO_FRAMETYPE -d $VIDEO_WIFI_BITRATE -y 0 $NICS
@@ -677,12 +780,12 @@ function tx_function {
 	if [ "$TX_EXITSTATUS" != "0" ]; then
 	    echo "ERROR: could not start tx or tx terminated!"
 	fi
-	collect_debug
+	collect_errorlog
 	sleep 365d
     else
         # wifi card has been removed
         echo "ERROR: Wifi card removed!"
-	collect_debug
+	collect_errorlog
 	sleep 365d
     fi
 }
@@ -690,6 +793,8 @@ function tx_function {
 
 
 function rx_function {
+    /root/wifibroadcast/sharedmem_init_rx
+
     # start virtual serial port for cmavnode and ser2net
     ionice -c 3 nice socat -lf /wbc_tmp/socat1.log -d -d pty,raw,echo=0 pty,raw,echo=0 & > /dev/null 2>&1
     sleep 1
@@ -738,6 +843,7 @@ function rx_function {
     # videofifo4: wbc relay
 
     if [ "$VIDEO_TMP" == "sdcard" ]; then
+	touch /tmp/pausewhile # make sure check_alive doesn't do it's stuff ...
 	tmessage "Saving to SDCARD enabled, preparing video storage ..."
 	if cat /proc/partitions | nice grep -q mmcblk0p3; then # partition has not been created yet
 	    echo
@@ -747,14 +853,14 @@ function rx_function {
 	    partprobe > /dev/null 2>&1
 	    mkfs.ext4 /dev/mmcblk0p3 -F > /dev/null 2>&1 || {
 		tmessage "ERROR: Could not format video storage on SDCARD!"
-		collect_debug
+		collect_errorlog
 		sleep 365d
 	    }
 	fi
 	e2fsck -p /dev/mmcblk0p3 > /dev/null 2>&1
 	mount -t ext4 -o noatime /dev/mmcblk0p3 /video_tmp > /dev/null 2>&1 || {
 	    tmessage "ERROR: Could not mount video storage on SDCARD!"
-	    collect_debug
+	    collect_errorlog
 	    sleep 365d
 	}
 	VIDEOFILE=/video_tmp/videotmp.raw
@@ -770,13 +876,8 @@ function rx_function {
 
     killall wbc_status > /dev/null 2>&1
 
-    if [ "$DEBUG" == "Y" ]; then
-	collect_debug2 &
-    fi
-    wbclogger_function &
-
-
     if [ "$AIRODUMP" == "Y" ]; then
+	touch /tmp/pausewhile # make sure check_alive doesn't do it's stuff ...
 	echo "AiroDump is enabled, running airodump-ng for $AIRODUMP_SECONDS seconds ..."
 	sleep 3
 	# strip newlines
@@ -792,8 +893,7 @@ function rx_function {
 	    AIRODUMP_CHANNELS="2412,2417,2422,2427,2432,2437,2442,2447,2452,2457,2462,2467,2472"
 	fi
 
-
-	airodump-ng --showack -h --berlin 10 --ignore-negative-one --manufacturer --output-format pcap --write /wbc_tmp/wifiscan --write-interval 2 -C $AIRODUMP_CHANNELS  $NICS_COMMA &
+	airodump-ng --showack -h --berlin 60 --ignore-negative-one --manufacturer --output-format pcap --write /wbc_tmp/wifiscan --write-interval 2 -C $AIRODUMP_CHANNELS  $NICS_COMMA &
 	sleep $AIRODUMP_SECONDS
 	sleep 2
 	ionice -c 3 nice -n 19 /root/wifibroadcast_misc/raspi2png -p /wbc_tmp/airodump.png >> /dev/null
@@ -826,6 +926,32 @@ function rx_function {
 	echo
     fi
 
+    if [ "$DEBUG" == "Y" ]; then
+	collect_debug /wbc_tmp &
+    fi
+    wbclogger_function &
+
+    if vcgencmd get_throttled | nice grep -q -v "0x0"; then
+	TEMP=`cat /sys/class/thermal/thermal_zone0/temp`
+	TEMP_C=$(($TEMP/1000))
+	if [ "$TEMP_C" -lt 75 ]; then
+	    echo "  ---------------------------------------------------------------------------------------------------"
+	    echo "  | ERROR: Under-Voltage detected on the RX Pi. Your Pi is not supplied with stable 5 Volts.        |"
+	    echo "  |                                                                                                 |"
+	    echo "  | Either your power-supply or wiring is not sufficent, check the wiring instructions in the Wiki! |"
+	    echo "  ---------------------------------------------------------------------------------------------------"
+	    echo "1" >> /tmp/undervolt
+	    sleep 5
+	fi
+	echo "0" >> /tmp/undervolt
+    else
+	echo "0" >> /tmp/undervolt
+    fi
+
+    if [ -e "/tmp/pausewhile" ]; then
+	rm /tmp/pausewhile # remove pausewhile file to make sure check_alive and everything runs again
+    fi
+
     while true; do
         pause_while
 
@@ -839,11 +965,8 @@ function rx_function {
 	# update NICS variable in case a NIC has been removed (exclude devices with wlanx)
 	NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot`
 
-#	if [ ! -f "/tmp/pausewhile" ]; then
-	    tmessage "Starting RX ... (FEC: $VIDEO_BLOCKS/$VIDEO_FECS/$VIDEO_BLOCKLENGTH)"
-	    ionice -c 1 -n 3 /root/wifibroadcast/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 > /dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 > /dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 > /dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 > /dev/null 2>&1
-#	else
-#	fi
+	tmessage "Starting RX ... (FEC: $VIDEO_BLOCKS/$VIDEO_FECS/$VIDEO_BLOCKLENGTH)"
+	ionice -c 1 -n 3 /root/wifibroadcast/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 > /dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 > /dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 > /dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 > /dev/null 2>&1
 
 	RX_EXITSTATUS=${PIPESTATUS[0]}
 	check_exitstatus $RX_EXITSTATUS
@@ -860,17 +983,15 @@ function rssirx_function {
     echo -n "Waiting until video is running ..."
     VIDEORXRUNNING=0
     while [ $VIDEORXRUNNING -ne 1 ]; do
-	sleep 0.5
-	VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
-	echo -n "."
+        sleep 0.5
+        VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
+        echo -n "."
     done
-    echo
-    echo "Video running ..."
     echo
     # get NICS (exclude devices with wlanx)
     NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot`
     echo "Starting RSSI RX ..."
-    nice /root/wifibroadcast/rssirx $NICS &
+    nice /root/wifibroadcast/rssirx $NICS
 }
 
 
@@ -908,7 +1029,6 @@ function osdrx_function {
 	    echo "Telemetry transmission WBC chosen, using wbc rx"
 	    TELEMETRY_RX_CMD="/root/wifibroadcast/rx_rc_telemetry_buf -p 1 -o 1 -r 99"
 	elif [ "$TELEMETRY_TRANSMISSION" == "external" ]; then
-		#statements
 	    echo "Telemetry transmission external chosen, using cat from serialport"
 	    nice stty -F $EXTERNAL_TELEMETRY_SERIALPORT_GROUND $EXTERNAL_TELEMETRY_SERIALPORT_GROUND_STTY_OPTIONS $EXTERNAL_TELEMETRY_SERIALPORT_GROUND_BAUDRATE
 	    #nice /root/wifibroadcast/setupuart -d 0 -s $EXTERNAL_TELEMETRY_SERIALPORT_GROUND -b $EXTERNAL_TELEMETRY_SERIALPORT_GROUND_BAUDRATE
@@ -930,7 +1050,8 @@ function osdrx_function {
 	# telemetryfifo6: serial downlink
 
 	ionice -c 3 nice cat /root/telemetryfifo3 >> /wbc_tmp/telemetrydowntmp.raw &
-	ionice -c 3 nice cat /root/telemetryfifo1 | nice /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
+	pause_while
+	/tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
 
 	if [ "$RELAY" == "Y" ]; then
 	    ionice -c 1 -n 4 nice -n -9 cat /root/telemetryfifo4 | nice /root/wifibroadcast/tx_telemetry -p 1 -c $TELEMETRY_CTS -r 2 -x $TELEMETRY_TYPE -d 12 -y 0 relay0 > /dev/null 2>&1 &
@@ -939,29 +1060,23 @@ function osdrx_function {
 	# update NICS variable in case a NIC has been removed (exclude devices with wlanx)
 	NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot`
 
-command 2>> error 1>> output
-
 	if [ "$TELEMETRY_TRANSMISSION" == "wbc" ]; then
 	    if [ "$DEBUG" == "Y" ]; then
-			$TELEMETRY_RX_CMD -d 1 $NICS 2>/wbc_tmp/telemetrydowndebug.txt | tee >(/root/wifibroadcast_misc/ftee /root/telemetryfifo2 > /dev/null 2>&1) >(/root/wifibroadcast_misc/ftee /root/telemetryfifo3 > /dev/null 2>&1) >(ionice -c 1 nice -n -9 /root/wifibroadcast_misc/ftee /root/telemetryfifo4 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo5 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo6 > /dev/null 2>&1) | /root/wifibroadcast_misc/ftee /root/telemetryfifo1 > /dev/null 2>&1
+		$TELEMETRY_RX_CMD -d 1 $NICS 2>/wbc_tmp/telemetrydowndebug.txt | tee >(/root/wifibroadcast_misc/ftee /root/telemetryfifo2 > /dev/null 2>&1) >(/root/wifibroadcast_misc/ftee /root/telemetryfifo3 > /dev/null 2>&1) >(ionice -c 1 nice -n -9 /root/wifibroadcast_misc/ftee /root/telemetryfifo4 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo5 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo6 > /dev/null 2>&1) | /root/wifibroadcast_misc/ftee /root/telemetryfifo1 > /dev/null 2>&1
 	    else
-			nice -n -5 $TELEMETRY_RX_CMD $NICS | tee >(/root/wifibroadcast_misc/ftee /root/telemetryfifo2 > /dev/null 2>&1) >(/root/wifibroadcast_misc/ftee /root/telemetryfifo3 > /dev/null 2>&1) >(ionice -c 1 nice -n -9 /root/wifibroadcast_misc/ftee /root/telemetryfifo4 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo5 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo6 > /dev/null 2>&1) | /root/wifibroadcast_misc/ftee /root/telemetryfifo1 > /dev/null 2>&1
+		nice -n -5 $TELEMETRY_RX_CMD $NICS | tee >(/root/wifibroadcast_misc/ftee /root/telemetryfifo2 > /dev/null 2>&1) >(/root/wifibroadcast_misc/ftee /root/telemetryfifo3 > /dev/null 2>&1) >(ionice -c 1 nice -n -9 /root/wifibroadcast_misc/ftee /root/telemetryfifo4 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo5 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo6 > /dev/null 2>&1) | /root/wifibroadcast_misc/ftee /root/telemetryfifo1 > /dev/null 2>&1
 	    fi
 	elif [ "$TELEMETRY_TRANSMISSION" == "external" ]; then
-		#statements
 	    $TELEMETRY_RX_CMD | tee >(/root/wifibroadcast_misc/ftee /root/telemetryfifo2 > /dev/null 2>&1) >(/root/wifibroadcast_misc/ftee /root/telemetryfifo3 > /dev/null 2>&1) >(ionice -c 1 nice -n -9 /root/wifibroadcast_misc/ftee /root/telemetryfifo4 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo5 > /dev/null 2>&1) >(ionice nice /root/wifibroadcast_misc/ftee /root/telemetryfifo6 > /dev/null 2>&1) | /root/wifibroadcast_misc/ftee /root/telemetryfifo1 > /dev/null 2>&1
-        else
-            sleep 365d
-        fi
+	else
+		sleep 365d
+	fi
 	echo "ERROR: Telemetry RX has been stopped - restarting RX and OSD ..."
 	ps -ef | nice grep "rx -p 1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 	ps -ef | nice grep "ftee /root/telemetryfifo" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 	ps -ef | nice grep "/tmp/osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-	ps -ef | nice grep "cat /root/telemetryfifo1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 	ps -ef | nice grep "cat /root/telemetryfifo3" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 	sleep 1
-	# temporary
-	#sleep 365d
     done
 }
 
@@ -969,26 +1084,21 @@ command 2>> error 1>> output
 function osdtx_function {
     # setup serial port
     stty -F $FC_TELEMETRY_SERIALPORT $FC_TELEMETRY_STTY_OPTIONS $FC_TELEMETRY_BAUDRATE
-    #nice /root/wifibroadcast/setupuart -d 0 -s $FC_TELEMETRY_SERIALPORT -b $FC_TELEMETRY_BAUDRATE
 
-    # wait until tx is running to make sure NICS are configured
     echo
-    echo -n "Waiting until video TX is running ..."
-    VIDEOTXRUNNING=0
-    while [ $VIDEOTXRUNNING -ne 1 ]; do
-		sleep 0.5
-		VIDEOTXRUNNING=`pidof raspivid | wc -w`
-		echo -n "."
+    echo -n "Waiting until nics are configured ..."
+    while [ ! -f /tmp/nics_configured ]; do
+	sleep 0.5
+	#echo -n "."
     done
+    sleep 1
     echo
-
-    echo "Video running, starting OSD processes ..."
+    echo "nics configured, starting Downlink telemetry TX processes ..."
 
     NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi`
 
     echo "telemetry CTS: $TELEMETRY_CTS"
 
-    #sleep 365d
     echo
     while true; do
         echo "Starting downlink telemetry transmission in $TXMODE mode (FC Serialport: $FC_TELEMETRY_SERIALPORT)"
@@ -1001,43 +1111,43 @@ function osdtx_function {
 }
 
 
-
-
 # runs on RX (ground pi)
 function mspdownlinkrx_function {
     echo
     echo -n "Waiting until video is running ..."
     VIDEORXRUNNING=0
     while [ $VIDEORXRUNNING -ne 1 ]; do
-		sleep 0.5
-		VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
-		echo -n "."
+	sleep 0.5
+	VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
+	echo -n "."
     done
     echo
     echo "Video running ..."
 
     # disabled for now
-    #sleep 365d
+    sleep 365d
     while true; do
-		#
-		#if [ "$RELAY" == "Y" ]; then
-		#    ionice -c 1 -n 4 nice -n -9 cat /root/telemetryfifo4 | /root/wifibroadcast/tx_rawsock -p 1 -b $RELAY_TELEMETRY_BLOCKS -r $RELAY_TELEMETRY_FECS -f $RELAY_TELEMETRY_BLOCKLENGTH -m $TELEMETRY_MIN_BLOCKLENGTH -y 0 relay0 > /dev/null 2>&1 &
-		#fi
-		# update NICS variable in case a NIC has been removed (exclude devices with wlanx)
-		NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot`
-		#nice /root/wifibroadcast/rx -p 4 -d 1 -b $TELEMETRY_BLOCKS -r $TELEMETRY_FECS -f $TELEMETRY_BLOCKLENGTH $NICS | ionice nice /root/wifibroadcast_misc/ftee /root/mspfifo > /dev/null 2>&1
-		echo "Starting msp downlink rx ..."
-		nice /root/wifibroadcast/rx_rc_telemetry -p 4 -o 1 -r 99 $NICS | ionice nice /root/wifibroadcast_misc/ftee /root/mspfifo > /dev/null 2>&1
-		echo "ERROR: MSP RX has been stopped - restarting ..."
-		ps -ef | nice grep "rx_rc_telemetry -p 4" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-		ps -ef | nice grep "ftee /root/mspfifo" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-		sleep 1
+	#
+	#if [ "$RELAY" == "Y" ]; then
+	#    ionice -c 1 -n 4 nice -n -9 cat /root/telemetryfifo4 | /root/wifibroadcast/tx_rawsock -p 1 -b $RELAY_TELEMETRY_BLOCKS -r $RELAY_TELEMETRY_FECS -f $RELAY_TELEMETRY_BLOCKLENGTH -m $TELEMETRY_MIN_BLOCKLENGTH -y 0 relay0 > /dev/null 2>&1 &
+	#fi
+	# update NICS variable in case a NIC has been removed (exclude devices with wlanx)
+	NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot`
+	#nice /root/wifibroadcast/rx -p 4 -d 1 -b $TELEMETRY_BLOCKS -r $TELEMETRY_FECS -f $TELEMETRY_BLOCKLENGTH $NICS | ionice nice /root/wifibroadcast_misc/ftee /root/mspfifo > /dev/null 2>&1
+	echo "Starting msp downlink rx ..."
+	nice /root/wifibroadcast/rx_rc_telemetry -p 4 -o 1 -r 99 $NICS | ionice nice /root/wifibroadcast_misc/ftee /root/mspfifo > /dev/null 2>&1
+	echo "ERROR: MSP RX has been stopped - restarting ..."
+	ps -ef | nice grep "rx_rc_telemetry -p 4" | nice grep -v grep | awk '{print $2}' | xargs kill -9
+	ps -ef | nice grep "ftee /root/mspfifo" | nice grep -v grep | awk '{print $2}' | xargs kill -9
+	sleep 1
     done
 }
 
 
 ## runs on TX (air pi)
 function mspdownlinktx_function {
+    # disabled for now
+    sleep 365d
     # setup serial port
     stty -F $FC_MSP_SERIALPORT -imaxbel -opost -isig -icanon -echo -echoe -ixoff -ixon $FC_MSP_BAUDRATE
     #/root/wifibroadcast/setupuart -d 0 -s $FC_MSP_SERIALPORT -b $FC_MSP_BAUDRATE
@@ -1047,9 +1157,9 @@ function mspdownlinktx_function {
     echo -n "Waiting until video TX is running ..."
     VIDEOTXRUNNING=0
     while [ $VIDEOTXRUNNING -ne 1 ]; do
-		sleep 0.5
-		VIDEOTXRUNNING=`pidof raspivid | wc -w`
-		echo -n "."
+	sleep 0.5
+	VIDEOTXRUNNING=`pidof raspivid | wc -w`
+	echo -n "."
     done
     echo
 
@@ -1057,8 +1167,6 @@ function mspdownlinktx_function {
 
     NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi`
 
-    # disabled for now
-    #sleep 365d
     echo
     while true; do
         echo "Starting MSP transmission, FC MSP Serialport: $FC_MSP_SERIALPORT"
@@ -1079,40 +1187,49 @@ function uplinktx_function {
     echo -n "Waiting until video is running ..."
     VIDEORXRUNNING=0
     while [ $VIDEORXRUNNING -ne 1 ]; do
-		VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
-		sleep 1
-		echo -n "."
+	VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
+	sleep 1
+	echo -n "."
     done
     sleep 1
     echo
     echo
 
-    if [ "$TELEMETRY_TRANSMISSION" == "wbc" ]; then # if we use wbc for transmission, set tx command to use wbc TX
-		NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
-		echo -n "NICS:"
-		echo $NICS
-		if [ "$TELEMETRY_UPLINK" == "mavlink" ]; then
-		    VSERIALPORT=/dev/pts/0
-		    UPLINK_TX_CMD="nice /root/wifibroadcast/tx_telemetry -p 3 -c 0 -r 2 -x 0 -d 12 -y 0 $NICS"
-		else # MSP
-		    VSERIALPORT=/dev/pts/2
-		    UPLINK_TX_CMD="nice /root/wifibroadcast/tx_telemetry -p 3 -c 0 -r 2 -x 1 -d 12 -y 0 $NICS"
-		fi
-    elif [ "$TELEMETRY_TRANSMISSION" == "external" ]; then
-     	#statements # else setup serial port and use cat
-		nice stty -F $EXTERNAL_TELEMETRY_SERIALPORT_GROUND $EXTERNAL_TELEMETRY_SERIALPORT_GROUND_STTY_OPTIONS $EXTERNAL_TELEMETRY_SERIALPORT_GROUND_BAUDRATE
-		#nice /root/wifibroadcast/setupuart -d 1 -s $EXTERNAL_TELEMETRY_SERIALPORT_GROUND -b $EXTERNAL_TELEMETRY_SERIALPORT_GROUND_BAUDRATE
-		UPLINK_TX_CMD="nice cat $EXTERNAL_TELEMETRY_SERIALPORT_GROUND"
-    else
-        sleep 365d
-    fi
-
-    #sleep 365d
     while true; do
         echo "Starting uplink telemetry transmission"
-    	nice cat $VSERIALPORT | $UPLINK_TX_CMD
-    	ps -ef | nice grep "cat $EXTERNAL_TELEMETRY_SERIALPORT_GROUND" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-    	ps -ef | nice grep "cat $TELEMETRY_OUTPUT_SERIALPORT_GROUND" | nice grep -v grep | awk '{print $2}' | xargs kill -9
+	if [ "$TELEMETRY_TRANSMISSION" == "wbc" ]; then
+	    echo "telemetry transmission = wbc, starting tx_telemetry ..."
+	    NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
+	    echo -n "NICS:"
+	    echo $NICS
+	    if [ "$TELEMETRY_UPLINK" == "mavlink" ]; then
+		VSERIALPORT=/dev/pts/0
+		UPLINK_TX_CMD="nice /root/wifibroadcast/tx_telemetry -p 3 -c 0 -r 2 -x 0 -d 12 -y 0"
+	    else # MSP
+		VSERIALPORT=/dev/pts/2
+		UPLINK_TX_CMD="nice /root/wifibroadcast/tx_telemetry -p 3 -c 0 -r 2 -x 1 -d 12 -y 0"
+	    fi
+
+	    if [ "$DEBUG" == "Y" ]; then
+    		nice cat $VSERIALPORT | $UPLINK_TX_CMD -z 1 $NICS 2>/wbc_tmp/telemetryupdebug.txt
+	    else
+    		nice cat $VSERIALPORT | $UPLINK_TX_CMD $NICS
+	    fi
+	elif [ "$TELEMETRY_TRANSMISSION" == "external" ]; then
+	    echo "telemetry transmission = external, sending data to $EXTERNAL_TELEMETRY_SERIALPORT_GROUND ..."
+	    nice stty -F $EXTERNAL_TELEMETRY_SERIALPORT_GROUND $EXTERNAL_TELEMETRY_SERIALPORT_GROUND_STTY_OPTIONS $EXTERNAL_TELEMETRY_SERIALPORT_GROUND_BAUDRATE
+	    if [ "$TELEMETRY_UPLINK" == "mavlink" ]; then
+		VSERIALPORT=/dev/pts/0
+	    else # MSP
+		VSERIALPORT=/dev/pts/2
+	    fi
+	    UPLINK_TX_CMD="$EXTERNAL_TELEMETRY_SERIALPORT_GROUND"
+	    if [ "$DEBUG" == "Y" ]; then
+    		nice cat $VSERIALPORT > $UPLINK_TX_CMD
+	    else
+    		nice cat $VSERIALPORT > $UPLINK_TX_CMD
+	    fi
+	fi
     	ps -ef | nice grep "cat $VSERIALPORT" | nice grep -v grep | awk '{print $2}' | xargs kill -9
     	ps -ef | nice grep "tx_telemetry -p 3" | nice grep -v grep | awk '{print $2}' | xargs kill -9
     done
@@ -1129,19 +1246,18 @@ function rctx_function {
 	echo "ERROR: Could not build RC, check joyconfig.txt!"
     }
     # wait until video is running to make sure NICS are configured and wifibroadcast_rx_status shmem is available
+
     echo
-    echo -n "Waiting until video is running ..."
-    VIDEORXRUNNING=0
-    while [ $VIDEORXRUNNING -ne 1 ]; do
-		VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
-		sleep 1
-        echo -n "."
+    echo -n "Waiting until nics are configured ..."
+    while [ ! -f /tmp/nics_configured ]; do
+	sleep 0.5
+	echo -n "."
     done
-    echo
+    sleep 0.5
 
     NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
-    echo -n "NICS:"
-    echo $NICS
+    #echo "NICS: $NICS"
+    pause_while
     echo
     echo "Starting R/C TX ..."
     while true; do
@@ -1154,17 +1270,13 @@ function uplinkrx_and_rcrx_function {
     echo "FC_TELEMETRY_SERIALPORT: $FC_TELEMETRY_SERIALPORT"
     echo "FC_MSP_SERIALPORT: $FC_MSP_SERIALPORT"
     echo "FC_RC_SERIALPORT: $FC_RC_SERIALPORT"
-
-    # wait until tx is running to make sure NICS are configured
     echo
-    echo -n "Waiting until video TX is running ..."
-    VIDEOTXRUNNING=0
-    while [ $VIDEOTXRUNNING -ne 1 ]; do
-		VIDEOTXRUNNING=`pidof raspivid | wc -w`
-		sleep 1
-		echo -n "."
+    echo -n "Waiting until nics are configured ..."
+    while [ ! -f /tmp/nics_configured ]; do
+	sleep 0.5
+	#echo -n "."
     done
-    echo
+    sleep 1
 
     NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
     echo -n "NICS:"
@@ -1172,9 +1284,6 @@ function uplinkrx_and_rcrx_function {
     echo
 
     stty -F $FC_TELEMETRY_SERIALPORT $FC_TELEMETRY_STTY_OPTIONS $FC_TELEMETRY_BAUDRATE
-
-    #/root/wifibroadcast/setupuart -d 1 -s $FC_MSP_SERIALPORT -b $FC_MSP_BAUDRATE
-    #sleep 2
 
     echo "Starting Uplink telemetry and R/C RX ..."
     if [ "$RC" != "disabled" ]; then # with R/C
@@ -1195,24 +1304,21 @@ function uplinkrx_and_rcrx_function {
 		RC_PROTOCOL=4
 	    ;;
 	esac
-	if [ "$FC_TELEMETRY_SERIALPORT" == "$FC_RC_SERIALPORT" ]; then
+	if [ "$FC_TELEMETRY_SERIALPORT" == "$FC_RC_SERIALPORT" ]; then # TODO: check if this logic works in all cases
 	    if [ "$TELEMETRY_UPLINK" == "mavlink" ]; then # use the telemetry serialport and baudrate as it's the same anyway
-		nice /root/wifibroadcast/rx_rc_telemetry -p 3 -o 0 -b $FC_TELEMETRY_BAUDRATE -s $FC_TELEMETRY_SERIALPORT -r $RC_PROTOCOL $NICS &
+		/root/wifibroadcast/rx_rc_telemetry -p 3 -o 0 -b $FC_TELEMETRY_BAUDRATE -s $FC_TELEMETRY_SERIALPORT -r $RC_PROTOCOL $NICS
 	    else # use the configured r/c serialport and baudrate
-		nice /root/wifibroadcast/rx_rc_telemetry -p 3 -o 0 -b $FC_RC_BAUDRATE -s $FC_RC_SERIALPORT -r $RC_PROTOCOL $NICS &
+		/root/wifibroadcast/rx_rc_telemetry -p 3 -o 0 -b $FC_RC_BAUDRATE -s $FC_RC_SERIALPORT -r $RC_PROTOCOL $NICS
 	    fi
 	else
 	    #/root/wifibroadcast/setupuart -d 1 -s $FC_TELEMETRY_SERIALPORT -b $FC_TELEMETRY_BAUDRATE
-	    nice /root/wifibroadcast/rx_rc_telemetry -p 3 -o 1 -b $FC_RC_BAUDRATE -s $FC_RC_SERIALPORT -r $RC_PROTOCOL $NICS > $FC_TELEMETRY_SERIALPORT &
+	    /root/wifibroadcast/rx_rc_telemetry -p 3 -o 1 -b $FC_RC_BAUDRATE -s $FC_RC_SERIALPORT -r $RC_PROTOCOL $NICS > $FC_TELEMETRY_SERIALPORT
 	fi
-    else # without R/C TODO
+    else # without R/C
 	#/root/wifibroadcast/setupuart -d 1 -s $FC_TELEMETRY_SERIALPORT -b $FC_TELEMETRY_BAUDRATE
-	nice /root/wifibroadcast/rx_rc_telemetry -p 3 -o 1 $NICS > $FC_TELEMETRY_SERIALPORT &
+	nice /root/wifibroadcast/rx_rc_telemetry -p 3 -o 1 -r 99 $NICS > $FC_TELEMETRY_SERIALPORT
     fi
-
-    nice /root/wifibroadcast/rssitx $NICS
 }
-
 
 
 function screenshot_function {
@@ -1245,7 +1351,6 @@ function save_function {
     touch /tmp/pausewhile
     # kill OSD so we can safeley start wbc_status
     ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-    ps -ef | nice grep "cat /root/telemetryfifo1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
     # kill video and telemetry recording and also local video display
     ps -ef | nice grep "cat /root/videofifo3" | nice grep -v grep | awk '{print $2}' | xargs kill -9
     ps -ef | nice grep "cat /root/telemetryfifo3" | nice grep -v grep | awk '{print $2}' | xargs kill -9
@@ -1297,7 +1402,8 @@ function save_function {
 	    mkdir /media/usb$TELEMETRY_SAVE_PATH
 	fi
 
-	killall wbclogger
+	killall rssilogger
+	killall syslogger
 	killall wifibackgroundscan
 
 	gnuplot -e "load '/root/gnuplot/videorssi.gp'" &
@@ -1323,7 +1429,6 @@ function save_function {
 	if [ -s "/wbc_tmp/telemetrydowntmp.raw" ]; then
 	    cp /wbc_tmp/telemetrydowntmp.raw /media/usb$TELEMETRY_SAVE_PATH/telemetrydown`ls /media/usb$TELEMETRY_SAVE_PATH/*.raw | wc -l`.raw
 	    cp /wbc_tmp/telemetrydowntmp.txt /media/usb$TELEMETRY_SAVE_PATH/telemetrydown`ls /media/usb$TELEMETRY_SAVE_PATH/*.txt | wc -l`.txt
-	    #cp /wbc_tmp/cmavnode.log /media/usb$TELEMETRY_SAVE_PATH/cmavnode`ls /media/usb$TELEMETRY_SAVE_PATH/*.log | wc -l`.log
 	fi
 
 	killall tshark
@@ -1366,6 +1471,7 @@ function save_function {
 	#cp /wbc_tmp/tracker.txt /media/usb/
 	cp /wbc_tmp/debug.txt /media/usb/
 	cp /wbc_tmp/telemetrydowndebug.txt /media/usb$TELEMETRY_SAVE_PATH/
+	cp /wbc_tmp/telemetryupdebug.txt /media/usb$TELEMETRY_SAVE_PATH/
 
 	nice umount /media/usb
 	STICKGONE=0
@@ -1400,16 +1506,14 @@ function save_function {
     # re-start video/telemetry recording
     ionice -c 3 nice cat /root/videofifo3 >> $VIDEOFILE &
     ionice -c 3 nice cat /root/telemetryfifo3 >> /wbc_tmp/telemetrydowntmp.raw &
-    # re-start local video display and osd (not needed anymore, done in rx_function)
-    #ionice -c 1 -n 4 nice -n -10 cat /root/videofifo1 | ionice -c 1 -n 4 nice -n -10 $DISPLAY_PROGRAM > /dev/null 2>&1 &
-    killall wbc_status > /dev/null 2>&1
 
+    killall wbc_status > /dev/null 2>&1
     OSDRUNNING=`pidof /tmp/osd | wc -w`
     if [ $OSDRUNNING  -ge 1 ]; then
 	echo "OSD already running!"
     else
 	killall wbc_status > /dev/null 2>&1
-	cat /root/telemetryfifo1 | /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
+	/tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
     fi
     # let screenshot function know that it can continue taking screenshots
     rm /tmp/pausewhile
@@ -1424,13 +1528,15 @@ function wbclogger_function {
     done
     echo
     sleep 5
-    nice /root/wifibroadcast/wbclogger /wifibroadcast_rx_status_0 >> /wbc_tmp/videorssi.csv &
-    nice /root/wifibroadcast/wbclogger /wifibroadcast_rx_status_1 >> /wbc_tmp/telemetrydownrssi.csv &
+    nice /root/wifibroadcast/rssilogger /wifibroadcast_rx_status_0 >> /wbc_tmp/videorssi.csv &
+    nice /root/wifibroadcast/rssilogger /wifibroadcast_rx_status_1 >> /wbc_tmp/telemetrydownrssi.csv &
+    nice /root/wifibroadcast/syslogger /wifibroadcast_rx_status_sysair >> /wbc_tmp/system.csv &
+
     if [ "$TELEMETRY_UPLINK" != "disabled" ]; then
-	nice /root/wifibroadcast/wbclogger /wifibroadcast_rx_status_uplink >> /wbc_tmp/telemetryuprssi.csv &
+	nice /root/wifibroadcast/rssilogger /wifibroadcast_rx_status_uplink >> /wbc_tmp/telemetryuprssi.csv &
     fi
     if [ "$RC" != "disabled" ]; then
-	nice /root/wifibroadcast/wbclogger /wifibroadcast_rx_status_rc >> /wbc_tmp/rcrssi.csv &
+	nice /root/wifibroadcast/rssilogger /wifibroadcast_rx_status_rc >> /wbc_tmp/rcrssi.csv &
     fi
 
     if [ "$DEBUG" == "Y" ]; then
@@ -1462,18 +1568,15 @@ function tether_check_function {
 		    echo "ERROR: Could not configure IP for USB tethering device!"
 		    nice killall wbc_status > /dev/null 2>&1
 		    nice /root/wifibroadcast_status/wbc_status "ERROR: Could not configure IP for USB tethering device!" 7 55 0
-		    collect_debug
+		    collect_errorlog
 		    sleep 365d
 		}
 		# find out smartphone IP to send video stream to
 		PHONE_IP=`ip route show 0.0.0.0/0 dev usb0 | cut -d\  -f3`
 		echo "Android IP: $PHONE_IP"
 
-		#ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$PHONE_IP:$VIDEO_UDP_PORT &
-		if [ "$TELEMETRY_TRANSMISSION" == "wbc" ]; then
-                    nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$PHONE_IP:$TELEMETRY_UDP_PORT &
-                    nice /root/wifibroadcast/rssi_forward /wifibroadcast_rx_status_0 $PHONE_IP 5003 &
-                fi
+		nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$PHONE_IP:$TELEMETRY_UDP_PORT &
+		nice /root/wifibroadcast/rssi_forward $PHONE_IP 5003 &
 
 		if [ "$FORWARD_STREAM" == "rtp" ]; then
 		    ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$PHONE_IP > /dev/null 2>&1 &
@@ -1504,20 +1607,18 @@ function tether_check_function {
 
 		# kill and pause OSD so we can safeley start wbc_status
 		ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-		ps -ef | nice grep "cat /root/telemetryfifo1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 
 		killall wbc_status > /dev/null 2>&1
 		nice /root/wifibroadcast_status/wbc_status "Secondary display connected (USB)" 7 55 0
 
 		# re-start osd
 		killall wbc_status > /dev/null 2>&1
-
 		OSDRUNNING=`pidof /tmp/osd | wc -w`
 		if [ $OSDRUNNING  -ge 1 ]; then
 		    echo "OSD already running!"
 		else
 		    killall wbc_status > /dev/null 2>&1
-		    cat /root/telemetryfifo1 | /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
+		    /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
 		fi
 
 		# check if smartphone has been disconnected
@@ -1530,7 +1631,6 @@ function tether_check_function {
 			echo "Android device gone"
 			# kill and pause OSD so we can safeley start wbc_status
 			ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-			ps -ef | nice grep "cat /root/telemetryfifo1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 			killall wbc_status > /dev/null 2>&1
 			nice /root/wifibroadcast_status/wbc_status "Secondary display disconnected (USB)" 7 55 0
 			# re-start osd
@@ -1539,7 +1639,7 @@ function tether_check_function {
 			    echo "OSD already running!"
 			else
 			    killall wbc_status > /dev/null 2>&1
-			cat /root/telemetryfifo1 | /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
+			    /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
 			fi
 			PHONETHERE=0
 			# kill forwarding of video and osd to secondary display
@@ -1590,7 +1690,7 @@ function hotspot_check_function {
 		    IP="192.168.1.2"
 		    echo "Ethernet device detected. IP: $IP"
 		    nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
-		    nice /root/wifibroadcast/rssi_forward /wifibroadcast_rx_status_0 $IP 5003 &
+		    nice /root/wifibroadcast/rssi_forward $IP 5003 &
 		    if [ "$FORWARD_STREAM" == "rtp" ]; then
 			ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP > /dev/null 2>&1 &
 		    else
@@ -1620,11 +1720,9 @@ function hotspot_check_function {
 		if nice ping -I wifihotspot0 -c 2 -W 1 -n -q 192.168.2.2 > /dev/null 2>&1; then
 		    IP="192.168.2.2"
 		    echo "Wifi device detected. IP: $IP"
-                    if [ "$TELEMETRY_TRANSMISSION" == "wbc" ]; then
-		        nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
-		        nice /root/wifibroadcast/rssi_forward /wifibroadcast_rx_status_0 $IP 5003 &
-		    fi
-                    if [ "$FORWARD_STREAM" == "rtp" ]; then
+		    nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
+		    nice /root/wifibroadcast/rssi_forward $IP 5003 &
+		    if [ "$FORWARD_STREAM" == "rtp" ]; then
 			ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP > /dev/null 2>&1 &
 		    else
 			ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$IP:$VIDEO_UDP_PORT &
@@ -1633,7 +1731,7 @@ function hotspot_check_function {
 			cat /root/telemetryfifo5 > /dev/pts/0 &
 			if [ "$MAVLINK_FORWARDER" == "mavlink-routerd" ]; then
 			    ionice -c 3 nice /root/mavlink-router/mavlink-routerd -e $IP:14550 /dev/pts/1:57600 &
-			elif [ "$MAVLINK_FORWARDER" == "mavlink-routerd" ]; then
+			elif ["$MAVLINK_FORWARDER" == "cmavnode"]; then
 			    cp /boot/cmavnode.conf /tmp/
 			    echo "targetip=$IP" >> /tmp/cmavnode.conf
 			    ionice -c 3 nice /root/cmavnode/cmavnode --file /tmp/cmavnode.conf &
@@ -1653,7 +1751,6 @@ function hotspot_check_function {
 	    if [ "$IP" != "0" ]; then
 		# kill and pause OSD so we can safeley start wbc_status
 		ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-		ps -ef | nice grep "cat /root/telemetryfifo1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 
 	        killall wbc_status > /dev/null 2>&1
 		nice /root/wifibroadcast_status/wbc_status "Secondary display connected (Hotspot)" 7 55 0
@@ -1664,7 +1761,7 @@ function hotspot_check_function {
 		    echo "OSD already running!"
 		else
 		    killall wbc_status > /dev/null 2>&1
-		    cat /root/telemetryfifo1 | /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
+		    /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
 		fi
 
 		# check if connection is still connected
@@ -1677,7 +1774,6 @@ function hotspot_check_function {
 			echo "IP $IP gone"
 			# kill and pause OSD so we can safeley start wbc_status
 			ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-			ps -ef | nice grep "cat /root/telemetryfifo1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 
 			killall wbc_status > /dev/null 2>&1
 			nice /root/wifibroadcast_status/wbc_status "Secondary display disconnected (Hotspot)" 7 55 0
@@ -1692,7 +1788,7 @@ function hotspot_check_function {
 				echo "OSD already running!"
 			    else
 				killall wbc_status > /dev/null 2>&1
-			        cat /root/telemetryfifo1 | /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
+			        /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
 			    fi
 			fi
 			IPTHERE=0
@@ -1755,16 +1851,35 @@ function dronebridge_air_function {
 	nice -n -9 ./start_db_air.sh &
 }
 
+
 #
 # Start of script
 #
 
+#setcolors /boot/console-color.txt
+
 printf "\033c"
 
-# check if cam is detected to determine if we're going to be RX or TX
-CAM=`/usr/bin/vcgencmd get_camera | nice grep -c detected=1`
-
 TTY=`tty`
+
+# check if cam is detected to determine if we're going to be RX or TX
+# only do this on one tty so that we don't run vcgencmd multiple times (which may make it hang)
+if [ "$TTY" == "/dev/tty1" ]; then
+    CAM=`/usr/bin/vcgencmd get_camera | nice grep -c detected=1`
+    if [ "$CAM" == "0" ]; then # if we are RX ...
+	echo  "0" > /tmp/cam
+    else # else we are TX ...
+	touch /tmp/TX
+	echo  "1" > /tmp/cam
+    fi
+else
+    #echo -n "Waiting until TX/RX has been determined"
+    while [ ! -f /tmp/cam ]; do
+	sleep 0.5
+	#echo -n "."
+    done
+    CAM=`cat /tmp/cam`
+fi
 
 if [ "$CAM" == "0" ]; then # if we are RX ...
     # if local TTY, set font according to display resolution
@@ -1790,13 +1905,13 @@ if [ -e "/tmp/settings.sh" ]; then
     if [ "$?" == "0" ]; then
 	source /tmp/settings.sh
     else
-	echo "ERROR: wifibroadcast config file contains syntax error(s)!"
-	collect_debug
+	echo "ERROR: wifobroadcast config file contains syntax error(s)!"
+	collect_errorlog
 	sleep 365d
     fi
 else
-    echo "ERROR: wifibroadcast config file not found!"
-    collect_debug
+    echo "ERROR: wifobroadcast config file not found!"
+    collect_errorlog
     sleep 365d
 fi
 
@@ -1849,7 +1964,6 @@ else
     fi
     if [ "$FPS" -lt 60 ]; then
 	DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.48-mm
-#	DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.240-befi
     fi
     if [ "$FPS" -gt 60 ]; then
 	DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.240-befi
@@ -1876,10 +1990,15 @@ if cat /boot/osdconfig.txt | grep -q "^#define FRSKY"; then
     TELEMETRY_UDP_PORT=5002
     TELEMETRY_TYPE=1
 fi
+if cat /boot/osdconfig.txt | grep -q "^#define SMARTPORT"; then
+    TELEMETRY_UDP_PORT=5010
+    TELEMETRY_TYPE=1
+fi
 if cat /boot/osdconfig.txt | grep -q "^#define MAVLINK"; then
     TELEMETRY_UDP_PORT=5004
     TELEMETRY_TYPE=0
 fi
+
 
 if [ "$CTS_PROTECTION" == "Y" ]; then
     VIDEO_FRAMETYPE=1 # use standard data frames, so that CTS is generated for Atheros
@@ -1924,16 +2043,16 @@ case $TTY in
 	echo "================== R/C TX (tty3) ==========================="
 	# only run rctx if no cam found and rc is not disabled
 	if [ "$CAM" == "0" ] && [ "$RC" != "disabled" ]; then
-	    echo "R/C enabled ... we are TX"
+	    echo "R/C enabled ... we are R/C TX (Ground Pi)"
 	    rctx_function
 	fi
-	echo "R/C not enabled in configfile"
+	echo "R/C not enabled in configfile or we are R/C RX (Air Pi)"
 	sleep 365d
     ;;
     /dev/tty4) # unused
-	echo "================== DroneBridge (tty4) ==========================="
+	echo "================== DroneBridge v0.3 Beta (tty4) ==========================="
 	if [ "$CAM" == "0" ]; then
-		if [ "$RC" != "disabled" ] || [ "$UPLINK" != "disabled" ]; then
+		if [ "$RC" != "disabled" ]; then
 			rssirx_function
 		fi
 		sleep 0.5
@@ -2019,6 +2138,9 @@ case $TTY in
 		echo "Check hotspot function not enabled in config file"
 		sleep 365d
 	    fi
+	else
+	    echo "Check hotspot function not enabled - we are TX (Air Pi)"
+	    sleep 365d
 	fi
     ;;
     /dev/tty9) # check alive
@@ -2085,16 +2207,16 @@ case $TTY in
 			    ETHCLIENTIP=`ifconfig eth0 | grep "inet addr" | cut -d ':' -f 2 | cut -d ' ' -f 1`
 			    # kill and pause OSD so we can safeley start wbc_status
 			    ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-			    ps -ef | nice grep "cat /root/telemetryfifo1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 			    killall wbc_status > /dev/null 2>&1
 			    nice /root/wifibroadcast_status/wbc_status "Ethernet connected. IP: $ETHCLIENTIP" 7 55 0
+			    pause_while # make sure we don't restart osd while in pause state
 			    OSDRUNNING=`pidof /tmp/osd | wc -w`
 			    if [ $OSDRUNNING  -ge 1 ]; then
 				echo "OSD already running!"
 			    else
 				killall wbc_status > /dev/null 2>&1
 				if [ "$CAM" == "0" ]; then # only (re-)start OSD if we are RX
-				    cat /root/telemetryfifo1 | /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
+				    /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
 				fi
 			    fi
 			else
@@ -2102,16 +2224,16 @@ case $TTY in
 			    nice ifconfig eth0 down
 			    echo "DHCP failed"
 			    ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-			    ps -ef | nice grep "cat /root/telemetryfifo1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 			    killall wbc_status > /dev/null 2>&1
 			    nice /root/wifibroadcast_status/wbc_status "ERROR: Could not acquire IP via DHCP!" 7 55 0
+			    pause_while # make sure we don't restart osd while in pause state
 			    OSDRUNNING=`pidof /tmp/osd | wc -w`
 			    if [ $OSDRUNNING  -ge 1 ]; then
 				echo "OSD already running!"
 			    else
 				killall wbc_status > /dev/null 2>&1
 				if [ "$CAM" == "0" ]; then # only (re-)start OSD if we are RX
-				    cat /root/telemetryfifo1 | /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
+				    /tmp/osd >> /wbc_tmp/telemetrydowntmp.txt &
 				fi
 			    fi
 			fi
@@ -2128,6 +2250,7 @@ case $TTY in
 	if [ "$CAM" == "0" ]; then
 	    echo -n "Welcome to DroneBridge v0.3 Beta (Ground) - "
 	    read -p "Press <enter> to login"
+	    killall osd
 	    rw
 	else
 	    echo -n "Welcome to DroneBridge v0.3 Beta (UAV) - "

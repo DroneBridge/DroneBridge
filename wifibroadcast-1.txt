@@ -8,7 +8,7 @@
 # ============================================================
 #
 # Desired frequency in MHz
-FREQ=2462
+FREQ=2472
 #
 # Set to "Y" on the RX for auto-scanning. Frequency still has to be set on TX!
 # Feature might be buggy or not work at all!
@@ -26,13 +26,6 @@ FREQSCAN=N
 # 2.3Ghz and 2.5-2.7Ghz band only works with Atheros cards. Check your local regulations before transmitting!
 # Frequencies higher than 2512MHz work with Atheros, but with a lot lower transmit power and sensitivity and
 # thus greatly reduced range. Only useable for short-range applications!
-#
-#
-# Set to "Y" to scan for wifi networks with airodump-ng before starting RX
-AIRODUMP=N
-# Number of seconds wifi scanner is shown. Minimum recommended scanning time is 15 seconds.
-AIRODUMP_SECONDS=15
-#
 #
 #
 # Set this to "single" for single TX wifi card, for dual TX wifi cards set "dual".
@@ -60,35 +53,9 @@ MAC_TX[1]=ec086b1c7834
 FREQ_TX[1]=2472
 #
 #
-#
-# CTS protection (use in areas with other wifi networks)
-# set to "auto" for automatic detection, "N" to disable, "Y" to enable
-CTS_PROTECTION=auto
-#
-#
 # Wifi Datarate. Lower settings yield higher range and vice versa.
 # 1=5.5Mbit, 2=11Mbit, 3=12Mbit, 4=19.5Mbit/18Mbit, 5=24Mbit, 6=36Mbit
 DATARATE=4
-#
-#
-# set to "auto" for automatic video bitrate measuring. Set to a fixed value to
-# disable automatic measuring
-VIDEO_BITRATE=auto
-#
-# if VIDEO_BITRATE above is set to "auto" the videobitrate will be determined
-# by measuring the available bitrate and multiplying it with BITRATE_PERCENT
-# Depending on channel utilization by other wifi networks you may need to set
-# this to a lower value like 60% to avoid a delayed video stream.
-# On free channels you may set this to a higher value like 75% to get a higher
-# bitrate and thus image quality.
-#
-#
-# Set this to "Y" to show the measured bitrate in the upper right corner
-SHOW_BITRATE=Y
-#
-#
-BITRATE_PERCENT=65
-#
 #
 #
 # Choose between 30, 40, 48, 59.9
@@ -104,7 +71,7 @@ VIDEO_BLOCKLENGTH=1024
 #
 #
 # Telemetry transmission method:
-# wbc = use wifibroadcast as telemetry up/downlink (unsupported with app)
+# wbc = use wifibroadcast as telemetry up/downlink
 # db = use DroneBridge telemetry methods (recommended)
 # external = use external means as telemetry up/downlink (LRS or 3DR dongles)
 # if set to external, set serialport to which LRS or 3DR dongle is connected
@@ -112,21 +79,39 @@ VIDEO_BLOCKLENGTH=1024
 TELEMETRY_TRANSMISSION=db
 #
 #
-#
-#
 # Set to "disabled" or "mavlink" for Mavlink (Tower App, Missionplanner, etc.)
 TELEMETRY_UPLINK=disabled
 #
 #
-#
 # Set this to "mavlink" to enable R/C over wifibroadcast using mavlink protocol or "msp" for MSP protocol
-# Set to "sumd" for Graupner SUMD, "ibus" for Flysky IBUS, "srxl" for Multiplex SRXL / XBUS Mode B. Set to "disabled" to disable
+# Set to "sumd" for Graupner SUMD, "ibus" for Flysky IBUS, "srxl" for Multiplex SRXL / XBUS Mode B. 
+# Set to "disabled" to disable or to use DroneBridge RC
 # See joyconfig.txt for other settings, default settings work for Taranis in USB Joystick mode
 RC=disabled
 #
 #
+#
 # TX settings
 # ============================================================
+#
+# set to "auto" for automatic video bitrate measuring. Set to a fixed value to
+# disable automatic measuring
+VIDEO_BITRATE=auto
+#
+#
+# if VIDEO_BITRATE above is set to "auto" the videobitrate will be determined
+# by measuring the available bitrate and multiplying it with BITRATE_PERCENT
+# Depending on channel utilization by other wifi networks you may need to set
+# this to a lower value like 60% to avoid a delayed video stream.
+# On free channels you may set this to a higher value like 75% to get a higher
+# bitrate and thus image quality.
+BITRATE_PERCENT=65
+#
+#
+# CTS protection (use in areas with other wifi networks)
+# set to "auto" for automatic detection, "N" to disable, "Y" to enable
+CTS_PROTECTION=auto
+#
 #
 # Camera image settings
 # V1 cam: 1280x720: 30fps, 48fps. 1920x1080: 30fps
@@ -134,19 +119,22 @@ RC=disabled
 WIDTH=1280
 HEIGHT=720
 #
+#
 # Lower values mean faster glitch-recovery, but also lower video quality.
 # With fps=48 and keyframerate=5, glitches will stay visible for around 100ms in worst case.
 # You can set this higher or lower according to your needs. Minimum value is 2.
 KEYFRAMERATE=5
 #
+#
 # Set additional raspivid parameters here
-EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -if both -ex sports -mm average -awb horizon"
+EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -ex sports -mm average -awb horizon"
 #
 #
 # Serial port and baudrate (19200 is minimum) to use for the R/C connection between air Pi and flight control
 # Set this to "/dev/serial0" for Pi onboard serial port or  "/dev/ttyUSB0" for USB-to-serial adapter
 FC_RC_SERIALPORT=/dev/serial0
 FC_RC_BAUDRATE=57600
+#
 #
 # Serial port and baudrate to use for the telemetry connection between air Pi and flight control
 # Set this to "/dev/serial0" for Pi onboard serial port or  "/dev/ttyUSB0" for USB-to-serial adapter
@@ -163,7 +151,14 @@ FC_MSP_BAUDRATE=115200
 # RX settings
 # ============================================================
 #
-# set this to "Y" to enable wifi hotspot. Default SSID is "DroneBridge", password is "dronebridge".
+# Set to "Y" to scan for wifi networks with airodump-ng before starting RX
+AIRODUMP=N
+#
+# Number of seconds wifi scanner is shown. Minimum recommended scanning time is 25 seconds.
+AIRODUMP_SECONDS=25
+#
+#
+# set this to "Y" to enable Wifi Hotspot. Default SSID is "EZ-Wifibroadcast", password is "wifibroadcast".
 # See apconfig.txt for configuration. This will forward the received video and telemetry streams to a
 # smartphone/tablet or computer connected to the RX Pi via WiFi.
 WIFI_HOTSPOT=Y
@@ -201,7 +196,6 @@ EXTERNAL_TELEMETRY_SERIALPORT_GROUND=/dev/serial0
 EXTERNAL_TELEMETRY_SERIALPORT_GROUND_BAUDRATE=57600
 #
 #
-#
 # set to "Y" to enable output of telemetry to serialport on ground Pi (for antenna tracker etc.)
 ENABLE_SERIAL_TELEMETRY_OUTPUT=N
 # baudrate and serialport used for ground Pi telemetry output
@@ -209,16 +203,16 @@ TELEMETRY_OUTPUT_SERIALPORT_GROUND=/dev/serial0
 TELEMETRY_OUTPUT_SERIALPORT_GROUND_BAUDRATE=57600
 #
 #
-# Set this to "raw" to forward a raw h264 stream to 2nd display devices (for DroneBridge app)
+# Set this to "raw" to forward a raw h264 stream to 2nd display devices (for FPV_VR app)
 # Set to "rtp" to forward RTP h264 stream (for Tower app and gstreamer etc.)
 FORWARD_STREAM=raw
 #
-# UDP port to send video stream to, set to 5000 for DroneBridge app or 5600 for Mission Planner
+# UDP port to send video stream to, set to 5000 for FPV_VR/DroneBridge app or 5600 for Mission Planner
 VIDEO_UDP_PORT=5000
 #
 #
-# Mavlink forwarder to use. Choose "mavlink-routerd" or "cmavnode" or "disabled"
-MAVLINK_FORWARDER=disabled
+# Mavlink forwarder to use. Choose "mavlink-routerd" or "cmavnode"
+MAVLINK_FORWARDER=mavlink-routerd
 #
 #
 # Set this to "Y" to enable collection of extra debug logs. If you experience any issues,

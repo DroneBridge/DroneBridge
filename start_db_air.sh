@@ -15,6 +15,7 @@ interface_video=$(awk -F "=" '/^interface_video/ {gsub(/[ \t]/, "", $2); print $
 interface_comm=$(awk -F "=" '/^interface_comm/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 interface_gopro=$(awk -F "=" '/^interface_gopro/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 serial_int_tel=$(awk -F "=" '/^serial_int_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+baud_tel=$(awk -F "=" '/^baud_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 tel_proto=$(awk -F "=" '/^tel_proto/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 serial_int_cont=$(awk -F "=" '/^serial_int_cont/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 serial_prot=$(awk -F "=" '/^serial_prot/ {gsub(/[ \t]/, "", $2); print $2}' $file)
@@ -80,7 +81,7 @@ fi
 
 if [ "$en_tel" = "Y" ]; then
 	echo "DroneBridge-Air: Starting telemetry module..."
-	python3 comm_telemetry/db_telemetry_air.py -n $interface_tel -f $serial_int_tel -m $mode -c $comm_id -l $tel_proto &
+	python3 comm_telemetry/db_telemetry_air.py -n $interface_tel -f $serial_int_tel -r $baud_tel -m $mode -c $comm_id -l $tel_proto &
 fi
 
 if [ "$en_control" = "Y" ]; then

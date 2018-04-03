@@ -11,7 +11,7 @@ interface_comm=$(awk -F "=" '/^interface_comm/ {gsub(/[ \t]/, "", $2); print $2}
 interface_proxy=$(awk -F "=" '/^interface_proxy/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 
 en_control=$(awk -F "=" '/^en_control/ {gsub(/[ \t]/, "", $2); print $2}' $file)
-en_tel=$(awk -F "=" '/^en_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+# en_tel=$(awk -F "=" '/^en_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 en_video=$(awk -F "=" '/^en_video/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 en_comm=$(awk -F "=" '/^en_comm/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 
@@ -77,10 +77,10 @@ echo "DroneBridge-Ground: Starting status module..."
 echo "DroneBridge-Ground: Starting proxy module..."
 ./proxy/proxy -n $interface_proxy -m $mode -p $proxy_port_local_remote -c $comm_id &
 
-if [ $en_tel = "Y" ]; then
+# if [ $en_tel = "Y" ]; then
  echo "DroneBridge-Ground: Starting telemetry module..."
  python3 comm_telemetry/db_telemetry_ground.py -n $interface_tel -p 1604 -m $mode -c $comm_id &
-fi
+# fi
 
 if [ $en_control = "Y" ]; then
 	echo "DroneBridge-Ground: Starting controller module..."

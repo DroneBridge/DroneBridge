@@ -24,7 +24,7 @@
 #define DEFAULT_BITRATE_OPTION  4
 
 #define NUM_CHANNELS            14      // max number of channels sent over DroneBridge control module (ground)
-#define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge rc protocol
+#define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge RC protocol
 
 #define DB_PORT_CONTROLLER  0x01
 #define DB_PORT_TELEMETRY   0x02

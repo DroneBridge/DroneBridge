@@ -32,9 +32,9 @@ def openTXUDP_Socket():
     return sock
 
 
-def openFCTel_Socket():
+def openFCTel_Socket(baud_rate):
     print("DB_TEL_AIR: Opening Telemetrie-Socket " + SerialPort + " (to listen to FC)")
-    ser = serial.Serial(SerialPort, timeout=None)
+    ser = serial.Serial(SerialPort, baudrate=baud_rate, timeout=None)
     return ser
 
 
@@ -106,6 +106,8 @@ def parseArguments():
     parser.add_argument('-m', action='store', dest='mode',
                         help='Set the mode in which communication should happen. Use [wifi|monitor]',
                         default='monitor')
+    parser.add_argument('-r', action='store', type=int, dest='baudrate',
+                        help='Baudrate for the serial port: [115200|57600|38400|19200|9600|4800|2400]', default='9600')
     parser.add_argument('-c', action='store', type=int, dest='comm_id',
                         help='Communication ID must be the same on drone and groundstation. A number between 0-255 '
                              'Example: "125"', default='111')
@@ -132,7 +134,7 @@ def main():
     print("DB_TEL_AIR: Communication ID: " + str(comm_id))
     dbprotocol = DBProtocol(src, UDP_Port_TX, IP_TX, 0, b'\x03', DB_INTERFACE, mode, comm_id, b'\x02')
 
-    tel_sock = openFCTel_Socket()
+    tel_sock = openFCTel_Socket(parsedArgs.baudrate)
     time.sleep(0.3)
     if telemetry_selection_auto:
         isLTMTel = isitLTM_telemetry(tel_sock)

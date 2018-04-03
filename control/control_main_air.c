@@ -20,7 +20,7 @@
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_raw_receive.h"
 #include "rc_air.h"
-#include "../common/mavlink_v2/common/mavlink.h"
+#include "../common/mavlink/c_library_v2/common/mavlink.h"
 #include "../common/msp_serial.h"
 
 
@@ -61,7 +61,7 @@ speed_t interpret_baud(int user_baud){
 }
 
 /**
- * Buffer 5 MAVLink telemetry messages befor sending packet to groundstation
+ * Buffer 5 MAVLink telemetry messages before sending packet to groundstation
  * @param length_message Length of new MAVLink message
  * @param mav_message The pointer to a new MAVLink message
  */
@@ -135,8 +135,8 @@ int main(int argc, char *argv[])
             case '?':
                 printf("Invalid commandline arguments. Use "
                                "\n\t-n <network_IF> "
-                               "\n\t-u <USB_MSP/MAVLink_Interface_TO_FC> - set the baud rate to 115200 on your FC!"
-                               "\n\t-m [w|m] (m = default)"
+                               "\n\t-u <USB_MSP/MAVLink_Interface_TO_FC> - UART or USB interface that is connected to FC"
+                               "\n\t-m [w|m] (m = default, w = unsupported) DroneBridge mode - wifi/monitor"
                                "\n\t-v Protocol over serial port [1|2|3|4]: 1 = MSPv1 [Betaflight/Cleanflight]; "
                                "2 = MSPv2 [iNAV] (default); 3 = MAVLink (RC unsupported); 4 = MAVLink v2 (RC unsupported)"
                                "\n\t-e [Y|N] enable/disable RC over SUMD. If disabled -v & -u options are used for RC."
@@ -144,10 +144,11 @@ int main(int argc, char *argv[])
                                "different from one specified with -u"
                                "\n\t-c <communication_id> Choose a number from 0-255. Same on groundstation and drone!"
                                "\n\t-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
-                               "\n\t-r Baud rate of the serial interface (MSP/MAVLink) (2400, 4800, 9600, 19200, 38400, "
-                               "57600, 115200 (default))"
-                               "\n\t-b bit rate: \n\t\t1 = 2.5Mbit\n\t\t2 = 4.5Mbit\n\t\t3 = 6Mbit\n\t\t4 = 12Mbit (default)\n\t\t"
-                               "5 = 18Mbit\n\t\t(bitrate option only supported with Ralink chipsets)");
+                               "\n\t-r Baud rate of the serial interface -u (MSP/MAVLink) (2400, 4800, 9600, 19200, "
+                               "38400, 57600, 115200 (default))"
+                               "\n\t-b bit rate: \n\t\t1 = 2.5Mbit\n\t\t2 = 4.5Mbit\n\t\t3 = 6Mbit"
+                               "\n\t\t4 = 12Mbit (default)\n\t\t5 = 18Mbit\n\t\t(bitrate option only supported with "
+                               "Ralink chipsets)");
                 break;
             default:
                 abort ();
@@ -199,6 +200,7 @@ int main(int argc, char *argv[])
 // -------------------------------
 //    Setting up UART interface for RC commands over SUMD
 // -------------------------------
+    // TODO: needs debugging
     int socket_rc_serial = -1;
     if (use_sumd == 'Y'){
         do
@@ -216,7 +218,8 @@ int main(int argc, char *argv[])
 
         struct termios options_rc;
         tcgetattr(socket_rc_serial, &options_rc);
-        options_rc.c_cflag = B115200 | CS8 | CLOCAL;
+        cfsetospeed(&options, B115200);
+        options_rc.c_cflag =  CS8 | CLOCAL;
         options_rc.c_iflag = IGNPAR;
         options_rc.c_oflag = 0;
         options_rc.c_lflag = 0;
@@ -254,7 +257,7 @@ int main(int argc, char *argv[])
             (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
     memset(data_uni_to_ground->bytes, 0, DATA_UNI_LENGTH);
 
-    printf("DB_CONTROL_AIR: Starting MSP/MAVLink pass through!\n");
+    printf("DB_CONTROL_AIR: Ready for data!\n");
     gettimeofday(&timecheck, NULL);
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
     while(keepRunning)
@@ -294,7 +297,7 @@ int main(int argc, char *argv[])
                             printf(" RC NOT WRITTEN because of error: %s\n", strerror(errsv));
                         }
                         // TODO: check if necessary. It shouldn't as we use blocking UART socket
-                        tcflush(rc_serial_socket, TCOFLUSH);
+                        // tcflush(rc_serial_socket, TCOFLUSH);
                     }
                 }
             }
@@ -319,7 +322,7 @@ int main(int argc, char *argv[])
                         printf(" MSP/MAVLink NOT WRITTEN because of error: %s\n", strerror(errsv));
                     }
                     // TODO: check if necessary. It shouldn't as we use blocking UART socket
-                    tcflush(socket_control_serial, TCOFLUSH);
+                    // tcflush(socket_control_serial, TCOFLUSH);
                 }
             }
             if (FD_ISSET(socket_control_serial, &fd_socket_set)){

@@ -231,11 +231,9 @@ int generate_rc_serial_message(uint8_t *db_rc_protocol){
             generate_mspv2(rc_channels);
             return 33;
         }else if (serial_rc_protocol == 3)
-            // TODO: MAVLink v1 - seems it is not recommended to do RC override with MAVLink...
-            perror("MAVLink v1 RC unsupported for now");
+            perror("MAVLink v1 RC packets unsupported - use SUMD\n");
         else if (serial_rc_protocol == 4)
-            // TODO: generate MAVLink v2 - seems it is not recommended to do RC override with MAVLink...
-            perror("MAVLink v2 RC unsupported for now");
+            perror("MAVLink v2 RC packets unsupported - use SUMD\n");
         else if (serial_rc_protocol == 5) {
             generate_sumd(rc_channels);
             return 29;

@@ -10,7 +10,7 @@
 #include "db_crc.h"
 
 /**
- * This function is part of Cleanflight.
+ * This function is part of Cleanflight/iNAV.
  * Optimized for crc performance in the DroneBridge Project and ">" & "<" adjusted
  *
  * Cleanflight is free software: you can redistribute it and/or modify

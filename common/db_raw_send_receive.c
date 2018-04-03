@@ -6,7 +6,7 @@
 /**
  * ----------- Attention -----------
  * Only open one(!) send & receive socket. Multiple instances may will use same variables. Will cause unexpected behaviour.
- * One instance is enought for sending as you can specify the DroneBridge port with every transmit
+ * One instance is enough for sending as you can specify the DroneBridge port with every transmission
  * If you need multiple open ports (aka multiple receive sockets) use db_raw_receive.c to open such extra sockets. These
  * sockets will only be able to receive data
  */
@@ -28,7 +28,6 @@
 #include "db_raw_receive.h"
 
 uint8_t radiotap_header_pre[] = {
-
         0x00, 0x00, // <-- radiotap version
         0x0d, 0x00, // <- radiotap header length
         0x04, 0x80, 0x00, 0x00, // <-- bitmap
@@ -56,6 +55,7 @@ struct sockaddr_ll socket_address;
 char mode = 'm';
 int socket_send_receive;
 
+// init packet structure
 uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH] = {0};
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
 struct db_raw_v2_header *db_raw_header = (struct db_raw_v2_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
@@ -63,7 +63,7 @@ struct data_uni *monitor_databuffer_internal = (struct data_uni *) (monitor_fram
 
 /**
  * Set the transmission bit rate in the radiotap header. Only works with ralink cards.
- * @param bitrate_option
+ * @param bitrate_option 1|2|3|4|5|6
  */
 void set_bitrate(int bitrate_option) {
     switch (bitrate_option){
@@ -175,6 +175,12 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
     }
 }
 
+/**
+ * Increases/Updates an existing sequence number so that it can be used to send a new packet over long range socket.
+ * Sequence numbers range from 0-255
+ * @param old_seq_num A pointer to the sequence number
+ * @return The updated sequence number
+ */
 uint8_t update_seq_num(uint8_t *old_seq_num){
     (*old_seq_num == 255) ? *old_seq_num = 0 : (*old_seq_num)++;
     return *old_seq_num;
@@ -186,7 +192,7 @@ uint8_t update_seq_num(uint8_t *old_seq_num){
  * @param dest_port The DroneBridge destination port of the message (see db_protocol.h)
  * @param payload_length The length of the payload in bytes
  * @param new_seq_num Specify the seqence number of the packet
- * @return 0 if success or -1 if failure
+ * @return 0 on success or -1 on failure
  */
 int send_packet(uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & 0xFF);
@@ -216,7 +222,7 @@ int send_packet(uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, 
  * @param dest_port The DroneBridge destination port of the message (see db_protocol.h)
  * @param payload_length The length of the payload in bytes
  * @param new_seq_num Specify the seqence number of the packet
- * @return 0 if success or -1 if failure
+ * @return 0 on success or -1 on failure
  */
 int send_packet_hp(uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & 0xFF);
