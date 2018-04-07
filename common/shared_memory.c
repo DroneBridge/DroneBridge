@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "db_protocol.h"
-#include "lib.h"
+#include "wbc_lib.h"
 
 wifibroadcast_rx_status_t *wbc_status_memory_open() {
     int fd;

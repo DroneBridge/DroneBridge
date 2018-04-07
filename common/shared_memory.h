@@ -4,7 +4,7 @@
 // https://github.com/seeul8er/DroneBridge
 //
 
-#include "lib.h"
+#include "wbc_lib.h"
 #include "db_protocol.h"
 
 #ifndef CONTROL_STATUS_SHARED_MEMORY_H

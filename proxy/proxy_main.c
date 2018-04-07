@@ -16,7 +16,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <stdbool.h>
-#include "../common/lib.h"
+#include "../common/wbc_lib.h"
 #include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"

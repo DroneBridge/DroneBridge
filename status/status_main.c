@@ -1,6 +1,9 @@
 /*
  *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
  *
+ *   parts based on rx_status by Rodizio. Based on wifibroadcast rx by Befinitiv. Licensed under GPL2
+ *   integrated into the DroneBridge extensions by Wolfgang Christl
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation; version 2.
@@ -14,8 +17,6 @@
  *   with this program; if not, write to the Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- *   parts based on rx_status by Rodizio. Based on wifibroadcast rx by Befinitiv. Licensed under GPL2
- *   integrated into the DroneBridge extensions by seeul8er
  */
 
 #include <stdio.h>
@@ -28,7 +29,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <stdbool.h>
-#include "../common/lib.h"
+#include "../common/wbc_lib.h"
 #include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
@@ -87,7 +88,8 @@ int process_command_line_args(int argc, char *argv[]){
 int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
-    int restarts = 0, udp_socket, shID, best_dbm = 0, cardcounter = 0, err, radiotap_length;
+    int restarts = 0, udp_socket, shID, cardcounter = 0, err, radiotap_length;
+    int8_t best_dbm = 0;
     ssize_t l;
     uint8_t counter = 0;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
@@ -165,7 +167,7 @@ int main(int argc, char *argv[]) {
             wbc_rc_status->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
             wbc_rc_status->lost_packet_cnt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1];
         }
-        best_dbm = -1000;
+        best_dbm = -128;
         for(cardcounter=0; cardcounter<number_cards; ++cardcounter) {
             if (best_dbm < wbc_rx_status->adapter[cardcounter].current_signal_dbm)
                 best_dbm = wbc_rx_status->adapter[cardcounter].current_signal_dbm;
