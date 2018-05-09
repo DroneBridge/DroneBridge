@@ -21,7 +21,7 @@ LTM_sizeGPS = 15
 LTM_sizeAtt = 7
 LTM_sizeStatus = 8
 
-MavLink_junksize = 128  # bytes
+MavLink_chunksize = 128  # bytes
 
 
 def openTXUDP_Socket():
@@ -148,7 +148,7 @@ def main():
                 dbprotocol.sendto_groundstation(LTM_Frame, b'\x02')
         else:
             # it is not LTM --> fully transparent link for MavLink and other protocols
-            dbprotocol.sendto_groundstation(tel_sock.read(MavLink_junksize), b'\x02')
+            dbprotocol.sendto_groundstation(tel_sock.read(MavLink_chunksize), b'\x02')
 
 
 if __name__ == "__main__":

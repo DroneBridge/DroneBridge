@@ -81,7 +81,7 @@ void send_buffered_mavlink_tel(int length_message, mavlink_message_t *mav_messag
 
 int main(int argc, char *argv[])
 {
-    int c, chipset_type = 1, bitrate_op = 4;
+    int c, chipset_type = 1, bitrate_op = 4, chucksize = 128;
     int serial_protocol_control = 2, baud_rate = 115200;
     char use_sumd = 'N';
     char sumd_interface[IFNAMSIZ];
@@ -117,6 +117,9 @@ int main(int argc, char *argv[])
             case 'v':
                 serial_protocol_control = (int) strtol(optarg, NULL, 10);
                 break;
+            case 'l':
+                chucksize = (int) strtol(optarg, NULL, 10);
+                break;
             case 'e':
                 use_sumd = *optarg;
                 break;
@@ -137,8 +140,14 @@ int main(int argc, char *argv[])
                                "\n\t-n <network_IF> "
                                "\n\t-u <USB_MSP/MAVLink_Interface_TO_FC> - UART or USB interface that is connected to FC"
                                "\n\t-m [w|m] (m = default, w = unsupported) DroneBridge mode - wifi/monitor"
-                               "\n\t-v Protocol over serial port [1|2|3|4]: 1 = MSPv1 [Betaflight/Cleanflight]; "
-                               "2 = MSPv2 [iNAV] (default); 3 = MAVLink (RC unsupported); 4 = MAVLink v2 (RC unsupported)"
+                               "\n\t-v Protocol over serial port [1|2|3|4]:\n"
+                                  "\t\t1 = MSPv1 [Betaflight/Cleanflight]\n"
+                                  "\t\t2 = MSPv2 [iNAV] (default)\n"
+                                  "\t\t3 = MAVLink (RC unsupported)\n"
+                                  "\t\t4 = MAVLink v2 (RC unsupported)\n"
+                                  "\t\t5 = MAVLink (plain) pass through (-l <chunk size>)"
+                               "\n\t-l only relevant with -v 5 option. Telemetry bytes per packet over long range "
+                               "(default: 128)"
                                "\n\t-e [Y|N] enable/disable RC over SUMD. If disabled -v & -u options are used for RC."
                                "\n\t-s Specify a serial port for use with SUMD. Ignored if SUMD is deactivated. Must be "
                                "different from one specified with -u"
@@ -167,6 +176,7 @@ int main(int argc, char *argv[])
 // -------------------------------
 //    Setting up UART interface for MSP/MAVLink stream
 // -------------------------------
+    uint8_t serial_bytes_buffer[chucksize];
     int socket_control_serial = -1;
     do
     {
@@ -387,6 +397,13 @@ int main(int argc, char *argv[])
                                     }
                                 }
                             }
+                        }
+                        break;
+                    case 5:
+                        // MAVLink plain pass through - no parsing. Send packets with length of chuck size to tel module
+                        if (read(socket_control_serial, &serial_bytes_buffer, (size_t) chucksize) > 0) {
+                            send_packet(serial_bytes_buffer, DB_PORT_TELEMETRY,
+                                        (u_int16_t) chucksize, update_seq_num(&telemetry_seq_number));
                         }
                         break;
                 }

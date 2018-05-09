@@ -19,6 +19,7 @@ baud_tel=$(awk -F "=" '/^baud_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 tel_proto=$(awk -F "=" '/^tel_proto/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 serial_int_cont=$(awk -F "=" '/^serial_int_cont/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 serial_prot=$(awk -F "=" '/^serial_prot/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+pass_through_packet_size=$(awk -F "=" '/^pass_through_packet_size/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 baud_control=$(awk -F "=" '/^baud_control/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 enable_sumd_rc=$(awk -F "=" '/^enable_sumd_rc/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 serial_int_sumd=$(awk -F "=" '/^serial_int_sumd/ {gsub(/[ \t]/, "", $2); print $2}' $file)
@@ -86,5 +87,5 @@ fi
 
 if [ "$en_control" = "Y" ]; then
 	echo "DroneBridge-Air: Starting controller module..."
-	./control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $chipset_control -v $serial_prot -r $baud_control -e $enable_sumd_rc -s $serial_int_sumd &
+	./control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $chipset_control -v $serial_prot -l $pass_through_packet_size -r $baud_control -e $enable_sumd_rc -s $serial_int_sumd &
 fi
