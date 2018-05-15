@@ -42,7 +42,7 @@ int initialize_i6S(int new_Joy_IF, char calibrate_comm[]) {
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
     printf("DB_CONTROL_GROUND: Waiting for i6S to be detected on: %s\n", interface_joystick);
     do {
-        usleep(250);
+        usleep(100000);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
     } while (fd < 0 && keepRunning);
     printf("DB_CONTROL_GROUND: Opened joystick interface!\n");

@@ -25,7 +25,7 @@ int detect_RC(int new_Joy_IF) {
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
     printf("DB_CONTROL_GROUND: Waiting for a RC to be detected on: %s\n", interface_joystick);
     do {
-        usleep(250);
+        usleep(250000);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
     } while (fd < 0);
     return fd;
