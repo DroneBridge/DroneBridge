@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     strcpy(usbIF, USB_IF);
     strcpy(sumd_interface, USB_IF);
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:u:m:c:a:b:v:e:s:r:")) != -1)
+    while ((c = getopt (argc, argv, "n:u:m:c:a:b:v:l:e:s:r:")) != -1)
     {
         switch (c)
         {
@@ -177,6 +177,7 @@ int main(int argc, char *argv[])
 //    Setting up UART interface for MSP/MAVLink stream
 // -------------------------------
     uint8_t serial_bytes_buffer[chucksize];
+    uint8_t transparent_buffer[chucksize];
     int socket_control_serial = -1;
     do
     {
@@ -241,7 +242,7 @@ int main(int argc, char *argv[])
 // ----------------------------------
 //       Loop
 // ----------------------------------
-    int sentbytes = 0, command_length = 0, errsv, select_return, continue_reading, err_serial, serial_read_bytes;
+    int sentbytes = 0, command_length = 0, errsv, select_return, continue_reading, chunck_left = chucksize, serial_read_bytes = 0;
     int8_t rssi = 0;
     long start, rightnow, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
 
@@ -401,9 +402,14 @@ int main(int argc, char *argv[])
                         break;
                     case 5:
                         // MAVLink plain pass through - no parsing. Send packets with length of chuck size to tel module
-                        if (read(socket_control_serial, &serial_bytes_buffer, (size_t) chucksize) > 0) {
-                            send_packet(serial_bytes_buffer, DB_PORT_TELEMETRY,
-                                        (u_int16_t) chucksize, update_seq_num(&telemetry_seq_number));
+                        if (read(socket_control_serial, &serial_byte, 1) > 0) {
+                            transparent_buffer[serial_read_bytes] = serial_byte;
+                            serial_read_bytes++;
+                            if (serial_read_bytes == chucksize) {
+                                send_packet(transparent_buffer, DB_PORT_TELEMETRY,
+                                            (u_int16_t) chucksize, update_seq_num(&telemetry_seq_number));
+                                serial_read_bytes = 0;
+                            }
                         }
                         break;
                 }
