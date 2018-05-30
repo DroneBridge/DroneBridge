@@ -75,11 +75,11 @@ echo "DroneBridge-Ground: Starting status module..."
 ./status/status -n $interface_tel -m $mode -c $comm_id &
 
 echo "DroneBridge-Ground: Starting proxy module..."
-./proxy/proxy -n $interface_proxy -m $mode -p $proxy_port_local_remote -c $comm_id &
+./proxy/proxy -n $interface_proxy -m $mode -p $proxy_port_local_remote -c $comm_id -i $interface_tel -l 1604 &
 
 # if [ $en_tel = "Y" ]; then
- echo "DroneBridge-Ground: Starting telemetry module..."
- python3 comm_telemetry/db_telemetry_ground.py -n $interface_tel -p 1604 -m $mode -c $comm_id &
+# echo "DroneBridge-Ground: Starting telemetry module..."
+# python3 comm_telemetry/db_telemetry_ground.py -n $interface_tel -p 1604 -m $mode -c $comm_id &
 # fi
 
 if [ $en_control = "Y" ]; then

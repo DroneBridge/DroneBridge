@@ -95,3 +95,6 @@ wmm_ac_vo_cwmax=3
 wmm_ac_vo_txop_limit=47
 wmm_ac_vo_acm=0
 # Note: for IEEE 802.11b mode: cWmin=3 cWmax=4 burst=102
+
+ctrl_interface=/var/run/hostapd
+ctrl_interface_group=0

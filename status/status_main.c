@@ -36,7 +36,7 @@
 #include "../common/shared_memory.h"
 
 bool volatile keeprunning = true;
-char if_name[IFNAMSIZ];
+char if_name_proxy[IFNAMSIZ];
 char db_mode;
 uint8_t comm_id = DEFAULT_V2_COMMID;
 int c, app_port_proxy = APP_PORT_STATUS;
@@ -49,7 +49,7 @@ void intHandler(int dummy)
 }
 
 int process_command_line_args(int argc, char *argv[]){
-    strncpy(if_name, DEFAULT_DB_IF, IFNAMSIZ);
+    strncpy(if_name_proxy, DEFAULT_DB_IF, IFNAMSIZ);
     db_mode = DEFAULT_DB_MODE;
     app_port_proxy = APP_PORT_STATUS;
     opterr = 0;
@@ -58,7 +58,7 @@ int process_command_line_args(int argc, char *argv[]){
         switch (c)
         {
             case 'n':
-                strncpy(if_name, optarg, IFNAMSIZ);
+                strncpy(if_name_proxy, optarg, IFNAMSIZ);
                 break;
             case 'm':
                 db_mode = *optarg;
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
     int number_cards = wbc_rx_status->wifi_adapter_cnt;
 
     // set up long range receiving socket
-    int long_range_socket = open_receive_socket(if_name, db_mode, comm_id, DB_DIREC_GROUND, DB_PORT_STATUS);
+    int long_range_socket = open_receive_socket(if_name_proxy, db_mode, comm_id, DB_DIREC_GROUND, DB_PORT_STATUS);
     long_range_socket = set_socket_nonblocking(long_range_socket);
 
     // set up UDP socket
