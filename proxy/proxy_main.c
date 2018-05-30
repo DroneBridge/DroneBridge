@@ -21,10 +21,11 @@
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
 #include "../common/db_raw_send_receive.h"
+#include "../common/ccolors.h"
 
 bool volatile keeprunning = true;
 char if_name_proxy[IFNAMSIZ], if_name_telem[IFNAMSIZ];
-char db_mode, enable_telemetry_module;
+char db_mode, enable_telemetry_module, write_to_osdfifo;
 uint8_t comm_id = DEFAULT_V2_COMMID;
 int c, app_port_proxy, app_port_telem, bitrate_op;
 
@@ -38,11 +39,12 @@ int process_command_line_args(int argc, char *argv[]){
     strncpy(if_name_telem, DEFAULT_DB_IF, IFNAMSIZ);
     db_mode = DEFAULT_DB_MODE;
     enable_telemetry_module = 'Y';
+    write_to_osdfifo = 'Y';
     app_port_proxy = APP_PORT_PROXY;
     app_port_telem = APP_PORT_TELEMETRY;
     opterr = 0;
     bitrate_op = DEFAULT_BITRATE_OPTION;
-    while ((c = getopt (argc, argv, "n:m:c:p:b:t:i:l:")) != -1)
+    while ((c = getopt (argc, argv, "n:m:c:p:b:t:i:l:o:")) != -1)
     {
         switch (c)
         {
@@ -70,20 +72,24 @@ int process_command_line_args(int argc, char *argv[]){
             case 'b':
                 bitrate_op = (int) strtol(optarg, NULL, 10);
                 break;
+            case 'o':
+                write_to_osdfifo = *optarg;
+                break;
             case '?':
                 printf("DroneBridge Proxy module is used to do any UDP <-> DB_CONTROL_AIR routing. UDP IP given by "
-                               "IP-checker module. Use"
-                               "\n\t-n <network_IF_proxy_module> "
-                               "\n\t-m [w|m] default is <m>"
-                               "\n\t-t [Y|N] enable telemetry port/module"
-                               "\n\t-i <network_IF_telemetry_module>"
-                               "\n\t-l UDP port to send data to received over long range link on telemetry port. "
-                               "IP comes from IP checker module."
-                               "\n\t-p Specify a UDP port to which we send the data received over long range link. IP "
-                               "comes from IP checker module. This port is also the local port for receiving UDP packets"
-                               " to forward to DB_raw. Default port:%i"
-                               "\n\t-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
-                               "\n\t-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
+                       "IP-checker module. Use"
+                       "\n\t-n <network_IF_proxy_module> "
+                       "\n\t-m [w|m] DroneBridge mode - wifi - monitor mode (default: m) (wifi not supported yet!)"
+                       "\n\t-t [Y|N] enable telemetry port/module (default: Y)"
+                       "\n\t-i <network_IF_telemetry_module>"
+                       "\n\t-l UDP port to send data to received over long range link on telemetry port. "
+                       "IP comes from IP checker module."
+                       "\n\t-p Specify a UDP port to which we send the data received over long range link. IP "
+                       "comes from IP checker module. This port is also the local port for receiving UDP packets"
+                       " to forward to DB_raw. Default port:%i"
+                       "\n\t-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
+                       "\n\t-o [Y|N] Write telemetry to /root/telemetryfifo1 FIFO (default: Y)"
+                       "\n\t-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
                                "5 = 18Mbit\n\t(bitrate option only supported with Ralink chipsets)"
                         , APP_PORT_PROXY);
                 break;
@@ -93,8 +99,17 @@ int process_command_line_args(int argc, char *argv[]){
     }
 }
 
+int open_osd_fifo(){
+    int tempfifo_osd = open("/root/telemetryfifo1", O_WRONLY | O_NONBLOCK);
+    if (tempfifo_osd==-1){
+        printf(YEL "DB_TEL_GROUND: Unable to open OSD FIFO\n" RESET);
+    }
+    return tempfifo_osd;
+}
+
 int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
+    signal(SIGPIPE, SIG_IGN);
     usleep((__useconds_t) 1e6);
     process_command_line_args(argc, argv);
 
@@ -103,12 +118,8 @@ int main(int argc, char *argv[]) {
     int lr_socket_telem = open_receive_socket(if_name_telem, db_mode, comm_id, DB_DIREC_GROUND, DB_PORT_TELEMETRY);
     int udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
     int fifo_osd = -1;
-    if (enable_telemetry_module == 'Y'){
-        fifo_osd = open("/root/telemetryfifo1", O_WRONLY);
-        if (fifo_osd==-1){
-            perror("DB_TEL_GROUND: Unable to open OSD FIFO\n");
-            exit (EXIT_FAILURE);
-        }
+    if (enable_telemetry_module == 'Y' && write_to_osdfifo == 'Y'){
+        fifo_osd = open_osd_fifo();
     }
 
     struct sockaddr_in client_telem_addr, client_proxy_addr, servAddr;
@@ -130,16 +141,16 @@ int main(int argc, char *argv[]) {
     setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int));
 
     if (udp_socket < 0) {
-        printf("DB_PROXY_GROUND: Unable to open socket (%s)\n", strerror(errno));
+        printf(RED "DB_PROXY_GROUND: Unable to open socket (%s)\n" RESET, strerror(errno));
         exit (EXIT_FAILURE);
     }
     if (bind(udp_socket, (struct sockaddr *) &servAddr, sizeof (servAddr)) < 0) {
-        printf("DB_PROXY_GROUND: Unable to bind to port %i (%s)\n", app_port_proxy, strerror(errno));
+        printf(RED "DB_PROXY_GROUND: Unable to bind to port %i (%s)\n" RESET, app_port_proxy, strerror(errno));
         exit (EXIT_FAILURE);
     }
     int broadcast=1;
     if (setsockopt(udp_socket, SOL_SOCKET, SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
-        printf("DB_PROXY_GROUND: Unable to set broadcast option %s\n",strerror(errno));
+        printf(RED "DB_PROXY_GROUND: Unable to set broadcast option %s\n" RESET,strerror(errno));
     }
 
     // init variables
@@ -154,7 +165,7 @@ int main(int argc, char *argv[]) {
     uint8_t udp_buffer[DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH];
     size_t message_length = 0;
 
-    printf("DB_PROXY_GROUND: started!\n");
+    printf(GRN "DB_PROXY_GROUND: started!" RESET "\n");
     while(keeprunning) {
         select_timeout.tv_sec = 5;
         select_timeout.tv_usec = 0;
@@ -162,7 +173,16 @@ int main(int argc, char *argv[]) {
         FD_SET(udp_socket, &fd_socket_set);
         FD_SET(lr_socket_proxy, &fd_socket_set);
         FD_SET(lr_socket_telem, &fd_socket_set);
-        int select_return = select (FD_SETSIZE, &fd_socket_set, NULL, NULL, &select_timeout);
+        int max_sd = udp_socket;
+        if (lr_socket_proxy > max_sd)
+        {
+            max_sd = lr_socket_proxy;
+        }
+        if (lr_socket_telem > max_sd)
+        {
+            max_sd = lr_socket_telem;
+        }
+        int select_return = select (max_sd+1, &fd_socket_set, NULL, NULL, &select_timeout);
         if(select_return == 0){
             // timeout: get IP from IP checker although we always return messages to last knows client ip:port
             client_proxy_addr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
@@ -180,10 +200,10 @@ int main(int argc, char *argv[]) {
                     memcpy(data_uni_to_drone->bytes, udp_buffer, (size_t) l);
                     send_packet_hp(DB_PORT_CONTROLLER, (u_int16_t) l, update_seq_num(&seq_num));
                 } else {
-                    printf("DB_PROXY_GROUND: UDP socket received an error: %s\n", strerror(err));
+                    printf(RED "DB_PROXY_GROUND: UDP socket received an error: %s" RESET "\n", strerror(err));
                 }
             }
-            if (FD_ISSET(lr_socket_proxy, &fd_socket_set)){
+            else if (FD_ISSET(lr_socket_proxy, &fd_socket_set)){
                 // ---------------
                 // incoming form long range proxy port
                 // Message DB_CONTROL_AIR --> app/UDP (e.g. MSP messages)
@@ -196,33 +216,37 @@ int main(int argc, char *argv[]) {
                     sendto (udp_socket, udp_buffer, message_length, 0, (struct sockaddr *) &client_proxy_addr,
                             sizeof (client_proxy_addr));
                 } else {
-                    printf("DB_PROXY_GROUND: Long range socket received an error: %s\n", strerror(err));
+                    printf(RED "DB_PROXY_GROUND: Long range socket received an error: %s\n" RESET, strerror(err));
                 }
             }
-            if (FD_ISSET(lr_socket_telem, &fd_socket_set)){
+            else if (FD_ISSET(lr_socket_telem, &fd_socket_set)){
                 // ---------------
                 // incoming form long range telemetry port - write data to OSD-FIFO and pass on to app:1604
                 // Message DB_CONTROL_AIR|DB_TELEMETRY_AIR --> app_udp:1604 (e.g. MAVLink or LTM messages)
                 // ---------------
                 ssize_t l = recv(lr_socket_telem, lr_buffer, DATA_UNI_LENGTH, 0); int err = errno;
+                //printf("Received %i on lr-tel-socket\n", (int) l);
                 if (l > 0){
                     radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
                     message_length = lr_buffer[radiotap_length+7] | (lr_buffer[radiotap_length+8] << 8); // DB_v2
                     memcpy(udp_buffer, lr_buffer+(radiotap_length + DB_RAW_V2_HEADER_LENGTH), message_length);
                     sendto (udp_socket, udp_buffer, message_length, 0, (struct sockaddr *) &client_telem_addr,
                             sizeof (client_telem_addr));
-                    if (fifo_osd != -1){
+                    if (fifo_osd != -1 && write_to_osdfifo == 'Y'){
                         ssize_t written = write(fifo_osd, udp_buffer, message_length);
-                        if (written==-1){
-                            perror("DB_TEL_GROUND: Could not write to OSD FIFO");
-                        }
+                        //printf("Written %i to fifo\n", (int) written);
+//                        if (written < 1){
+//                            perror(RED "DB_TEL_GROUND: Could not write to OSD FIFO" RESET);
+//                        }
+                    }else if (write_to_osdfifo == 'Y'){
+                        printf(YEL "DB_TEL_GROUND: No OSD-FIFO open. Trying to reopen!\n" RESET);
                     }
                 } else {
-                    printf("DB_TEL_GROUND: Long range socket received an error: %s\n", strerror(err));
+                    printf(RED "DB_TEL_GROUND: Long range socket received an error: %s\n" RESET, strerror(err));
                 }
             }
         } else if (select_return == -1) {
-            perror("DB_PROXY_GROUND: select() returned error: ");
+            perror(RED "DB_PROXY_GROUND: select() returned error: " RESET);
         }
     }
     close(lr_socket_proxy);

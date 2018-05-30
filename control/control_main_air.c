@@ -333,7 +333,7 @@ int main(int argc, char *argv[])
                         printf(" MSP/MAVLink NOT WRITTEN because of error: %s\n", strerror(errsv));
                     }
                     // TODO: check if necessary. It shouldn't as we use blocking UART socket
-                    // tcflush(socket_control_serial, TCOFLUSH);
+                    tcflush(socket_control_serial, TCOFLUSH);
                 }
             }
             if (FD_ISSET(socket_control_serial, &fd_socket_set)){

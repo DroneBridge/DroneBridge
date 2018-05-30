@@ -1720,7 +1720,7 @@ function hotspot_check_function {
       if [[ $(hostapd_cli -i wifihotspot0 all_sta | wc -c) -ne 0 ]]; then
         IP="192.168.2.2"
         echo "Wifi device detected. IP: $IP"
-        nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
+        # nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
         nice /root/wifibroadcast/rssi_forward $IP 5003 &
         if [ "$FORWARD_STREAM" == "rtp" ]; then
           ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP > /dev/null 2>&1 &
