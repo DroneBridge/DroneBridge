@@ -4,7 +4,7 @@
 
 import argparse
 
-from DroneBridge_Protocol import DBProtocol
+from DroneBridge_Protocol import DBProtocol, DBPort, DBDir
 from db_comm_helper import find_mac
 
 UDP_Port_RX = 1604  # Port for communication with RX (Drone)
@@ -62,12 +62,11 @@ def main():
     IP_RX = parsedArgs.ip_rx
     UDP_Port_RX = parsedArgs.udp_port_rx
 
-    src = find_mac(interface_drone_comm)
     comm_id = bytes([parsedArgs.comm_id])
     print("DB_TEL_GROUND: Communication ID: " + str(comm_id))
 
-    dbprotocol = DBProtocol(src, UDP_Port_RX, IP_RX, 1606, b'\x01', interface_drone_comm, mode,
-                            comm_id, b'\x02')
+    dbprotocol = DBProtocol(UDP_Port_RX, IP_RX, 1606, DBDir.DB_TO_UAV, interface_drone_comm, mode,
+                            comm_id, DBPort.DB_PORT_TELEMETRY, tag='DB_TEL: ')
     print("DB_TEL_GROUND: Opening /root/telemetryfifo1...")
     fifo_write = open("/root/telemetryfifo1", "wb")
     print("DB_TEL_GROUND: Opened /root/telemetryfifo1")

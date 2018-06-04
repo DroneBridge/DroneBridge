@@ -6,7 +6,7 @@ import socket
 import serial
 import argparse
 from subprocess import Popen
-from DroneBridge_Protocol import DBProtocol
+from DroneBridge_Protocol import DBProtocol, DBPort, DBDir
 from db_comm_helper import find_mac
 import time
 
@@ -128,11 +128,11 @@ def main():
     elif parsedArgs.telemetry_type == "auto":
         telemetry_selection_auto = True
         isLTMTel = False
-    src = find_mac(DB_INTERFACE)
     comm_id = bytes([parsedArgs.comm_id])
     # print("DB_RX_TEL: Communication ID: " + comm_id.hex()) # only works in python 3.5
     print("DB_TEL_AIR: Communication ID: " + str(comm_id))
-    dbprotocol = DBProtocol(src, UDP_Port_TX, IP_TX, 0, b'\x03', DB_INTERFACE, mode, comm_id, b'\x02')
+    dbprotocol = DBProtocol(UDP_Port_TX, IP_TX, 0, DBDir.DB_TO_GND, DB_INTERFACE, mode, comm_id,
+                            DBPort.DB_PORT_TELEMETRY, tag='DB_TEL_AIR: ')
 
     tel_sock = openFCTel_Socket(parsedArgs.baudrate)
     time.sleep(0.3)

@@ -3,7 +3,7 @@
 # Created by Wolfgang Christl
 
 import argparse
-from DroneBridge_Protocol import DBProtocol
+from DroneBridge_Protocol import DBProtocol, DBPort, DBDir
 from db_comm_helper import find_mac
 import time
 
@@ -52,12 +52,11 @@ def main():
     UDP_Port_RX = parsedArgs.udp_port_rx
     UDP_PORT_ANDROID = parsedArgs.udp_port_android
 
-    src = find_mac(interface_drone_comm)
     comm_id = bytes([parsedArgs.comm_id])
     print("DB_Comm_GROUND: Communication ID: " + str(comm_id))
 
-    dbprotocol = DBProtocol(src, UDP_Port_RX, IP_RX, UDP_PORT_ANDROID, b'\x01', interface_drone_comm, mode,
-                            comm_id, b'\x04')
+    dbprotocol = DBProtocol(UDP_Port_RX, IP_RX, UDP_PORT_ANDROID, DBDir.DB_TO_UAV, interface_drone_comm, mode,
+                            comm_id, DBPort.DB_PORT_COMMUNICATION, tag='DB_Comm_Ground: ')
     last_keepalive = 0
 
     while True:

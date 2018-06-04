@@ -4,7 +4,7 @@
 
 import argparse
 from subprocess import Popen
-from DroneBridge_Protocol import DBProtocol
+from DroneBridge_Protocol import DBProtocol, DBPort, DBDir
 from db_comm_helper import find_mac
 
 
@@ -45,11 +45,11 @@ def main():
     UDP_Port_TX = 1604
     mode = parsedArgs.mode
     DB_INTERFACE = parsedArgs.DB_INTERFACE
-    src = find_mac(DB_INTERFACE)
     comm_id = bytes([parsedArgs.comm_id])
     # print("DB_TX_Comm: Communication ID: " + comm_id.hex()) # only works in python 3.5+
-    print("DB_RX_Comm: Communication ID: " + str(comm_id))
-    dbprotocol = DBProtocol(src, UDP_Port_TX, IP_TX, 0, b'\x03', DB_INTERFACE, mode, comm_id, b'\x04')
+    print("DB_Comm_Air: Communication ID: " + str(comm_id))
+    dbprotocol = DBProtocol(UDP_Port_TX, IP_TX, 0, DBDir.DB_TO_GND, DB_INTERFACE, mode, comm_id,
+                            DBPort.DB_PORT_COMMUNICATION, tag='DB_Comm_Air: ')
 
     while True:
         dbprotocol.receive_process_datafromgroundstation() # blocking
