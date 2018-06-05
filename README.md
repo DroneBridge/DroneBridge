@@ -26,7 +26,7 @@ Range strongly depends on your setup and environment. The user must ensure that 
 
 **[Download DroneBridge Beta v0.3.1 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases)**
 
-**[Download DroneBridge Android App 1.2](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/Ecn_lyr-wQJDhm8h5_QR7IcBqYxQdORNVNDNy_O6YZwpng?e=axlrhP)**
+**[Download DroneBridge Android App 1.2.1](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/Eb3uYDByAbNKiehgtEqL6r8BSOzq2aPoTTcYmlIjaRPGSA?e=R0dUWH)**
 
 **[Get started](https://github.com/seeul8er/DroneBridge/wiki/Setup-Guide)**
 
