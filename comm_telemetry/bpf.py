@@ -9,11 +9,13 @@ from socket import *
 
 SO_ATTACH_FILTER = 26
 
+
 class BpfProgram(ctypes.Structure):
     _fields_ = [
         ('bf_len', ctypes.c_int),
         ('bf_insns', ctypes.c_void_p)
     ]
+
 
 class BpfInstruction(ctypes.Structure):
     _fields_ = [
@@ -23,12 +25,13 @@ class BpfInstruction(ctypes.Structure):
         ('k', ctypes.c_uint32)
     ]
 
+
 def attach_filter(sock, byte_comm_id, byte_direction, byte_port):
     """Build a BPF filter for DroneBridge raw protocol v2"""
     # first byte of dst_mac must be 0x01, we overwrite it here to be sure
     u32_port = int.from_bytes(b'\x00\x00\x00'+byte_port, byteorder='big', signed=False)
     u32_direction_comm = int.from_bytes(b'\x00\x00' + byte_direction + byte_comm_id, byteorder='big', signed=False)
-    BPFFILTER =[
+    BPFFILTER = [
                     [0x30,  0,  0, 0x00000003],
                     [0x64,  0,  0, 0x00000008],
                     [0x07,  0,  0, 0000000000],

@@ -1,6 +1,7 @@
 # This file is part of DroneBridge licenced under Apache Licence 2
 # https://github.com/seeul8er/DroneBridge/
 # Created by Wolfgang Christl
+import time
 
 from DroneBridge_Protocol import DBProtocol, DBDir
 
@@ -9,7 +10,8 @@ def main():
     """
     Example of how to use the DroneBridge python lib to send & receive your custom data.
      -- Run using root privileges! --
-    WARNING: WIP - Not tested!
+     -- set interface_drone_comm to your wifi adapter! --
+
     Run on UAV using the DroneBridge image. If used with EZ-WBC image you need to install some extra packages for
     python3. If not executed on DroneBridge/WBC rpi-image the wifi adapters must be in monitor mode and patched with
     patches provided by EZ-WBC project.
@@ -19,7 +21,7 @@ def main():
     ip_rx = "192.168.2.2"  # relict - set to something - not used
     udp_port_smartphone = udp_port_rx  # not used - choose any
 
-    comm_direction = DBDir.DB_TO_GND  # On ground station we want to send stuff to UAV (do not change)
+    comm_direction = DBDir.DB_TO_GND  # On UAV we want to send stuff to ground station (do not change)
     interface_drone_comm = "000ee8dcaa2c"  # Interface name of your wifi adapter (with DroneBridge & WBC it is the MAC)
     mode = "m"  # not used - tell him to use long range link and not wifi - wifi will be implemented in a later stage
     communication_id = 201  # Must be same on ground and UAV - identifies a link - choose a number between 0-255
@@ -32,15 +34,18 @@ def main():
     db_protocol = DBProtocol(udp_port_rx, ip_rx, udp_port_smartphone, comm_direction, interface_drone_comm, mode,
                              communication_id, dronebridge_port, tag=tag)
     db_lr_socket = db_protocol.getcommsocket()  # get the configured long range socket
-    # receive a packet, parse it, get payload (pure bytes)
-    my_payload = db_protocol.parse_packet(bytearray(db_lr_socket.recv(2048)))
-    # alternative: my_payload = db_protocol.receive_from_db(custom_timeout=2)
-    print("Got: " + str(my_payload) + " from the ground station!")
 
-    # Send something back to your custom port:
-    my_new_payload = b'\x01\x01\x05\x07\x07\x08\x03\x02\x01\x01\x01\x01\x05\x01\x02\x08'
-    db_protocol.sendto_groundstation(my_new_payload, dronebridge_port)
-    print("Sent: " + str(my_new_payload) + " back the ground station!")
+    while True:
+        # receive a packet, parse it, get payload (pure bytes)
+        my_payload = db_protocol.parse_packet(bytearray(db_lr_socket.recv(2048)))
+        # alternative: my_payload = db_protocol.receive_from_db(custom_timeout=2)
+        print("Got: " + str(my_payload) + " from the ground station!")
+
+        # Send something back to your custom port:
+        my_new_payload = b'\x01\x01\x05\x07\x07\x08\x03\x02\x01\x01\x01\x01\x05\x01\x02\x08'
+        db_protocol.sendto_groundstation(my_new_payload, dronebridge_port)
+        print("Sent: " + str(my_new_payload) + " back the ground station!")
+        time.sleep(0.5)
 
 
 if __name__ == "__main__":

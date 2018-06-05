@@ -47,11 +47,17 @@ class DBProtocol:
 
     def __init__(self, udp_port_rx, ip_rx, udp_port_smartphone, comm_direction, interface_drone_comm,
                  mode, communication_id, dronebridge_port, tag=''):
-        self.comm_id = communication_id  # must be the same on drone and groundstation
+        if type(communication_id) is int:
+            self.comm_id = bytes([communication_id])  # must be the same on drone and groundstation
+        else:
+            self.comm_id = communication_id  # must be the same on drone and groundstation
+        assert type(self.comm_id) is bytes
         self.udp_port_rx = udp_port_rx  # 1604
         self.ip_rx = ip_rx
         self.udp_port_smartphone = udp_port_smartphone  # we bind to that locally
+        # direction is stored as DBDir
         self.comm_direction = comm_direction  # set to 0x01 if program runs on groundst. and to 0x03 if runs on drone
+        assert type(self.comm_direction) is DBDir
         self.interface = interface_drone_comm  # the long range interface
         self.mode = mode
         self.tag = tag
@@ -60,11 +66,16 @@ class DBProtocol:
         else:
             self.short_mode = 'm'
         self.fcf = b'\xb4\x00\x00\x00'  # RTS frames
-        self.db_port = dronebridge_port
+        # port is stored as byte value
+        if type(dronebridge_port) is DBPort:
+            self.db_port = dronebridge_port.value
+        else:
+            self.db_port = dronebridge_port
+        assert type(self.db_port) is bytes
         self.comm_sock = self._open_comm_sock()
         # dirty fix till we do some proper code cleanup!
-        if self.comm_direction == DBDir.DB_TO_UAV and \
-                (dronebridge_port == DBPort.DB_PORT_TELEMETRY or dronebridge_port == DBPort.DB_PORT_COMMUNICATION):
+        if self.comm_direction == DBDir.DB_TO_UAV and (self.db_port == DBPort.DB_PORT_TELEMETRY.value or
+                                                       self.db_port == DBPort.DB_PORT_COMMUNICATION.value):
             self.android_sock = self._open_android_udpsocket()
             self.ipgetter = DB_IP_GETTER()
         self.changed = False
@@ -129,7 +140,7 @@ class DBProtocol:
                 else:
                     print(self.tag + "New data from groundstation: " + data.decode())
         else:
-            if self.db_port == DBPort.DB_PORT_TELEMETRY:
+            if self.db_port == DBPort.DB_PORT_TELEMETRY.value:
                 # socket is non-blocking - return if nothing there and keep sending telemetry
                 readable, writable, exceptional = select.select([self.comm_sock], [], [], 0)
                 if readable:
@@ -167,24 +178,28 @@ class DBProtocol:
                     print(self.tag + "Could not send to smartphone ("+self.ip_smartp+"). Make sure it is connected.")
                     return 0
 
-    def sendto_groundstation(self, data_bytes, port_bytes):
+    def sendto_groundstation(self, data_bytes, db_port):
         """Call this function to send stuff to the groundstation"""
+        if type(db_port) is DBPort:
+            db_port = db_port.value
         if self.mode == "wifi":
             num = self._sendto_tx_wifi(data_bytes)
         else:
-            num = self._send_monitor(data_bytes, port_bytes, DBDir.DB_TO_GND)
+            num = self._send_monitor(data_bytes, db_port, DBDir.DB_TO_GND.value)
         return num
 
-    def sendto_uav(self, data_bytes, port_bytes):
+    def sendto_uav(self, data_bytes, db_port):
         """Call this function to send stuff to the drone!"""
+        if type(db_port) is DBPort:
+            db_port = db_port.value
         if self.mode == "wifi":
-            num = self._sendto_rx_wifi(data_bytes, port_bytes)
+            num = self._sendto_rx_wifi(data_bytes, db_port)
         else:
-            num = self._send_monitor(data_bytes, port_bytes, DBDir.DB_TO_UAV)
+            num = self._send_monitor(data_bytes, db_port, DBDir.DB_TO_UAV.value)
         return num
 
     def send_beacon(self):
-        self.sendto_uav('groundstation_beacon'.encode(), DBPort.DB_PORT_TELEMETRY)
+        self.sendto_uav('groundstation_beacon'.encode(), DBPort.DB_PORT_TELEMETRY.value)
 
     def update_routing_gopro(self):
         print(self.tag + "Update iptables to send GoPro stream to " + str(self.ip_rx))
@@ -252,12 +267,12 @@ class DBProtocol:
                     status = self.sendto_smartphone(response_drone, self.APP_PORT_COMM)
             else:
                 message = self._process_db_comm_protocol_type(loaded_json)
-                sentbytes = self.sendto_groundstation(message, DBPort.DB_PORT_COMMUNICATION)
+                sentbytes = self.sendto_groundstation(message, DBPort.DB_PORT_COMMUNICATION.value)
                 if sentbytes == None:
                     status = True
         elif loaded_json['destination'] == 3:
             if self.comm_direction == DBDir.DB_TO_UAV:
-                status = self.sendto_uav(raw_data_encoded, DBPort.DB_PORT_COMMUNICATION)
+                status = self.sendto_uav(raw_data_encoded, DBPort.DB_PORT_COMMUNICATION.value)
             else:
                 change_settings_gopro(loaded_json)
         elif loaded_json['destination'] == 4:
@@ -272,7 +287,7 @@ class DBProtocol:
         message = ""
         if loaded_json['type'] == 'mspcommand':
             # deprecated
-            self.sendto_uav(base64.b64decode(loaded_json['MSP']), DBPort.DB_PORT_CONTROLLER)
+            self.sendto_uav(base64.b64decode(loaded_json['MSP']), DBPort.DB_PORT_CONTROLLER.value)
         elif loaded_json['type'] == 'settingsrequest':
             if self.comm_direction == DBDir.DB_TO_UAV:
                 message = new_settingsresponse_message(loaded_json, 'groundstation')
@@ -292,7 +307,7 @@ class DBProtocol:
         if self.first_run:
             self._clear_monitor_comm_socket_buffer()
             self.first_run = False
-        self.sendto_uav(raw_data_encoded, DBPort.DB_PORT_COMMUNICATION)
+        self.sendto_uav(raw_data_encoded, DBPort.DB_PORT_COMMUNICATION.value)
         response = self.receive_from_db()
         print(self.tag + "Parsed packet received from drone:")
         print(response)
@@ -315,7 +330,7 @@ class DBProtocol:
         Send a packet to drone in wifi mode
         depending on message type different ports/programmes aka front ends on the drone need to be addressed
         """
-        if port_bytes == DBPort.DB_PORT_CONTROLLER:
+        if port_bytes == DBPort.DB_PORT_CONTROLLER.value:
             print(self.tag + "Sending MSP command to RX Controller (wifi)")
             try:
                 # TODO
@@ -357,7 +372,7 @@ class DBProtocol:
         sock = socket(AF_INET, SOCK_DGRAM)
         server_address = ('', self.udp_port_rx)
         sock.bind(server_address)
-        if self.comm_direction == b'\x00':
+        if self.comm_direction.value == b'\x00':
             sock.settimeout(1)
         else:
             sock.setblocking(False)
@@ -369,10 +384,10 @@ class DBProtocol:
         raw_socket.bind((self.interface, 0))
         raw_socket = self._set_comm_socket_behavior(raw_socket)
         if self.comm_direction == DBDir.DB_TO_GND:
-            raw_socket = attach_filter(raw_socket, byte_comm_id=self.comm_id, byte_direction=DBDir.DB_TO_UAV,
+            raw_socket = attach_filter(raw_socket, byte_comm_id=self.comm_id, byte_direction=DBDir.DB_TO_UAV.value,
                                        byte_port=self.db_port)  # filter for packets TO_DRONE
         else:
-            raw_socket = attach_filter(raw_socket, byte_comm_id=self.comm_id, byte_direction=DBDir.DB_TO_GND,
+            raw_socket = attach_filter(raw_socket, byte_comm_id=self.comm_id, byte_direction=DBDir.DB_TO_GND.value,
                                        byte_port=self.db_port)  # filter for packets TO_GROUND
         return raw_socket
 
@@ -380,10 +395,10 @@ class DBProtocol:
         """Set to blocking or non-blocking depending on Module (Telemetry, Communication) and if on drone or ground"""
         adjusted_socket = thesocket
         # On drone side in telemetry module
-        if self.comm_direction == DBDir.DB_TO_GND and self.db_port == DBPort.DB_PORT_TELEMETRY:
+        if self.comm_direction == DBDir.DB_TO_GND and self.db_port == DBPort.DB_PORT_TELEMETRY.value:
             adjusted_socket.setblocking(False)
         # On ground side in comm module
-        elif self.comm_direction == DBDir.DB_TO_UAV and self.db_port == DBPort.DB_PORT_COMMUNICATION:
+        elif self.comm_direction == DBDir.DB_TO_UAV and self.db_port == DBPort.DB_PORT_COMMUNICATION.value:
             adjusted_socket.setblocking(False)
         return adjusted_socket
 
@@ -402,7 +417,7 @@ class DBProtocol:
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        if self.db_port == DBPort.DB_PORT_COMMUNICATION:
+        if self.db_port == DBPort.DB_PORT_COMMUNICATION.value:
             address = ('', self.udp_port_smartphone)
             sock.bind(address)
         sock.setblocking(False)

@@ -1,6 +1,7 @@
 # This file is part of DroneBridge licenced under Apache Licence 2
 # https://github.com/seeul8er/DroneBridge/
 # Created by Wolfgang Christl
+import time
 
 from DroneBridge_Protocol import DBProtocol, DBDir
 
@@ -9,7 +10,8 @@ def main():
     """
     Example of how to use the DroneBridge python lib to send & receive your custom data.
      -- Run using root privileges! --
-    WARNING: WIP - Not tested!
+     -- set interface_drone_comm to your wifi adapter! --
+
     Run on ground station using the DroneBridge image. If used with EZ-WBC image you need to install some extra packages
     python3. If not executed on DroneBridge/WBC rpi-image the wifi adapters must be in monitor mode and patched with
     patches provided by EZ-WBC project.
@@ -31,17 +33,20 @@ def main():
 
     db_protocol = DBProtocol(udp_port_rx, ip_rx, udp_port_smartphone, comm_direction, interface_drone_comm, mode,
                              communication_id, dronebridge_port, tag=tag)
-    # receive a packet, parse it, get payload (pure bytes)
-    my_payload = db_protocol.receive_from_db(custom_timeout=2)  # return False if nothing received
-    # alternative:
-    # db_lr_socket = db_protocol.getcommsocket()  # get the configured long range socket
-    # my_payload = db_protocol.parse_packet(bytearray(db_lr_socket.recv(2048)))
-    print("Got: " + str(my_payload) + " from the UAV!")
 
-    # Send something to your custom port:
-    my_new_payload = b'\x05\x05\x05\x06\x06\x07\x07\x01\x02\x03\x04\x05\x06\x07\x08\x09'
-    db_protocol.sendto_uav(my_new_payload, dronebridge_port)
-    print("Sent: " + str(my_new_payload) + " back the UAV!")
+    while True:
+        # receive a packet, parse it, get payload (pure bytes)
+        my_payload = db_protocol.receive_from_db(custom_timeout=2)  # return False if nothing received
+        # alternative:
+        # db_lr_socket = db_protocol.getcommsocket()  # get the configured long range socket
+        # my_payload = db_protocol.parse_packet(bytearray(db_lr_socket.recv(2048)))
+        print("Got: " + str(my_payload) + " from the UAV!")
+
+        # Send something to your custom port:
+        my_new_payload = b'\x05\x05\x05\x06\x06\x07\x07\x01\x02\x03\x04\x05\x06\x07\x08\x09'
+        db_protocol.sendto_uav(my_new_payload, dronebridge_port)
+        print("Sent: " + str(my_new_payload) + " back the UAV!")
+        time.sleep(0.5)
 
 
 if __name__ == "__main__":

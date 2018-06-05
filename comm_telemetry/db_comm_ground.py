@@ -56,7 +56,7 @@ def main():
     print("DB_Comm_GROUND: Communication ID: " + str(comm_id))
 
     dbprotocol = DBProtocol(UDP_Port_RX, IP_RX, UDP_PORT_ANDROID, DBDir.DB_TO_UAV, interface_drone_comm, mode,
-                            comm_id, DBPort.DB_PORT_COMMUNICATION, tag='DB_Comm_Ground: ')
+                            comm_id, DBPort.DB_PORT_COMMUNICATION, tag='DB_Comm_GROUND: ')
     last_keepalive = 0
 
     while True:
