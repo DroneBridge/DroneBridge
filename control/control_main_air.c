@@ -1,8 +1,21 @@
-//
-// Created by Wolfgang Christl on 30.11.17.
-// This file is part of DroneBridge
-// https://github.com/seeul8er/DroneBridge
-//
+/*
+ *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+ *
+ *   Copyright 2018 Wolfgang Christl
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ *
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +35,7 @@
 #include "rc_air.h"
 #include "../common/mavlink/c_library_v2/common/mavlink.h"
 #include "../common/msp_serial.h"
+#include "../common/ccolors.h"
 
 
 #define ETHER_TYPE	    0x88ab
@@ -181,7 +195,7 @@ int main(int argc, char *argv[])
     int socket_control_serial = -1;
     do
     {
-        socket_control_serial = open(usbIF, O_RDWR | O_NOCTTY);
+        socket_control_serial = open(usbIF, O_RDWR | O_NOCTTY | O_SYNC);
         if (socket_control_serial == -1)
         {
             printf("DB_CONTROL_AIR: Error - Unable to open UART for MSP/MAVLink.  Ensure it is not in use by another "
@@ -216,12 +230,11 @@ int main(int argc, char *argv[])
     if (use_sumd == 'Y'){
         do
         {
-            socket_rc_serial = open(usbIF, O_RDWR | O_NOCTTY);
+            socket_rc_serial = open(sumd_interface, O_WRONLY | O_NOCTTY | O_SYNC);
             if (socket_rc_serial == -1)
             {
-                printf("DB_CONTROL_AIR: Error - Unable to open UART for SUMD RC.  Ensure it is not in use by another "
-                               "application and the FC is connected\n");
-                printf("DB_CONTROL_AIR: retrying ...\n");
+                printf(RED "DB_CONTROL_AIR: Error - Unable to open UART for SUMD RC.  Ensure it is not in use by another"
+                               " application and the FC is connected. Retrying ... "RESET"\n");
                 sleep(1);
             }
         }
@@ -229,11 +242,12 @@ int main(int argc, char *argv[])
 
         struct termios options_rc;
         tcgetattr(socket_rc_serial, &options_rc);
-        cfsetospeed(&options, B115200);
-        options_rc.c_cflag =  CS8 | CLOCAL;
-        options_rc.c_iflag = IGNPAR;
-        options_rc.c_oflag = 0;
-        options_rc.c_lflag = 0;
+        cfsetospeed(&options_rc, B115200);
+        options_rc.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+        options_rc.c_oflag &= ~(OCRNL | ONLCR | ONLRET | ONOCR | OFILL | OPOST);
+        options_rc.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+        options_rc.c_cflag &= ~(CSIZE | PARENB);
+        options_rc.c_cflag |= CS8;
         tcflush(socket_rc_serial, TCIFLUSH);
         tcsetattr(socket_rc_serial, TCSANOW, &options_rc);
         rc_serial_socket = socket_rc_serial;
@@ -305,7 +319,7 @@ int main(int argc, char *argv[])
                         tcdrain(rc_serial_socket);
                         if(sentbytes <= 0)
                         {
-                            printf(" RC NOT WRITTEN because of error: %s\n", strerror(errsv));
+                            printf(RED "RC NOT WRITTEN because of error: %s"RESET"\n", strerror(errsv));
                         }
                         // TODO: check if necessary. It shouldn't as we use blocking UART socket
                         // tcflush(rc_serial_socket, TCOFLUSH);
@@ -328,9 +342,9 @@ int main(int argc, char *argv[])
                     memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], (size_t) command_length);
                     sentbytes = (int) write(socket_control_serial, commandBuf, (size_t) command_length); errsv = errno;
                     tcdrain(socket_control_serial);
-                    if(sentbytes <= 0)
+                    if(sentbytes < command_length)
                     {
-                        printf(" MSP/MAVLink NOT WRITTEN because of error: %s\n", strerror(errsv));
+                        printf(RED"MSP/MAVLink NOT WRITTEN because of error: %s"RESET"\n", strerror(errsv));
                     }
                     // TODO: check if necessary. It shouldn't as we use blocking UART socket
                     tcflush(socket_control_serial, TCOFLUSH);

@@ -1,9 +1,5 @@
 /*
  *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
- *   This is the DroneBridge Proxy module. It routes UDP <-> DroneBridge Control module and is used to send MSP/MAVLink
- *   messages
- *   This module might act as a reference design for future modules
- *   Link over DroneBridge Proxy module is fully transparent
  *
  *   Copyright 2018 Wolfgang Christl
  *

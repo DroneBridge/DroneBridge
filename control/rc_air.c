@@ -1,8 +1,22 @@
-//
-// Created by Wolfgang Christl on 10.12.17.
-// This file is part of DroneBridge
-// https://github.com/seeul8er/DroneBridge
-//
+/*
+ *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+ *
+ *   Copyright 2018 Wolfgang Christl
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ *
+ */
+
 #include <stdint.h>
 #include <stdio.h>
 #include "rc_air.h"
@@ -61,9 +75,9 @@ void generate_sumd(uint16_t *rc_channel_data){
     for (i_sumd_air = 0; i_sumd_air < 27; i_sumd_air++) {
         crc_sumd_air = (crc_sumd_air << 8) ^ crc_sumd_table[(crc_sumd_air >> 8) ^ serial_data_buffer[i_sumd_air]];
     }
-    crc_sumd_air = 0;
     serial_data_buffer[27] = (uint8_t) ((crc_sumd_air >> 8) & 0xFF);
     serial_data_buffer[28] = (uint8_t) (crc_sumd_air & 0xFF);
+    crc_sumd_air = 0;
 }
 
 void generate_msp(uint16_t *rc_channel_data) {
