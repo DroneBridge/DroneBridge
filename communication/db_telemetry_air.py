@@ -25,7 +25,7 @@ MavLink_chunksize = 128  # bytes
 
 
 def openTXUDP_Socket():
-    print("DB_TEL_AIR: Opening UDP-Socket towards TX-Pi - listening on port " + str(UDP_Port_TX))
+    print("DB_TEL_AIR: Opening UDP socket towards TX-Pi - listening on port " + str(UDP_Port_TX))
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_address = ('', UDP_Port_TX)
     sock.bind(server_address)
@@ -33,7 +33,7 @@ def openTXUDP_Socket():
 
 
 def openFCTel_Socket(baud_rate):
-    print("DB_TEL_AIR: Opening Telemetrie-Socket " + SerialPort + " (to listen to FC)")
+    print("DB_TEL_AIR: Opening telemetry socket " + SerialPort + " (to listen to FC)")
     ser = serial.Serial(SerialPort, baudrate=baud_rate, timeout=None)
     return ser
 
@@ -58,16 +58,16 @@ def read_LTM_Frame(functionbyte, serial_socket):
     elif functionbyte == b'X':
         return bytes(bytearray(b'$TX' + serial_socket.read(LTM_sizeAtt)))
     else:
-        print("unknown Frame!")
+        print("DB_TEL_AIR: unknown frame!")
         return b'$T?'
 
 
 def isitLTM_telemetry(telemetry_socket):
-    for i in range(1,50):
+    for i in range(1, 50):
         if telemetry_socket.read() == b'$':
             if telemetry_socket.read() == b'T':
                 if check_LTM_crc_valid(read_LTM_Frame(telemetry_socket.read(), telemetry_socket)):
-                    print("DB_RX_TEL: Detected LTM telemetry stream")
+                    print("DB_TEL_AIR: Detected LTM telemetry stream")
                     return True
     print("DB_TEL_AIR: Detected possible MavLink telemetry stream.")
     return False
@@ -78,7 +78,7 @@ def check_LTM_crc_valid(bytes_LTM_complete):
     crc = 0x00
     for byte in bytes_LTM_complete[3:]:
         crc = crc ^ (byte & 0xFF)
-    return (crc == 0)
+    return crc == 0
 
 
 def setupVideo(mode):
@@ -129,7 +129,7 @@ def main():
         telemetry_selection_auto = True
         isLTMTel = False
     comm_id = bytes([parsedArgs.comm_id])
-    # print("DB_RX_TEL: Communication ID: " + comm_id.hex()) # only works in python 3.5
+    # print("DB_TEL_AIR: Communication ID: " + comm_id.hex()) # only works in python 3.5
     print("DB_TEL_AIR: Communication ID: " + str(comm_id))
     dbprotocol = DBProtocol(UDP_Port_TX, IP_TX, 0, DBDir.DB_TO_GND, DB_INTERFACE, mode, comm_id,
                             DBPort.DB_PORT_TELEMETRY, tag='DB_TEL_AIR: ')

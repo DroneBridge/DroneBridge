@@ -1,11 +1,24 @@
 /*
- *   Created by Wolfgang Christl
- *   This file is part of DroneBridge
- *   https://github.com/seeul8er/DroneBridge
+ *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
  *   This is the DroneBridge Proxy module. It routes UDP <-> DroneBridge Control module and is used to send MSP/MAVLink
  *   messages
  *   This module might act as a reference design for future modules
  *   Link over DroneBridge Proxy module is fully transparent
+ *
+ *   Copyright 2018 Wolfgang Christl
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ *
  */
 
 #include <stdio.h>
@@ -24,7 +37,7 @@
 #include "../common/ccolors.h"
 
 bool volatile keeprunning = true;
-char if_name_proxy[IFNAMSIZ], if_name_telem[IFNAMSIZ];
+char if_name_telemetry[IFNAMSIZ], if_name_telem[IFNAMSIZ];
 char db_mode, enable_telemetry_module, write_to_osdfifo;
 uint8_t comm_id = DEFAULT_V2_COMMID;
 int c, app_port_proxy, app_port_telem, bitrate_op;
@@ -35,7 +48,7 @@ void intHandler(int dummy)
 }
 
 int process_command_line_args(int argc, char *argv[]){
-    strncpy(if_name_proxy, DEFAULT_DB_IF, IFNAMSIZ);
+    strncpy(if_name_telemetry, DEFAULT_DB_IF, IFNAMSIZ);
     strncpy(if_name_telem, DEFAULT_DB_IF, IFNAMSIZ);
     db_mode = DEFAULT_DB_MODE;
     enable_telemetry_module = 'Y';
@@ -49,7 +62,7 @@ int process_command_line_args(int argc, char *argv[]){
         switch (c)
         {
             case 'n':
-                strncpy(if_name_proxy, optarg, IFNAMSIZ);
+                strncpy(if_name_telemetry, optarg, IFNAMSIZ);
                 break;
             case 'i':
                 strncpy(if_name_telem, optarg, IFNAMSIZ);
@@ -114,7 +127,7 @@ int main(int argc, char *argv[]) {
     process_command_line_args(argc, argv);
 
     // set up long range receiving socket
-    int lr_socket_proxy = open_socket_send_receive(if_name_proxy, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_PROXY);
+    int lr_socket_proxy = open_socket_send_receive(if_name_telemetry, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_PROXY);
     int lr_socket_telem = open_receive_socket(if_name_telem, db_mode, comm_id, DB_DIREC_GROUND, DB_PORT_TELEMETRY);
     int udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
     int fifo_osd = -1;

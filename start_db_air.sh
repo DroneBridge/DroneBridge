@@ -77,12 +77,13 @@ echo "DroneBridge-Air: Trying to start individual modules..."
 
 if [ "$en_comm" = "Y" ]; then
 	echo "DroneBridge-Air: Starting communication module..."
-	python3 comm_telemetry/db_comm_air.py -n $interface_comm -m $mode -c $comm_id &
+	python3 communication/db_comm_air.py -n $interface_comm -m $mode -c $comm_id &
 fi
 
 if [ "$en_tel" = "Y" ]; then
 	echo "DroneBridge-Air: Starting telemetry module..."
-	python3 comm_telemetry/db_telemetry_air.py -n $interface_tel -f $serial_int_tel -r $baud_tel -m $mode -c $comm_id -l $tel_proto &
+	./telemetry/telemetry_air -n $interface_tel -f $serial_int_tel -r $baud_tel -m $mode -c $comm_id -l $tel_proto &
+	# python3 communication/db_telemetry_air.py -n $interface_tel -f $serial_int_tel -r $baud_tel -m $mode -c $comm_id -l $tel_proto &
 fi
 
 if [ "$en_control" = "Y" ]; then
