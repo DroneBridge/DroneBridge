@@ -15,7 +15,7 @@ else()
             db_get_ip.h
             db_raw_receive.c
             db_raw_receive.h db_raw_send_receive.c wifibroadcast.h wbc_lib.h db_crc.h shared_memory.c shared_memory.h
-            mavlink msp_serial.c msp_serial.h db_crc.c ccolors.h)
+            mavlink msp_serial.c msp_serial.h db_crc.c ccolors.h db_debug_utils.c db_debug_utils.h)
 
 
     add_library(db_common STATIC ${LIB_SRCS})

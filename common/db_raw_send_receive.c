@@ -59,7 +59,8 @@ int socket_send_receive;
 uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH] = {0};
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
 struct db_raw_v2_header *db_raw_header = (struct db_raw_v2_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
-struct data_uni *monitor_databuffer_internal = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+struct data_uni *monitor_databuffer_internal = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH +
+        DB_RAW_V2_HEADER_LENGTH);
 
 /**
  * Set the transmission bit rate in the radiotap header. Only works with ralink cards.
@@ -290,6 +291,32 @@ int send_packet_hp(uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_
     db_raw_header->seq_num = new_seq_num;
     if (sendto(socket_send_receive, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
             payload_length), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
+        printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * This function works the same as send_packet with the difference that it allows for soft. diversity transmission.
+ * You can specify a socket (bound to an interface) that should be used to send the packet.
+ * Overwrites payload set inside monitor_framebuffer with the provided payload.
+ * @param payload The payload bytes of the message to be sent. Does use memcpy to write payload into buffer.
+ * @param dest_port The DroneBridge destination port of the message (see db_protocol.h)
+ * @param payload_length The length of the payload in bytes
+ * @param new_seq_num Specify the sequence number of the packet
+ * @return 0 on success or -1 on failure
+ */
+int send_packet_div(db_socket *a_db_socket, uint8_t payload[], uint8_t dest_port, u_int16_t payload_length,
+                    uint8_t new_seq_num){
+    db_raw_header->payload_length[0] = (uint8_t) (payload_length & (uint8_t) 0xFF);
+    db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> (uint8_t) 8) & (uint8_t) 0xFF);
+    db_raw_header->port = dest_port;
+    db_raw_header->seq_num = new_seq_num;
+    memcpy(monitor_databuffer_internal->bytes, payload, payload_length);
+    if (sendto(a_db_socket->db_socket, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
+                                                                   payload_length), 0,
+               (struct sockaddr *) &a_db_socket->db_socket_addr, sizeof(struct sockaddr_ll)) < 0) {
         printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
         return -1;
     }

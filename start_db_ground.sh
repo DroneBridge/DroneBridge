@@ -67,7 +67,7 @@ python3 comm_telemetry/db_ip_checker.py &
 
 if [ $en_comm = "Y" ]; then
 	echo "DroneBridge-Ground: Starting communication module..."
-	python3 comm_telemetry/db_comm_ground.py -n $interface_comm -p 1604 -u $comm_port_local -m $mode -c $comm_id &
+	python3 communication/db_comm_ground.py -n $interface_comm -p 1604 -u $comm_port_local -m $mode -c $comm_id &
 fi
 
 echo "DroneBridge-Ground: Starting status module..."
@@ -75,11 +75,6 @@ echo "DroneBridge-Ground: Starting status module..."
 
 echo "DroneBridge-Ground: Starting proxy module..."
 ./proxy/proxy -n $interface_proxy -m $mode -p $proxy_port_local_remote -c $comm_id -i $interface_tel -l 1604 &
-
-# if [ $en_tel = "Y" ]; then
-# echo "DroneBridge-Ground: Starting telemetry module..."
-# python3 comm_telemetry/db_telemetry_ground.py -n $interface_tel -p 1604 -m $mode -c $comm_id &
-# fi
 
 if [ $en_control = "Y" ]; then
 	echo "DroneBridge-Ground: Starting controller module..."
