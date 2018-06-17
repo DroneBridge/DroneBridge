@@ -34,7 +34,7 @@
 uint16_t app_port_proxy = APP_PORT_PROXY;
 uint16_t app_port_telem = APP_PORT_TELEMETRY;
 struct sockaddr_in client_telem_addr, client_proxy_addr, server_addr;
-char const *TAG = "DB_CONTROL: ";
+char const *TAG = "DB_CONTROL";
 int udp_socket = -1, serial_socket = -1;
 uint8_t msp_message_buffer[UART_BUF_SIZE];
 
@@ -73,7 +73,7 @@ int open_udp_socket() {
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     server_addr.sin_port = htons(app_port_proxy);
 
-    ESP_LOGI(TAG, "bind_udp_server port:%d", app_port_proxy);
+    ESP_LOGI(TAG, "bound udp server to port: %d", app_port_proxy);
     udp_socket = lwip_socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (udp_socket < 0) {
         show_socket_error_reason(udp_socket);
@@ -97,7 +97,7 @@ int open_serial_socket() {
     };
     ESP_ERROR_CHECK(uart_param_config(UART_NUM_2, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_2, DB_UART_PIN_TX, DB_UART_PIN_RX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, 1024*2, 0, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, 1024, 0, 0, NULL, 0));
     if ((serial_socket = open("/dev/uart/2", O_RDWR)) == -1) {
         ESP_LOGE(TAG, "Cannot open UART2");
         close(serial_socket); serial_socket = -1; uart_driver_delete(UART_NUM_2);
@@ -115,20 +115,18 @@ void parse_send_msp_ltm_message(){
     bool continue_reading = true;
     uint serial_read_bytes = 0;
     while (continue_reading){
-        if (read(serial_socket, &serial_byte, 1) > 0) {
-        //if (uart_read_bytes(UART_NUM_2, &serial_byte, 1, 20 / portTICK_RATE_MS) > 0) {
+        //if (read(serial_socket, &serial_byte, 1) > 0) {
+        if (uart_read_bytes(UART_NUM_2, &serial_byte, 1, 2000 / portTICK_RATE_MS) > 0) {
             serial_read_bytes++;
-            ESP_LOGI(TAG, "Read one byte form UART!");
-            // if MSP parser returns false stop reading from serial. We are reading shit or started
-            // reading during the middle of a message
             if (mspSerialProcessReceivedData(&db_msp_port, serial_byte)){
                 msp_message_buffer[(serial_read_bytes-1)] = serial_byte;
                 if (db_msp_port.c_state == MSP_COMMAND_RECEIVED){
                     continue_reading = false;
-                    ESP_LOGI(TAG, "Got MSP message!");
-                    if (client_connected)
+                    if (client_connected){
                         lwip_sendto(udp_socket, msp_message_buffer, (size_t) serial_read_bytes, 0,
-                                (struct sockaddr *) &client_proxy_addr, sizeof (client_proxy_addr));
+                                    (struct sockaddr *) &client_proxy_addr, sizeof (client_proxy_addr));
+                        ESP_LOGI(TAG, "Sent MSP message!");
+                    }
                 } else if (db_msp_port.c_state == LTM_COMMAND_RECEIVED){
                     continue_reading = false;
                     ESP_LOGI(TAG, "Got LTM message!");
@@ -137,10 +135,10 @@ void parse_send_msp_ltm_message(){
                                 (struct sockaddr *) &client_telem_addr, sizeof (client_telem_addr));
                 }
             } else {
-                continue_reading = 0;
+                continue_reading = false;
             }
         } else {
-            ESP_LOGI(TAG,"Could not read form UART!");
+            ESP_LOGI(TAG,"Cound not parse MSP|LTM - timeout - read error!");
         }
     }
 }
@@ -155,12 +153,8 @@ void control_module(void *pvParameter){
     int setup_success = 1, recv_len;
     char udp_buffer[UDP_BUF_SIZE];
     fd_set fd_socket_set;
-    struct timeval tv = {
-            .tv_sec = 1,
-            .tv_usec = 0,
-    };
+
     memset(udp_buffer, 0, UDP_BUF_SIZE);
-    uint8_t *uart_buffer = (uint8_t *) malloc(UART_BUF_SIZE);
     socklen_t proxy_addr_length = sizeof(client_proxy_addr);
 
     if (open_udp_socket() == ESP_FAIL) setup_success = 0;
@@ -168,22 +162,13 @@ void control_module(void *pvParameter){
     if (setup_success){
         ESP_LOGI(TAG, "setup complete!");
     }
-//    for (int i = 0; i < 1000; ++i) {
-//        char buf;
-//        if (read(serial_socket, &buf, 1) > 0) {
-//            ESP_LOGI(TAG, "Received: %c", buf);
-//        }
-//    }
     while(setup_success){
         FD_ZERO(&fd_socket_set);
-        //FD_SET(udp_socket, &fd_socket_set);
-        FD_SET(serial_socket, &fd_socket_set);
-        //int select_return = select(MAX(serial_socket, udp_socket) + 1, &fd_socket_set, NULL, NULL, &tv);
-        int select_return = select(serial_socket + 1, &fd_socket_set, NULL, NULL, &tv);
+        FD_SET(udp_socket, &fd_socket_set);
+        //FD_SET(serial_socket, &fd_socket_set);
+        int select_return = select(MAX(serial_socket, udp_socket) + 1, &fd_socket_set, NULL, NULL, NULL);
         if(select_return < 0) {
             ESP_LOGE(TAG, "select() returned error: %s", strerror(errno));
-        }else if (select_return == 0){
-            ESP_LOGW(TAG, "select timeout!");
         }else if (select_return > 0){
             if (FD_ISSET(udp_socket, &fd_socket_set)){
                 recv_len = lwip_recvfrom_r(udp_socket, udp_buffer, UDP_BUF_SIZE, 0,
@@ -193,35 +178,10 @@ void control_module(void *pvParameter){
                     ESP_LOGE(TAG,"recvfrom");
                     break;
                 }
-                ESP_LOGI(TAG, "Got UDP packet");
-                if ((recv_len + 1) < UDP_BUF_SIZE) udp_buffer[recv_len + 1] = '\0';
-                ESP_LOGI(TAG, "wrote %i bytes to UART", uart_write_bytes(UART_NUM_2, udp_buffer, (size_t) recv_len));
+                //ESP_LOGI(TAG, "Got UDP packet");
+                uart_write_bytes(UART_NUM_2, udp_buffer, (size_t) recv_len);
+                parse_send_msp_ltm_message();
             }
-            if (FD_ISSET(serial_socket, &fd_socket_set)){
-                int uart_recv_length = uart_read_bytes(UART_NUM_2, uart_buffer, UART_BUF_SIZE, 20 / portTICK_RATE_MS);
-                ESP_LOGI(TAG, "Got %i from serial socket!", uart_recv_length);
-//                char buf;
-//                if (read(serial_socket, &buf, 1) > 0) {
-//                    ESP_LOGI(TAG, "Received: %c", buf);
-//                } else {
-//                    ESP_LOGE(TAG, "UART read error");
-//                    break;
-//                }
-//                switch (SERIAL_PROTOCOL){
-//                    default:
-//                    case 1:
-//                    case 2:
-//                        printf(TAG, "Got MSP on serial port!\n");
-//                        parse_send_msp_ltm_message();
-//                        break;
-//                    case 3:
-//                    case 4:
-//                    case 5:
-//                        // transparent buffer
-//                        break;
-//                }
-            }
-        }
     }
     close(udp_socket);
     close(serial_socket);

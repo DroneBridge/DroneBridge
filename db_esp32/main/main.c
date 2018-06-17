@@ -31,7 +31,7 @@
 #include "globals.h"
 
 static EventGroupHandle_t wifi_event_group;
-static const char *TAG = "DB_ESP32 - ";
+static const char *TAG = "DB_ESP32";
 
 bool client_connected = false;
 char DEST_IP[15] = "192.168.2.2";
