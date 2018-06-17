@@ -17,6 +17,7 @@
  *
  */
 
+#include <stdio.h>
 #include <nvs_flash.h>
 #include <esp_event.h>
 #include <driver/uart.h>

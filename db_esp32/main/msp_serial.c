@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "msp_serial.h"
-#include "../db_crc/db_crc.h"
+#include "db_crc.h"
 
 /**
  * This function is part of Cleanflight/iNAV.
