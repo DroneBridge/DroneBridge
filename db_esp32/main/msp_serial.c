@@ -26,171 +26,237 @@
  * You should have received a copy of the GNU General Public License
  * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
  */
-bool mspSerialProcessReceivedData(mspPort_t *mspPort, uint8_t c)
+bool parse_msp_ltm_byte(msp_ltm_port_t *msp_ltm_port, uint8_t new_byte)
 {
-    switch (mspPort->c_state) {
+    switch (msp_ltm_port->parse_state) {
         default:
-        case MSP_IDLE:      // Waiting for '$' character
-            if (c == '$') {
-                mspPort->mspVersion = MSP_V1;
-                mspPort->c_state = MSP_HEADER_START;
+        case IDLE:
+            if (new_byte == '$') {
+                msp_ltm_port->mspVersion = MSP_V1;
+                msp_ltm_port->parse_state = HEADER_START;
             }
             else {
                 return false;
             }
             break;
 
-        case MSP_HEADER_START:  // Waiting for 'M' (MSPv1 / MSPv2_over_v1) or 'X' (MSPv2 native)
-            switch (c) {
+        case HEADER_START:
+            switch (new_byte) {
                 case 'M':
-                    mspPort->c_state = MSP_HEADER_M;
+                    msp_ltm_port->parse_state = MSP_HEADER_M;
                     break;
                 case 'X':
-                    mspPort->c_state = MSP_HEADER_X;
+                    msp_ltm_port->parse_state = MSP_HEADER_X;
                     break;
+                case 'T':
+                    msp_ltm_port->parse_state = LTM_HEADER;
                 default:
-                    mspPort->c_state = MSP_IDLE;
+                    msp_ltm_port->parse_state = IDLE;
                     break;
             }
             break;
 
-        case MSP_HEADER_M:      // Waiting for '<'
-            if (c == '>') {
-                mspPort->offset = 0;
-                mspPort->checksum1 = 0;
-                mspPort->checksum2 = 0;
-                mspPort->c_state = MSP_HEADER_V1;
+        case LTM_HEADER:
+            switch (new_byte){
+                case 'A':
+                    msp_ltm_port->ltm_type = LTM_TYPE_A;
+                    msp_ltm_port->parse_state = LTM_TYPE_IDENT;
+                    break;
+                case 'G':
+                    msp_ltm_port->ltm_type = LTM_TYPE_G;
+                    msp_ltm_port->parse_state = LTM_TYPE_IDENT;
+                    break;
+                case 'N':
+                    msp_ltm_port->ltm_type = LTM_TYPE_N;
+                    msp_ltm_port->parse_state = LTM_TYPE_IDENT;
+                    break;
+                case 'O':
+                    msp_ltm_port->ltm_type = LTM_TYPE_O;
+                    msp_ltm_port->parse_state = LTM_TYPE_IDENT;
+                    break;
+                case 'S':
+                    msp_ltm_port->ltm_type = LTM_TYPE_S;
+                    msp_ltm_port->parse_state = LTM_TYPE_IDENT;
+                    break;
+                case 'X':
+                    msp_ltm_port->ltm_type = LTM_TYPE_X;
+                    msp_ltm_port->parse_state = LTM_TYPE_IDENT;
+                    break;
+                default:
+                    msp_ltm_port->parse_state = IDLE;
+            }
+            break;
+
+        case LTM_TYPE_IDENT:
+            msp_ltm_port->ltm_payload_cnt++;
+            msp_ltm_port->checksum1 ^= new_byte;
+            switch (msp_ltm_port->ltm_type){
+                case LTM_TYPE_A:
+                case LTM_TYPE_N:
+                case LTM_TYPE_X:
+                    if (msp_ltm_port->ltm_payload_cnt == LTM_TYPE_A_PAYLOAD_SIZE) msp_ltm_port->parse_state = LTM_CRC;
+                    break;
+                case LTM_TYPE_G:
+                case LTM_TYPE_O:
+                    if (msp_ltm_port->ltm_payload_cnt == LTM_TYPE_G_PAYLOAD_SIZE) msp_ltm_port->parse_state = LTM_CRC;
+                    break;
+                case LTM_TYPE_S:
+                    if (msp_ltm_port->ltm_payload_cnt == LTM_TYPE_S_PAYLOAD_SIZE) msp_ltm_port->parse_state = LTM_CRC;
+                    break;
+                default:
+                    msp_ltm_port->ltm_payload_cnt = 0;
+                    msp_ltm_port->checksum1 = 0;
+                    msp_ltm_port->parse_state = IDLE;
+            }
+            break;
+
+        case LTM_CRC:
+            msp_ltm_port->ltm_payload_cnt = 0;
+            msp_ltm_port->checksum1 ^= new_byte;
+            if (msp_ltm_port->checksum1 == 0){
+                msp_ltm_port->parse_state = LTM_PACKET_RECEIVED;
+            } else {
+                msp_ltm_port->checksum1 = 0;
+                msp_ltm_port->parse_state = IDLE;
+            }
+            break;
+
+        case MSP_HEADER_M:
+            if (new_byte == '>') {
+                msp_ltm_port->offset = 0;
+                msp_ltm_port->checksum1 = 0;
+                msp_ltm_port->checksum2 = 0;
+                msp_ltm_port->parse_state = MSP_HEADER_V1;
             }
             else {
-                mspPort->c_state = MSP_IDLE;
+                msp_ltm_port->parse_state = IDLE;
             }
             break;
 
         case MSP_HEADER_X:
-            if (c == '>') {
-                mspPort->offset = 0;
-                mspPort->checksum2 = 0;
-                mspPort->mspVersion = MSP_V2_NATIVE;
-                mspPort->c_state = MSP_HEADER_V2_NATIVE;
+            if (new_byte == '>') {
+                msp_ltm_port->offset = 0;
+                msp_ltm_port->checksum2 = 0;
+                msp_ltm_port->mspVersion = MSP_V2_NATIVE;
+                msp_ltm_port->parse_state = MSP_HEADER_V2_NATIVE;
             }
             else {
-                mspPort->c_state = MSP_IDLE;
+                msp_ltm_port->parse_state = IDLE;
             }
             break;
 
-        case MSP_HEADER_V1:     // Now receive v1 header (size/cmd), this is already checksummable
-            mspPort->inBuf[mspPort->offset++] = c;
-            mspPort->checksum1 ^= c;
-            if (mspPort->offset == sizeof(mspHeaderV1_t)) {
-                mspHeaderV1_t * hdr = (mspHeaderV1_t *)&mspPort->inBuf[0];
+        case MSP_HEADER_V1:
+            msp_ltm_port->inBuf[msp_ltm_port->offset++] = new_byte;
+            msp_ltm_port->checksum1 ^= new_byte;
+            if (msp_ltm_port->offset == sizeof(mspHeaderV1_t)) {
+                mspHeaderV1_t * hdr = (mspHeaderV1_t *)&msp_ltm_port->inBuf[0];
                 // Check incoming buffer size limit
                 if (hdr->size > MSP_PORT_INBUF_SIZE) {
-                    mspPort->c_state = MSP_IDLE;
+                    msp_ltm_port->parse_state = IDLE;
                 }
                 else if (hdr->cmd == MSP_V2_FRAME_ID) {
-                    // MSPv1 payload must be big enough to hold V2 header + extra checksum
                     if (hdr->size >= sizeof(mspHeaderV2_t) + 1) {
-                        mspPort->mspVersion = MSP_V2_OVER_V1;
-                        mspPort->c_state = MSP_HEADER_V2_OVER_V1;
+                        msp_ltm_port->mspVersion = MSP_V2_OVER_V1;
+                        msp_ltm_port->parse_state = MSP_HEADER_V2_OVER_V1;
                     }
                     else {
-                        mspPort->c_state = MSP_IDLE;
+                        msp_ltm_port->parse_state = IDLE;
                     }
                 }
                 else {
-                    mspPort->dataSize = hdr->size;
-                    mspPort->cmdMSP = hdr->cmd;
-                    mspPort->cmdFlags = 0;
-                    mspPort->offset = 0;                // re-use buffer
-                    mspPort->c_state = mspPort->dataSize > 0 ? MSP_PAYLOAD_V1 : MSP_CHECKSUM_V1;    // If no payload - jump to checksum byte
+                    msp_ltm_port->dataSize = hdr->size;
+                    msp_ltm_port->cmdMSP = hdr->cmd;
+                    msp_ltm_port->cmdFlags = 0;
+                    msp_ltm_port->offset = 0;
+                    msp_ltm_port->parse_state = msp_ltm_port->dataSize > 0 ? MSP_PAYLOAD_V1 : MSP_CHECKSUM_V1;
                 }
             }
             break;
 
         case MSP_PAYLOAD_V1:
-            mspPort->inBuf[mspPort->offset++] = c;
-            mspPort->checksum1 ^= c;
-            if (mspPort->offset == mspPort->dataSize) {
-                mspPort->c_state = MSP_CHECKSUM_V1;
+            msp_ltm_port->inBuf[msp_ltm_port->offset++] = new_byte;
+            msp_ltm_port->checksum1 ^= new_byte;
+            if (msp_ltm_port->offset == msp_ltm_port->dataSize) {
+                msp_ltm_port->parse_state = MSP_CHECKSUM_V1;
             }
             break;
 
         case MSP_CHECKSUM_V1:
-            if (mspPort->checksum1 == c) {
-                mspPort->c_state = MSP_COMMAND_RECEIVED;
+            if (msp_ltm_port->checksum1 == new_byte) {
+                msp_ltm_port->parse_state = MSP_PACKET_RECEIVED;
             } else {
-                mspPort->c_state = MSP_IDLE;
+                msp_ltm_port->parse_state = IDLE;
             }
             break;
 
-        case MSP_HEADER_V2_OVER_V1:     // V2 header is part of V1 payload - we need to calculate both checksums now
-            mspPort->inBuf[mspPort->offset++] = c;
-            mspPort->checksum1 ^= c;
-            mspPort->checksum2 = crc8_dvb_s2_table(mspPort->checksum2, c);
-            if (mspPort->offset == (sizeof(mspHeaderV2_t) + sizeof(mspHeaderV1_t))) {
-                mspHeaderV2_t * hdrv2 = (mspHeaderV2_t *)&mspPort->inBuf[sizeof(mspHeaderV1_t)];
-                mspPort->dataSize = hdrv2->size;
+        case MSP_HEADER_V2_OVER_V1:
+            msp_ltm_port->inBuf[msp_ltm_port->offset++] = new_byte;
+            msp_ltm_port->checksum1 ^= new_byte;
+            msp_ltm_port->checksum2 = crc8_dvb_s2_table(msp_ltm_port->checksum2, new_byte);
+            if (msp_ltm_port->offset == (sizeof(mspHeaderV2_t) + sizeof(mspHeaderV1_t))) {
+                mspHeaderV2_t * hdrv2 = (mspHeaderV2_t *)&msp_ltm_port->inBuf[sizeof(mspHeaderV1_t)];
+                msp_ltm_port->dataSize = hdrv2->size;
                 if (hdrv2->size > MSP_PORT_INBUF_SIZE) {
-                    mspPort->c_state = MSP_IDLE;
+                    msp_ltm_port->parse_state = IDLE;
                 } else {
-                    mspPort->cmdMSP = hdrv2->cmd;
-                    mspPort->cmdFlags = hdrv2->flags;
-                    mspPort->offset = 0;                // re-use buffer
-                    mspPort->c_state = mspPort->dataSize > 0 ? MSP_PAYLOAD_V2_OVER_V1 : MSP_CHECKSUM_V2_OVER_V1;
+                    msp_ltm_port->cmdMSP = hdrv2->cmd;
+                    msp_ltm_port->cmdFlags = hdrv2->flags;
+                    msp_ltm_port->offset = 0;
+                    msp_ltm_port->parse_state = msp_ltm_port->dataSize > 0 ? MSP_PAYLOAD_V2_OVER_V1 : MSP_CHECKSUM_V2_OVER_V1;
                 }
             }
             break;
 
         case MSP_PAYLOAD_V2_OVER_V1:
-            mspPort->checksum2 = crc8_dvb_s2_table(mspPort->checksum2, c);
-            mspPort->checksum1 ^= c;
-            mspPort->inBuf[mspPort->offset++] = c;
+            msp_ltm_port->checksum2 = crc8_dvb_s2_table(msp_ltm_port->checksum2, new_byte);
+            msp_ltm_port->checksum1 ^= new_byte;
+            msp_ltm_port->inBuf[msp_ltm_port->offset++] = new_byte;
 
-            if (mspPort->offset == mspPort->dataSize) {
-                mspPort->c_state = MSP_CHECKSUM_V2_OVER_V1;
+            if (msp_ltm_port->offset == msp_ltm_port->dataSize) {
+                msp_ltm_port->parse_state = MSP_CHECKSUM_V2_OVER_V1;
             }
             break;
 
         case MSP_CHECKSUM_V2_OVER_V1:
-            mspPort->checksum1 ^= c;
-            if (mspPort->checksum2 == c) {
-                mspPort->c_state = MSP_CHECKSUM_V1; // Checksum 2 correct - verify v1 checksum
+            msp_ltm_port->checksum1 ^= new_byte;
+            if (msp_ltm_port->checksum2 == new_byte) {
+                msp_ltm_port->parse_state = MSP_CHECKSUM_V1;
             } else {
-                mspPort->c_state = MSP_IDLE;
+                msp_ltm_port->parse_state = IDLE;
             }
             break;
 
         case MSP_HEADER_V2_NATIVE:
-            mspPort->inBuf[mspPort->offset++] = c;
-            mspPort->checksum2 = crc8_dvb_s2_table(mspPort->checksum2, c);
-            if (mspPort->offset == sizeof(mspHeaderV2_t)) {
-                mspHeaderV2_t * hdrv2 = (mspHeaderV2_t *)&mspPort->inBuf[0];
+            msp_ltm_port->inBuf[msp_ltm_port->offset++] = new_byte;
+            msp_ltm_port->checksum2 = crc8_dvb_s2_table(msp_ltm_port->checksum2, new_byte);
+            if (msp_ltm_port->offset == sizeof(mspHeaderV2_t)) {
+                mspHeaderV2_t * hdrv2 = (mspHeaderV2_t *)&msp_ltm_port->inBuf[0];
                 if (hdrv2->size > MSP_PORT_INBUF_SIZE) {
-                    mspPort->c_state = MSP_IDLE;
+                    msp_ltm_port->parse_state = IDLE;
                 } else {
-                    mspPort->dataSize = hdrv2->size;
-                    mspPort->cmdMSP = hdrv2->cmd;
-                    mspPort->cmdFlags = hdrv2->flags;
-                    mspPort->offset = 0;                // re-use buffer
-                    mspPort->c_state = mspPort->dataSize > 0 ? MSP_PAYLOAD_V2_NATIVE : MSP_CHECKSUM_V2_NATIVE;
+                    msp_ltm_port->dataSize = hdrv2->size;
+                    msp_ltm_port->cmdMSP = hdrv2->cmd;
+                    msp_ltm_port->cmdFlags = hdrv2->flags;
+                    msp_ltm_port->offset = 0;
+                    msp_ltm_port->parse_state = msp_ltm_port->dataSize > 0 ? MSP_PAYLOAD_V2_NATIVE : MSP_CHECKSUM_V2_NATIVE;
                 }
             }
             break;
 
         case MSP_PAYLOAD_V2_NATIVE:
-            mspPort->checksum2 = crc8_dvb_s2_table(mspPort->checksum2, c);
-            mspPort->inBuf[mspPort->offset++] = c;
+            msp_ltm_port->checksum2 = crc8_dvb_s2_table(msp_ltm_port->checksum2, new_byte);
+            msp_ltm_port->inBuf[msp_ltm_port->offset++] = new_byte;
 
-            if (mspPort->offset == mspPort->dataSize) {
-                mspPort->c_state = MSP_CHECKSUM_V2_NATIVE;
+            if (msp_ltm_port->offset == msp_ltm_port->dataSize) {
+                msp_ltm_port->parse_state = MSP_CHECKSUM_V2_NATIVE;
             }
             break;
 
         case MSP_CHECKSUM_V2_NATIVE:
-            if (mspPort->checksum2 == c) {
-                mspPort->c_state = MSP_COMMAND_RECEIVED;
+            if (msp_ltm_port->checksum2 == new_byte) {
+                msp_ltm_port->parse_state = MSP_PACKET_RECEIVED;
             } else {
-                mspPort->c_state = MSP_IDLE;
+                msp_ltm_port->parse_state = IDLE;
             }
             break;
     }

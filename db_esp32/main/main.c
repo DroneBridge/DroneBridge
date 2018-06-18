@@ -33,12 +33,13 @@
 static EventGroupHandle_t wifi_event_group;
 static const char *TAG = "DB_ESP32";
 
-bool client_connected = false;
+volatile bool client_connected = false;
 char DEST_IP[15] = "192.168.2.2";
-int SERIAL_PROTOCOL = 1;  // 1,2=MSP, 3,4,5=MAVLink/transparent
+volatile int SERIAL_PROTOCOL = 1;  // 1,2=MSP, 3,4,5=MAVLink/transparent
 int DB_UART_PIN_TX = GPIO_NUM_17;
 int DB_UART_PIN_RX = GPIO_NUM_16;
 int DB_UART_BAUD_RATE = 115200;
+int TRANSPARENT_BUF_SIZE = 64;
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
@@ -113,5 +114,5 @@ void app_main()
     ESP_ERROR_CHECK(ret);
     esp_log_level_set("*", ESP_LOG_INFO);
     init_wifi();
-    xTaskCreate(&control_module, "control_task", 4096, NULL, 5, NULL);
+    control_module();
 }

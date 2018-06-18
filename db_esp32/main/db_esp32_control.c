@@ -37,6 +37,7 @@ struct sockaddr_in client_telem_addr, client_proxy_addr, server_addr;
 char const *TAG = "DB_CONTROL";
 int udp_socket = -1, serial_socket = -1;
 uint8_t msp_message_buffer[UART_BUF_SIZE];
+char udp_buffer[UDP_BUF_SIZE];
 
 
 int get_socket_error_code(int socket)
@@ -49,13 +50,6 @@ int get_socket_error_code(int socket)
     }
     return result;
 
-}
-
-int show_socket_error_reason(int socket)
-{
-    int err = get_socket_error_code(socket);
-    ESP_LOGE(TAG, "socket error %d %s", err, strerror(err));
-    return err;
 }
 
 int open_udp_socket() {
@@ -76,14 +70,17 @@ int open_udp_socket() {
     ESP_LOGI(TAG, "bound udp server to port: %d", app_port_proxy);
     udp_socket = lwip_socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (udp_socket < 0) {
-        show_socket_error_reason(udp_socket);
+        int err = get_socket_error_code(udp_socket);
+        ESP_LOGE(TAG, "socket error %d %s", err, strerror(err));
         return ESP_FAIL;
     }
     if (lwip_bind(udp_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        show_socket_error_reason(udp_socket);
+        int err = get_socket_error_code(udp_socket);
+        ESP_LOGE(TAG, "socket error %d %s", err, strerror(err));
         close(udp_socket);
         return ESP_FAIL;
     }
+    memset(udp_buffer, 0, UDP_BUF_SIZE);
     return 1;
 }
 
@@ -109,36 +106,95 @@ int open_serial_socket() {
 /**
  * @brief Parses & sends complete MSP & LTM messages
  */
-void parse_send_msp_ltm_message(){
+void parse_msp_ltm(){
     uint8_t serial_byte;
-    mspPort_t db_msp_port;
+    msp_ltm_port_t db_msp_port;
     bool continue_reading = true;
     uint serial_read_bytes = 0;
     while (continue_reading){
         //if (read(serial_socket, &serial_byte, 1) > 0) {
-        if (uart_read_bytes(UART_NUM_2, &serial_byte, 1, 2000 / portTICK_RATE_MS) > 0) {
+        if (uart_read_bytes(UART_NUM_2, &serial_byte, 1, 200 / portTICK_RATE_MS) > 0) {
             serial_read_bytes++;
-            if (mspSerialProcessReceivedData(&db_msp_port, serial_byte)){
+            if (parse_msp_ltm_byte(&db_msp_port, serial_byte)){
                 msp_message_buffer[(serial_read_bytes-1)] = serial_byte;
-                if (db_msp_port.c_state == MSP_COMMAND_RECEIVED){
+                if (db_msp_port.parse_state == MSP_PACKET_RECEIVED){
                     continue_reading = false;
                     if (client_connected){
                         lwip_sendto(udp_socket, msp_message_buffer, (size_t) serial_read_bytes, 0,
                                     (struct sockaddr *) &client_proxy_addr, sizeof (client_proxy_addr));
                         ESP_LOGI(TAG, "Sent MSP message!");
                     }
-                } else if (db_msp_port.c_state == LTM_COMMAND_RECEIVED){
+                } else if (db_msp_port.parse_state == LTM_PACKET_RECEIVED){
                     continue_reading = false;
-                    ESP_LOGI(TAG, "Got LTM message!");
-                    if (client_connected)
+                    ESP_LOGI(TAG, "Sent LTM message!");
+                    if (client_connected){
                         lwip_sendto(udp_socket, msp_message_buffer, (size_t) serial_read_bytes, 0,
-                                (struct sockaddr *) &client_telem_addr, sizeof (client_telem_addr));
+                                    (struct sockaddr *) &client_telem_addr, sizeof (client_telem_addr));
+                        //ESP_LOGI(TAG, "Sent LTM message!");
+                    }
                 }
             } else {
                 continue_reading = false;
             }
-        } else {
-            ESP_LOGI(TAG,"Cound not parse MSP|LTM - timeout - read error!");
+        }
+    }
+}
+
+
+void parse_transparent(){
+    uint8_t serial_buffer[TRANSPARENT_BUF_SIZE];
+    memset(serial_buffer, 0, (size_t) TRANSPARENT_BUF_SIZE);
+    uint8_t serial_byte;
+    uint serial_read_bytes = 0;
+    if (uart_read_bytes(UART_NUM_2, &serial_byte, 1, 200 / portTICK_RATE_MS) > 0) {
+        serial_buffer[serial_read_bytes] = serial_byte;
+        serial_read_bytes++;
+        if (serial_read_bytes == TRANSPARENT_BUF_SIZE) {
+            lwip_sendto(udp_socket, msp_message_buffer, (size_t) serial_read_bytes, 0,
+                        (struct sockaddr *) &client_telem_addr, sizeof (client_telem_addr));
+            serial_read_bytes = 0;
+            ESP_LOGI(TAG, "Sent message transparent");
+        }
+    }
+}
+
+
+void control_module_uart_parser(void *parameter){
+    while (true){
+        switch (SERIAL_PROTOCOL){
+            default:
+            case 1:
+            case 2:
+                parse_msp_ltm();
+                break;
+            case 3:
+            case 4:
+            case 5:
+                parse_transparent();
+                break;
+        }
+    }
+}
+
+void control_module_udp_server(void *parameter){
+    fd_set fd_socket_set;
+    socklen_t proxy_addr_length;
+    struct timeval tv;
+    int select_return;
+    while(true) {
+        proxy_addr_length = sizeof(client_proxy_addr);
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+        FD_ZERO(&fd_socket_set);
+        FD_SET(udp_socket, &fd_socket_set);
+        select_return = select(udp_socket + 1, &fd_socket_set, NULL, NULL, &tv);
+        if (select_return>0){
+            if (FD_ISSET(udp_socket, &fd_socket_set)){
+                int recv_length = lwip_recvfrom_r(udp_socket, udp_buffer, UDP_BUF_SIZE, 0,
+                                                  (struct sockaddr *) &client_proxy_addr, &proxy_addr_length);
+                if (recv_length > 0)
+                    uart_write_bytes(UART_NUM_2, udp_buffer, (size_t) recv_length);
+            }
         }
     }
 }
@@ -149,41 +205,14 @@ void parse_send_msp_ltm_message(){
  * MSP & LTM is parsed and sent packet/frame by frame to ground
  * MAVLink is passed through (fully transparent). Can be used with any protocol.
  */
-void control_module(void *pvParameter){
-    int setup_success = 1, recv_len;
-    char udp_buffer[UDP_BUF_SIZE];
-    fd_set fd_socket_set;
-
-    memset(udp_buffer, 0, UDP_BUF_SIZE);
-    socklen_t proxy_addr_length = sizeof(client_proxy_addr);
-
+void control_module(){
+    bool setup_success = 1;
     if (open_udp_socket() == ESP_FAIL) setup_success = 0;
     if (open_serial_socket() == ESP_FAIL) setup_success = 0;
     if (setup_success){
         ESP_LOGI(TAG, "setup complete!");
     }
-    while(setup_success){
-        FD_ZERO(&fd_socket_set);
-        FD_SET(udp_socket, &fd_socket_set);
-        //FD_SET(serial_socket, &fd_socket_set);
-        int select_return = select(MAX(serial_socket, udp_socket) + 1, &fd_socket_set, NULL, NULL, NULL);
-        if(select_return < 0) {
-            ESP_LOGE(TAG, "select() returned error: %s", strerror(errno));
-        }else if (select_return > 0){
-            if (FD_ISSET(udp_socket, &fd_socket_set)){
-                recv_len = lwip_recvfrom_r(udp_socket, udp_buffer, UDP_BUF_SIZE, 0,
-                        (struct sockaddr *) &client_proxy_addr, &proxy_addr_length);
-                if (recv_len < 0)
-                {
-                    ESP_LOGE(TAG,"recvfrom");
-                    break;
-                }
-                //ESP_LOGI(TAG, "Got UDP packet");
-                uart_write_bytes(UART_NUM_2, udp_buffer, (size_t) recv_len);
-                parse_send_msp_ltm_message();
-            }
-    }
-    close(udp_socket);
-    close(serial_socket);
-    vTaskDelete(NULL);
+
+    xTaskCreate(&control_module_udp_server, "control_udp", 2048, NULL, 5, NULL);
+    xTaskCreate(&control_module_uart_parser, "control_uart", 2048, NULL, 5, NULL);
 }

@@ -22,12 +22,13 @@
 
 // can be set by user
 extern char DEST_IP[15];
-extern int SERIAL_PROTOCOL;  // 1,2=MSP, 3,4,5=MAVLink/transparent
+extern volatile int SERIAL_PROTOCOL;  // 1,2=MSP, 3,4,5=MAVLink/transparent
 extern int DB_UART_PIN_TX;
 extern int DB_UART_PIN_RX;
 extern int DB_UART_BAUD_RATE;
+extern int TRANSPARENT_BUF_SIZE;
 
 // system internally
-extern bool client_connected;
+extern volatile bool client_connected;
 
 #endif //DB_ESP32_GLOBALS_H
