@@ -6,4 +6,3 @@
 PROJECT_NAME := dronebridge_esp32
 
 include $(IDF_PATH)/make/project.mk
-

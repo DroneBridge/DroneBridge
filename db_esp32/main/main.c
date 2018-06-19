@@ -34,12 +34,15 @@ static EventGroupHandle_t wifi_event_group;
 static const char *TAG = "DB_ESP32";
 
 volatile bool client_connected = false;
+volatile int client_connected_num = 0;
 char DEST_IP[15] = "192.168.2.2";
-volatile int SERIAL_PROTOCOL = 1;  // 1,2=MSP, 3,4,5=MAVLink/transparent
+volatile int SERIAL_PROTOCOL = 2;  // 1,2=MSP, 3,4,5=MAVLink/transparent
 int DB_UART_PIN_TX = GPIO_NUM_17;
 int DB_UART_PIN_RX = GPIO_NUM_16;
 int DB_UART_BAUD_RATE = 115200;
 int TRANSPARENT_BUF_SIZE = 64;
+int LTM_FRAME_NUM_BUFFER = 1;
+int MSP_LTM_TO_SAME_PORT = 0;
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
@@ -53,12 +56,14 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
         case SYSTEM_EVENT_AP_STACONNECTED:
             ESP_LOGI(TAG, "Client connected - station:"MACSTR", AID=%d",
                      MAC2STR(event->event_info.sta_connected.mac), event->event_info.sta_connected.aid);
-            client_connected = true;
+            client_connected_num++;
+            if (client_connected_num>0) client_connected = true;
             break;
         case SYSTEM_EVENT_AP_STADISCONNECTED:
             ESP_LOGI(TAG, "Client disconnected - station:"MACSTR", AID=%d",
                      MAC2STR(event->event_info.sta_disconnected.mac), event->event_info.sta_disconnected.aid);
-            client_connected = false;
+            client_connected_num--;
+            if (client_connected_num<1) client_connected = false;
             break;
         default:
             break;

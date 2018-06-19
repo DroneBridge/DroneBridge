@@ -94,4 +94,4 @@ include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/com
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/wpa_supplicant/include")
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/wpa_supplicant/port/include")
 
-ADD_EXECUTABLE(db_esp32 main/main.c main/db_esp32_control.c main/globals.h main/sdkconfig.h main/msp_serial.c main/msp_serial.h main/db_protocol.h)
+ADD_EXECUTABLE(db_esp32 main/main.c main/db_esp32_control.c main/globals.h main/sdkconfig.h main/msp_ltm_serial.c main/msp_ltm_serial.h main/db_protocol.h)

@@ -1,17 +1,33 @@
-//
-// Created by Wolfgang Christl on 30.11.17.
-// This file is part of DroneBridge
-// https://github.com/seeul8er/DroneBridge
-//
+/*
+ *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+ *
+ *   Copyright 2018 Wolfgang Christl
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ *
+ */
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "msp_serial.h"
+#include "esp_log.h"
+#include "msp_ltm_serial.h"
 #include "db_crc.h"
 
 /**
  * This function is part of Cleanflight/iNAV.
- * Optimized for crc performance in the DroneBridge Project and ">" & "<" adjusted
+ *
+ * Optimized for crc performance in the DroneBridge project and ">" & "<" adjusted
+ * LTM telemetry parsing added by Wolfgang Christl
  *
  * Cleanflight is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,16 +44,20 @@
  */
 bool parse_msp_ltm_byte(msp_ltm_port_t *msp_ltm_port, uint8_t new_byte)
 {
+
     switch (msp_ltm_port->parse_state) {
         default:
         case IDLE:
             if (new_byte == '$') {
                 msp_ltm_port->mspVersion = MSP_V1;
                 msp_ltm_port->parse_state = HEADER_START;
+                msp_ltm_port->ltm_frame_buffer[0] = '$';
             }
             else {
                 return false;
             }
+            msp_ltm_port->ltm_payload_cnt = 0;
+            msp_ltm_port->checksum1 = 0;
             break;
 
         case HEADER_START:
@@ -50,6 +70,8 @@ bool parse_msp_ltm_byte(msp_ltm_port_t *msp_ltm_port, uint8_t new_byte)
                     break;
                 case 'T':
                     msp_ltm_port->parse_state = LTM_HEADER;
+                    msp_ltm_port->ltm_frame_buffer[1] = 'T';
+                    break;
                 default:
                     msp_ltm_port->parse_state = IDLE;
                     break;
@@ -84,11 +106,15 @@ bool parse_msp_ltm_byte(msp_ltm_port_t *msp_ltm_port, uint8_t new_byte)
                     break;
                 default:
                     msp_ltm_port->parse_state = IDLE;
+                    break;
             }
+            msp_ltm_port->ltm_frame_buffer[2] = new_byte;
+            msp_ltm_port->ltm_payload_cnt = 0;
             break;
 
         case LTM_TYPE_IDENT:
             msp_ltm_port->ltm_payload_cnt++;
+            msp_ltm_port->ltm_frame_buffer[2+msp_ltm_port->ltm_payload_cnt] = new_byte;
             msp_ltm_port->checksum1 ^= new_byte;
             switch (msp_ltm_port->ltm_type){
                 case LTM_TYPE_A:
@@ -104,19 +130,16 @@ bool parse_msp_ltm_byte(msp_ltm_port_t *msp_ltm_port, uint8_t new_byte)
                     if (msp_ltm_port->ltm_payload_cnt == LTM_TYPE_S_PAYLOAD_SIZE) msp_ltm_port->parse_state = LTM_CRC;
                     break;
                 default:
-                    msp_ltm_port->ltm_payload_cnt = 0;
-                    msp_ltm_port->checksum1 = 0;
                     msp_ltm_port->parse_state = IDLE;
+                    break;
             }
             break;
 
         case LTM_CRC:
-            msp_ltm_port->ltm_payload_cnt = 0;
-            msp_ltm_port->checksum1 ^= new_byte;
-            if (msp_ltm_port->checksum1 == 0){
+            msp_ltm_port->ltm_frame_buffer[3+msp_ltm_port->ltm_payload_cnt] = new_byte;
+            if (msp_ltm_port->checksum1 == new_byte){
                 msp_ltm_port->parse_state = LTM_PACKET_RECEIVED;
             } else {
-                msp_ltm_port->checksum1 = 0;
                 msp_ltm_port->parse_state = IDLE;
             }
             break;

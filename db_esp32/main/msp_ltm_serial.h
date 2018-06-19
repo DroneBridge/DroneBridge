@@ -1,7 +1,3 @@
-//
-// Created by Wolfgang Christl on 30.12.17.
-// This file is part of DroneBridge
-//
 /*
  * This file contains code from Cleanflight & iNAV.
  *
@@ -36,6 +32,7 @@
 #define LTM_TYPE_A_PAYLOAD_SIZE 6
 #define LTM_TYPE_G_PAYLOAD_SIZE 14
 #define LTM_TYPE_S_PAYLOAD_SIZE 7
+#define LTM_MAX_FRAME_SIZE 18
 
 
 typedef enum {
@@ -107,6 +104,7 @@ typedef struct mspPort_s {
     uint_fast16_t dataSize;
     ltm_type_e ltm_type;
     uint8_t ltm_payload_cnt;
+    uint8_t ltm_frame_buffer[LTM_MAX_FRAME_SIZE];
     mspVersion_e mspVersion;
     uint8_t cmdFlags;
     uint16_t cmdMSP;
