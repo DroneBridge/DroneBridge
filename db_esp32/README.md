@@ -1,5 +1,8 @@
 # DroneBridge for ESP32
 DroneBridge enabled firmware for the popular ESP32 modules form Espressif Systems. Probably the cheapest way to communicate with your drone.
+
+![ESP32 module with VCP](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/esp32_vcp_module.jpg)
+
 ## Features
  - Bi-directional link: **MAVLink, MSP & LTM**
  - Very low price: **~7€**
@@ -14,6 +17,7 @@ DroneBridge enabled firmware for the popular ESP32 modules form Espressif System
  - Reliable, low latency, light weight
  - Upload mission etc.
 
+Tested with: DOIT ESP32 module
 
  ## Setup
  ### Flashing the firmware
@@ -44,6 +48,8 @@ Connect UART of ESP32 to a 3.3V UART of your flight controller. Set the flight c
  1. Connect to the wifi `DroneBridge ESP32` with password `dronebridge`
  2. In your browser type: `dronebridge.local` (Chrome: `http://dronebridge.local`) or `192.168.2.1` into the address bar
  3. Configure as you please and hit `save`
+
+![DroneBridge for ESP32 web interface](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/screen_config.png)
 
 **Configuration Options:**
  - **`Wifi password`: Up to 64 character long
