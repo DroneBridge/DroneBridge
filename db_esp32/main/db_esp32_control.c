@@ -19,7 +19,8 @@
 
 #include <sys/fcntl.h>
 #include <sys/param.h>
-#include <sys/select.h>
+#include <config.h>
+#include <string.h>
 #include "esp_log.h"
 #include "lwip/sockets.h"
 #include "driver/uart.h"
@@ -186,6 +187,7 @@ void control_module_uart_parser(void *parameter){
                 break;
         }
     }
+    vTaskDelete(NULL);
 }
 
 void control_module_udp_server(void *parameter){
@@ -209,6 +211,7 @@ void control_module_udp_server(void *parameter){
             }
         }
     }
+    vTaskDelete(NULL);
 }
 
 /**

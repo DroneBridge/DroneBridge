@@ -22,6 +22,7 @@
 #include "rc_air.h"
 #include "../common/db_protocol.h"
 #include "../common/db_crc.h"
+#include "../common/ccolors.h"
 
 int serial_rc_protocol, i_rc_air, i_sumd_air;
 
@@ -245,9 +246,9 @@ int generate_rc_serial_message(uint8_t *db_rc_protocol){
             generate_mspv2(rc_channels);
             return 33;
         }else if (serial_rc_protocol == 3)
-            perror("MAVLink v1 RC packets unsupported - use SUMD\n");
+            perror(RED "MAVLink v1 RC packets unsupported - use SUMD" RESET "\n");
         else if (serial_rc_protocol == 4)
-            perror("MAVLink v2 RC packets unsupported - use SUMD\n");
+            perror(RED "MAVLink v2 RC packets unsupported - use SUMD" RESET "\n");
         else if (serial_rc_protocol == 5) {
             generate_sumd(rc_channels);
             return 29;

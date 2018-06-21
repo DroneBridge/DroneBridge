@@ -34,6 +34,7 @@
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
 #include "../common/shared_memory.h"
+#include "../common/ccolors.h"
 
 bool volatile keeprunning = true;
 char if_name_telemetry[IFNAMSIZ];
@@ -129,18 +130,18 @@ int main(int argc, char *argv[]) {
     remoteServAddr.sin_port = htons(app_port_proxy);
     udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
     if (udp_socket < 0) {
-        printf ("DB_STATUS_GROUND: %s: Unable to open socket\n", strerror(errno));
+        printf (RED "DB_STATUS_GROUND: %s: Unable to open socket" RESET "\n", strerror(errno));
         exit (EXIT_FAILURE);
     }
     int broadcast=1;
     if (setsockopt(udp_socket,SOL_SOCKET,SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
-        printf("DB_STATUS_GROUND: %s\n",strerror(errno));
+        printf(RED "DB_STATUS_GROUND: %s" RESET "\n",strerror(errno));
     }
 
     // get IP shared memory ID
     shID = init_shared_memory_ip();
 
-    printf("DB_STATUS_GROUND: started!\n");
+    printf(GRN "DB_STATUS_GROUND: started!" RESET "\n");
     while(keeprunning) {
         // ---------------
         // Get IP from IP Checker shared memory segment 10th time

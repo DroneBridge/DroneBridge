@@ -29,6 +29,7 @@
 #include "parameter.h"
 #include "rc_ground.h"
 #include "../common/db_raw_send_receive.h"
+#include "../common/ccolors.h"
 
 #define JS_EVENT_BUTTON         0x01    /* button pressed/released */
 #define JS_EVENT_AXIS           0x02    /* joystick moved */
@@ -190,10 +191,10 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         int myerror = errno;
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
-                printf("DB_CONTROL_GROUND: Joystick was unplugged! Retrying...\n");
+                printf(RED "DB_CONTROL_GROUND: Joystick was unplugged! Retrying... " RESET "\n");
                 fd = initialize_i6S(Joy_IF, calibrate_comm);
             } else {
-                printf("DB_CONTROL_GROUND: Error: %s\n", strerror(myerror));
+                printf(RED "DB_CONTROL_GROUND: Error: %s" RESET " \n", strerror(myerror));
             }
         }
         // SWR - Arm switch
