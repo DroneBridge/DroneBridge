@@ -219,6 +219,8 @@ void control_module_udp_server(void *parameter){
  */
 void control_module(){
     bool setup_success = 1;
+    xEventGroupWaitBits(wifi_event_group, BIT2, false, true, portMAX_DELAY);
+
     if (open_udp_socket() == ESP_FAIL) setup_success = 0;
     if (open_serial_socket() == ESP_FAIL) setup_success = 0;
     if (setup_success){

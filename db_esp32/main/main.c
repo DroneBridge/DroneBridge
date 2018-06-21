@@ -21,6 +21,8 @@
 #include <nvs_flash.h>
 #include <esp_event.h>
 #include <driver/uart.h>
+#include <esp_wifi_types.h>
+#include <mdns.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "esp_wifi.h"
@@ -29,13 +31,17 @@
 #include "db_esp32_settings.h"
 #include "db_esp32_control.h"
 #include "globals.h"
+#include "tcp_server.h"
 
-static EventGroupHandle_t wifi_event_group;
+EventGroupHandle_t wifi_event_group;
 static const char *TAG = "DB_ESP32";
+#define DEFAULT_SSID "DroneBridge ESP32"
 
 volatile bool client_connected = false;
 volatile int client_connected_num = 0;
 char DEST_IP[15] = "192.168.2.2";
+uint8_t DEFAULT_PWD[] = "dronebridge";
+int DEFAULT_CHANNEL = 6;
 volatile int SERIAL_PROTOCOL = 2;  // 1,2=MSP, 3,4,5=MAVLink/transparent
 int DB_UART_PIN_TX = GPIO_NUM_17;
 int DB_UART_PIN_RX = GPIO_NUM_16;
@@ -49,6 +55,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     switch (event->event_id) {
         case SYSTEM_EVENT_AP_START:
             ESP_LOGI(TAG, "Wifi AP started!");
+            xEventGroupSetBits(wifi_event_group, BIT2);
             break;
         case SYSTEM_EVENT_AP_STOP:
             ESP_LOGI(TAG, "Wifi AP stopped!");
@@ -71,6 +78,24 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
+void start_mdns_service()
+{
+    xEventGroupWaitBits(wifi_event_group, BIT2, false, true, portMAX_DELAY);
+    //initialize mDNS service
+    esp_err_t err = mdns_init();
+    if (err) {
+        printf("MDNS Init failed: %d\n", err);
+        return;
+    }
+    mdns_hostname_set("dronebridge");
+    mdns_instance_name_set("DroneBridge for ESP32");
+
+    mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+    mdns_service_add(NULL, "_db_telem", "_udp", 1604, NULL, 0);
+    mdns_service_add(NULL, "_db_proxy", "_udp", 1607, NULL, 0);
+    mdns_service_instance_name_set("_http", "DroneBridge telemetry downlink", "DroneBridge bi-directional link");
+}
+
 
 void init_wifi(){
     wifi_event_group = xEventGroupCreate();
@@ -83,15 +108,15 @@ void init_wifi(){
     wifi_config_t ap_config = {
             .ap = {
                     .ssid = DEFAULT_SSID,
-                    .password = DEFAULT_PWD,
                     .ssid_len = 0,
                     .authmode = WIFI_AUTH_WPA_PSK,
-                    .channel = DEFAULT_CHANNEL,
+                    .channel = (uint8_t) DEFAULT_CHANNEL,
                     .ssid_hidden = 0,
                     .beacon_interval = 150,
                     .max_connection = 1
             },
     };
+    xthal_memcpy(ap_config.ap.password, DEFAULT_PWD, 64);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_protocol(ESP_IF_WIFI_AP, WIFI_PROTOCOL_11B));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
@@ -119,5 +144,7 @@ void app_main()
     ESP_ERROR_CHECK(ret);
     esp_log_level_set("*", ESP_LOG_INFO);
     init_wifi();
+    start_mdns_service();
     control_module();
+    start_tcp_server();
 }

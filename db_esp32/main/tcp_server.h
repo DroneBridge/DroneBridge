@@ -17,7 +17,9 @@
  *
  */
 
-#ifndef DB_ESP32_DB_ESP32_SETTINGS_H
-#define DB_ESP32_DB_ESP32_SETTINGS_H
+#ifndef DB_ESP32_TCP_SERVER_H
+#define DB_ESP32_TCP_SERVER_H
 
-#endif //DB_ESP32_DB_ESP32_SETTINGS_H
+void start_tcp_server();
+
+#endif //DB_ESP32_TCP_SERVER_H

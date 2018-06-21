@@ -20,9 +20,13 @@
 #ifndef DB_ESP32_GLOBALS_H
 #define DB_ESP32_GLOBALS_H
 
+#include <freertos/event_groups.h>
+
 #define MAX_LTM_FRAMES_IN_BUFFER 5
 
 // can be set by user
+extern uint8_t DEFAULT_PWD[64];
+extern int DEFAULT_CHANNEL;
 extern char DEST_IP[15];
 extern volatile int SERIAL_PROTOCOL;  // 1,2=MSP, 3,4,5=MAVLink/transparent
 extern int DB_UART_PIN_TX;
@@ -30,6 +34,7 @@ extern int DB_UART_PIN_RX;
 extern int DB_UART_BAUD_RATE;
 extern int TRANSPARENT_BUF_SIZE;
 extern int LTM_FRAME_NUM_BUFFER;    // Number of LTM frames per UDP packet (min = 1; max = 5)
+extern EventGroupHandle_t wifi_event_group;
 
 // 0 = to separate ports (MSP to proxy_port: 1607; LTM to telemetry_port: 1604); 1=all data to proxy_port/request origin
 extern int MSP_LTM_TO_SAME_PORT;
