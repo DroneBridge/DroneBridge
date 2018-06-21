@@ -338,7 +338,7 @@ int main(int argc, char *argv[])
                     }else{
                         rssi = buf[30];
                     }
-                    command_length = buf[buf[2]+7] | (buf[buf[2]+8] << 8); // ready for v2
+                    command_length = buf[buf[2] + 7] | (buf[buf[2] + 8] <<  8); // ready for v2
                     memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], (size_t) command_length);
                     sentbytes = (int) write(socket_control_serial, commandBuf, (size_t) command_length); errsv = errno;
                     tcdrain(socket_control_serial);

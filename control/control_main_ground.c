@@ -30,13 +30,14 @@
 #include "i6S.h"
 #include "../common/db_raw_send_receive.h"
 #include "rc_ground.h"
+#include "../common/ccolors.h"
 
 int detect_RC(int new_Joy_IF) {
     int fd;
     char interface_joystick[500];
     char path[] = "/dev/input/js";
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
-    printf("DB_CONTROL_GROUND: Waiting for a RC to be detected on: %s\n", interface_joystick);
+    printf(YEL "DB_CONTROL_GROUND: Waiting for a RC to be detected on: %s" RESET "\n", interface_joystick);
     do {
         usleep(250000);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
@@ -101,7 +102,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_CONTROLLER) < 0) {
-        printf("DB_CONTROL_GROUND: Could not open socket\n");
+        printf(RED "DB_CONTROL_GROUND: Could not open socket " RESET "\n");
         exit(-1);
     }
     conf_rc_protocol(rc_protocol);
@@ -115,7 +116,7 @@ int main(int argc, char *argv[]) {
         printf("DB_CONTROL_GROUND: Choosing i6S-Config\n");
         i6S(Joy_IF, calibrate_comm);
     } else {
-        printf("DB_CONTROL_GROUND: Your RC \"%s\" is currently not supported. Closing.\n", RC_name);
+        printf(RED "DB_CONTROL_GROUND: Your RC \"%s\" is currently not supported. Closing." RESET "\n", RC_name);
     }
     return 0;
 }
