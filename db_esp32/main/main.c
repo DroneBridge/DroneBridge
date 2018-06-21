@@ -23,6 +23,7 @@
 #include <driver/uart.h>
 #include <esp_wifi_types.h>
 #include <mdns.h>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "esp_wifi.h"
@@ -41,7 +42,7 @@ volatile bool client_connected = false;
 volatile int client_connected_num = 0;
 char DEST_IP[15] = "192.168.2.2";
 uint8_t DEFAULT_PWD[64] = "dronebridge";
-int DEFAULT_CHANNEL = 6;
+uint8_t DEFAULT_CHANNEL = 6;
 char BUILDVERSION[] = "v0.1";
 uint8_t SERIAL_PROTOCOL = 2;  // 1,2=MSP, 3,4,5=MAVLink/transparent
 uint8_t DB_UART_PIN_TX = GPIO_NUM_17;
@@ -111,7 +112,7 @@ void init_wifi(){
                     .ssid = DEFAULT_SSID,
                     .ssid_len = 0,
                     .authmode = WIFI_AUTH_WPA_PSK,
-                    .channel = (uint8_t) DEFAULT_CHANNEL,
+                    .channel = DEFAULT_CHANNEL,
                     .ssid_hidden = 0,
                     .beacon_interval = 150,
                     .max_connection = 2
@@ -143,7 +144,11 @@ void read_settings_nvs(){
         write_settings_to_nvs();
     } else {
         ESP_LOGI(TAG, "Reading settings from NVS");
-        //ESP_ERROR_CHECK(nvs_get_blob(my_handle, "wifi_pass", DEFAULT_PWD, (size_t *) 64));
+        size_t required_size = 0;
+        ESP_ERROR_CHECK(nvs_get_str(my_handle, "wifi_pass", NULL, &required_size));
+        char* wifi_pass = malloc(required_size);
+        ESP_ERROR_CHECK(nvs_get_str(my_handle, "wifi_pass", wifi_pass, &required_size));
+        memcpy(DEFAULT_PWD, wifi_pass, required_size);
         ESP_ERROR_CHECK(nvs_get_u32(my_handle, "baud", &DB_UART_BAUD_RATE));
         ESP_ERROR_CHECK(nvs_get_u8(my_handle, "gpio_tx", &DB_UART_PIN_TX));
         ESP_ERROR_CHECK(nvs_get_u8(my_handle, "gpio_rx", &DB_UART_PIN_RX));
@@ -152,6 +157,7 @@ void read_settings_nvs(){
         ESP_ERROR_CHECK(nvs_get_u8(my_handle, "ltm_per_packet", &LTM_FRAME_NUM_BUFFER));
         ESP_ERROR_CHECK(nvs_get_u8(my_handle, "msp_ltm_same", &MSP_LTM_TO_SAME_PORT));
         nvs_close(my_handle);
+        free(wifi_pass);
     }
 }
 
@@ -165,7 +171,7 @@ void app_main()
     }
     ESP_ERROR_CHECK(ret);
     read_settings_nvs();
-    esp_log_level_set("*", ESP_LOG_INFO);
+    esp_log_level_set("*", ESP_LOG_WARN);
     init_wifi();
     start_mdns_service();
     control_module();

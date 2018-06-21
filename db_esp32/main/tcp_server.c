@@ -29,12 +29,12 @@
 
 #define LISTENQ 2
 #define REQUEST_BUF_SIZE 1024
-#define WEBSITE_RESPONSE_BUFFER_SIZE 4096
+#define WEBSITE_RESPONSE_BUFFER_SIZE 3072
 const char *TAG2 = "TCP_SERVER";
-const char *save_response = "HTTP/1.1 200 OK\n"
-                            "Server: DroneBridgeESP32\n"
-                            "Content-type: text/html, text, plain\n"
-                            "\n"
+const char *save_response = "HTTP/1.1 200 OK\r\n"
+                            "Server: DroneBridgeESP32\r\n"
+                            "Content-type: text/html, text, plain\r\n"
+                            "\r\n"
                             "<!DOCTYPE html>\n"
                             "<html>\n"
                             "<head>\n"
@@ -59,6 +59,11 @@ const char *save_response = "HTTP/1.1 200 OK\n"
                             "</html>\n"
                             "";
 
+const char *bad_gateway = "HTTP/1.1 502 Bad Gateway \r\n"
+                          "Server: DroneBridgeESP32 \r\n"
+                          "Content-Type: text/html \r\n"
+                          "\r\n";
+
 /**
  * @brief Check if we got a simple request or new settings
  * @param request_buffer
@@ -68,8 +73,10 @@ const char *save_response = "HTTP/1.1 200 OK\n"
 int http_request_type(uint8_t *request_buffer, uint length){
     uint8_t http_get_header[] = {'G', 'E', 'T', ' ', '/', ' ', 'H', 'T', 'T', 'P'};
     uint8_t http_get_header_settings[] = {'G', 'E', 'T', ' ', '/', 's', 'e', 't', 't', 'i', 'n', 'g', 's'};
+    uint8_t http_get_header_other_data[] = {'G', 'E', 'T', ' ', '/'};
     if (memcmp(request_buffer, http_get_header, sizeof(http_get_header)) == 0) return 0;
-    if (memcmp(request_buffer, http_get_header_settings, sizeof(http_get_header)) == 0) return 1;
+    if (memcmp(request_buffer, http_get_header_settings, sizeof(http_get_header_settings)) == 0) return 1;
+    if (memcmp(request_buffer, http_get_header_other_data, sizeof(http_get_header_other_data)) == 0) return 2;
     return -1;
 }
 
@@ -78,7 +85,7 @@ void write_settings_to_nvs(){
     ESP_LOGI(TAG2, "Saving to NVS");
     nvs_handle my_handle;
     ESP_ERROR_CHECK(nvs_open("settings", NVS_READWRITE, &my_handle));
-    ESP_ERROR_CHECK(nvs_set_blob(my_handle, "wifi_pass", DEFAULT_PWD, 64));
+    ESP_ERROR_CHECK(nvs_set_str(my_handle, "wifi_pass", (char *) DEFAULT_PWD));
     ESP_ERROR_CHECK(nvs_set_u32(my_handle, "baud", DB_UART_BAUD_RATE));
     ESP_ERROR_CHECK(nvs_set_u8(my_handle, "gpio_tx", DB_UART_PIN_TX));
     ESP_ERROR_CHECK(nvs_set_u8(my_handle, "gpio_rx", DB_UART_PIN_RX));
@@ -99,11 +106,14 @@ void parse_save_get_parameters(char *request_buffer, uint length){
     while(ptr != NULL) {
         if (strcmp(ptr, "wifi_pass") == 0) {
             ptr = strtok(NULL, delimiter);
-            strcpy((char *) DEFAULT_PWD, ptr);
-            ESP_LOGI(TAG2, "New password: %s", DEFAULT_PWD);
+            if (strlen(ptr)>=8){
+                strcpy((char *) DEFAULT_PWD, ptr);
+                ESP_LOGI(TAG2, "New password: %s", DEFAULT_PWD);
+            }
         } else if (strcmp(ptr, "baud") == 0){
             ptr = strtok(NULL, delimiter);
-            DB_UART_BAUD_RATE = atoi(ptr);
+            if (atoi(ptr)>2399)
+                DB_UART_BAUD_RATE = atoi(ptr);
             ESP_LOGI(TAG2, "New baud: %i", DB_UART_BAUD_RATE);
         }else if (strcmp(ptr, "gpio_tx") == 0){
             ptr = strtok(NULL, delimiter);
@@ -146,38 +156,18 @@ void parse_save_get_parameters(char *request_buffer, uint length){
 
 
 char *create_response(char *website_response) {
-    char baud_selection1[8] = "", baud_selection2[8] = "", baud_selection3[8] = "", baud_selection4[8] = "",
-            baud_selection5[8] = "", baud_selection6[8] = "", baud_selection7[8] = "", uart_serial_selection1[8] = "",
-                    uart_serial_selection2[8] = "", trans_pack_size_selection1[8] = "", trans_pack_size_selection2[8] = "",
-                            trans_pack_size_selection3[8] = "", trans_pack_size_selection4[8] = "",
-                                    trans_pack_size_selection5[8] = "", ltm_size_selection1[8] = "",
-                                            ltm_size_selection2[8] = "", ltm_size_selection3[8] = "",
-                                                    ltm_size_selection4[8] = "", ltm_size_selection5[8] = "",
-                                                            msp_ltm_same_selection1[8] = "", msp_ltm_same_selection2[8] = "";
-    switch (DB_UART_BAUD_RATE){
-        default:
-        case 115200:
-            strcpy(baud_selection1, "selected");
-            break;
-        case 57600:
-            strcpy(baud_selection2, "selected");
-            break;
-        case 38400:
-            strcpy(baud_selection3, "selected");
-            break;
-        case 19200:
-            strcpy(baud_selection4, "selected");
-            break;
-        case 9600:
-            strcpy(baud_selection5, "selected");
-            break;
-        case 4800:
-            strcpy(baud_selection6, "selected");
-            break;
-        case 2400:
-            strcpy(baud_selection7, "selected");
-            break;
-    }
+    char baud_selection1[8] = ""; char baud_selection2[8] = "";
+    char baud_selection3[8] = ""; char baud_selection4[8] = "";
+    char baud_selection5[8] = ""; char baud_selection6[8] = "";
+    char baud_selection7[8] = "";
+    char uart_serial_selection1[8] = ""; char uart_serial_selection2[8] = "";
+    char trans_pack_size_selection1[8] = ""; char trans_pack_size_selection2[8] = "";
+    char trans_pack_size_selection3[8] = ""; char trans_pack_size_selection4[8] = "";
+    char trans_pack_size_selection5[8] = "";
+    char ltm_size_selection1[8] = ""; char ltm_size_selection2[8] = "";
+    char ltm_size_selection3[8] = ""; char ltm_size_selection4[8] = "", ltm_size_selection5[8] = "",
+            msp_ltm_same_selection1[8] = "", msp_ltm_same_selection2[8] = "";
+
     switch (SERIAL_PROTOCOL){
         default:
         case 1:
@@ -235,10 +225,35 @@ char *create_response(char *website_response) {
             strcpy(msp_ltm_same_selection2, "selected");
             break;
     }
-    sprintf(website_response,"HTTP/1.1 200 OK\n"
-                              "Server: DroneBridgeESP32\n"
-                              "Content-type: text/html, text, plain\n"
-                              "\n"
+    switch (DB_UART_BAUD_RATE){
+        default:
+        case 115200:
+            strcpy(baud_selection1, "selected");
+            break;
+        case 57600:
+            strcpy(baud_selection2, "selected");
+            break;
+        case 38400:
+            strcpy(baud_selection3, "selected");
+            break;
+        case 19200:
+            strcpy(baud_selection4, "selected");
+            break;
+        case 9600:
+            strcpy(baud_selection5, "selected");
+            break;
+        case 4800:
+            strcpy(baud_selection6, "selected");
+            break;
+        case 2400:
+            strcpy(baud_selection7, "selected");
+            break;
+    }
+
+    sprintf(website_response,"HTTP/1.1 200 OK\r\n"
+                              "Server: DroneBridgeESP32\r\n"
+                              "Content-type: text/html, text, plain\r\n"
+                              "\r\n"
                               "<!DOCTYPE html><html><head><title>DB for ESP32 Settings</title>"
                               "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">"
                               "<style> "
@@ -340,7 +355,8 @@ void tcp_server(void *parameter){
             continue;
         }
         uint8_t *request_buffer = malloc(REQUEST_BUF_SIZE* sizeof(uint8_t));
-        char *website_response = malloc(WEBSITE_RESPONSE_BUFFER_SIZE*sizeof(char));
+        // char *website_response = malloc(WEBSITE_RESPONSE_BUFFER_SIZE*sizeof(char));
+        char website_response[WEBSITE_RESPONSE_BUFFER_SIZE];
         while(1){
             client_socket = accept(tcp_socket,(struct sockaddr *)&remote_addr, &socklen);
             fcntl(client_socket, F_SETFL, O_NONBLOCK);
@@ -381,12 +397,18 @@ void tcp_server(void *parameter){
                     vTaskDelay(4000 / portTICK_PERIOD_MS);
                     continue;
                 }
-            } else {
-                ESP_LOGI(TAG2, "No valid HTTP request");
+            } else if (http_req == 2) {
+                if(write(client_socket , bad_gateway , strlen(bad_gateway)) < 0)
+                {
+                    ESP_LOGE(TAG2, "... Send failed");
+                    close(tcp_socket);
+                    vTaskDelay(4000 / portTICK_PERIOD_MS);
+                    continue;
+                }
             }
             close(client_socket);
         }
-        free(website_response);
+        //free(website_response);
         free(request_buffer);
         ESP_LOGI(TAG2, "... server will be opened in 5 seconds");
         vTaskDelay(5000 / portTICK_PERIOD_MS);
@@ -400,5 +422,5 @@ void tcp_server(void *parameter){
  * @brief Starts a TCP server that serves the page to change settings & handles the changes
  */
 void start_tcp_server(){
-    xTaskCreate(&tcp_server, "tcp_server", 8192, NULL, 5, NULL);
+    xTaskCreate(&tcp_server, "tcp_server", 10240, NULL, 5, NULL);
 }

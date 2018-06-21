@@ -26,7 +26,7 @@
 
 // can be set by user
 extern uint8_t DEFAULT_PWD[64];
-extern int DEFAULT_CHANNEL;
+extern uint8_t DEFAULT_CHANNEL;
 extern char DEST_IP[15];
 extern uint8_t SERIAL_PROTOCOL;  // 1,2=MSP, 3,4,5=MAVLink/transparent
 extern uint8_t DB_UART_PIN_TX;
