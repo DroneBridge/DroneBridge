@@ -2,7 +2,7 @@
 <html>
 <head>
 <title>DB for ESP32 Settings</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <style>
 h1 {
   font-family: Verdana, Geneva, sans-serif;
@@ -14,17 +14,28 @@ table.DroneBridge {
   text-align: right;
   border-collapse: collapse;
 }
+@media only screen and (max-width:768px) {
+  /* For mobile phones: */
+  .DroneBridge {
+    width:100%;
+  }
+}
 table.DroneBridge td, table.DroneBridge th {
   padding: 6px 0px;
 }
 table.DroneBridge tbody td {
-  font-size: 1rm;
+  font-size: 1em;
   font-weight: bold;
   color: #FFFFFF;
   padding: 0.5em;
 }
 table.DroneBridge td:nth-child(even) {
   background: #FF7900;
+}
+.foot{
+  color: #145396;
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 0.8em;
 }
 </style>
 </head>
@@ -106,8 +117,9 @@ table.DroneBridge td:nth-child(even) {
 	</tbody>
 </table>
 <p></p>
-<input target= "_self" type="submit" value="Save">
+<input target= "_top" type="submit" value="Save">
 </form>
-
+<p class="foot">v0.1</p>
+<p class="foot">&copy; Wolfgang Christl 2018 - Apache 2.0 License</p>
 </body>
 </html>

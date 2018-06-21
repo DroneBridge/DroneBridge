@@ -40,15 +40,16 @@ static const char *TAG = "DB_ESP32";
 volatile bool client_connected = false;
 volatile int client_connected_num = 0;
 char DEST_IP[15] = "192.168.2.2";
-uint8_t DEFAULT_PWD[] = "dronebridge";
+uint8_t DEFAULT_PWD[64] = "dronebridge";
 int DEFAULT_CHANNEL = 6;
-volatile int SERIAL_PROTOCOL = 2;  // 1,2=MSP, 3,4,5=MAVLink/transparent
-int DB_UART_PIN_TX = GPIO_NUM_17;
-int DB_UART_PIN_RX = GPIO_NUM_16;
-int DB_UART_BAUD_RATE = 115200;
-int TRANSPARENT_BUF_SIZE = 64;
-int LTM_FRAME_NUM_BUFFER = 1;
-int MSP_LTM_TO_SAME_PORT = 0;
+char BUILDVERSION[] = "v0.1";
+uint8_t SERIAL_PROTOCOL = 2;  // 1,2=MSP, 3,4,5=MAVLink/transparent
+uint8_t DB_UART_PIN_TX = GPIO_NUM_17;
+uint8_t DB_UART_PIN_RX = GPIO_NUM_16;
+uint32_t DB_UART_BAUD_RATE = 115200;
+uint16_t TRANSPARENT_BUF_SIZE = 64;
+uint8_t LTM_FRAME_NUM_BUFFER = 1;
+uint8_t MSP_LTM_TO_SAME_PORT = 0;
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
@@ -113,7 +114,7 @@ void init_wifi(){
                     .channel = (uint8_t) DEFAULT_CHANNEL,
                     .ssid_hidden = 0,
                     .beacon_interval = 150,
-                    .max_connection = 1
+                    .max_connection = 2
             },
     };
     xthal_memcpy(ap_config.ap.password, DEFAULT_PWD, 64);
@@ -134,6 +135,27 @@ void init_wifi(){
 }
 
 
+void read_settings_nvs(){
+    nvs_handle my_handle;
+    if (nvs_open("settings", NVS_READONLY, &my_handle) == ESP_ERR_NVS_NOT_FOUND){
+        // First start
+        nvs_close(my_handle);
+        write_settings_to_nvs();
+    } else {
+        ESP_LOGI(TAG, "Reading settings from NVS");
+        //ESP_ERROR_CHECK(nvs_get_blob(my_handle, "wifi_pass", DEFAULT_PWD, (size_t *) 64));
+        ESP_ERROR_CHECK(nvs_get_u32(my_handle, "baud", &DB_UART_BAUD_RATE));
+        ESP_ERROR_CHECK(nvs_get_u8(my_handle, "gpio_tx", &DB_UART_PIN_TX));
+        ESP_ERROR_CHECK(nvs_get_u8(my_handle, "gpio_rx", &DB_UART_PIN_RX));
+        ESP_ERROR_CHECK(nvs_get_u8(my_handle, "proto", &SERIAL_PROTOCOL));
+        ESP_ERROR_CHECK(nvs_get_u16(my_handle, "trans_pack_size", &TRANSPARENT_BUF_SIZE));
+        ESP_ERROR_CHECK(nvs_get_u8(my_handle, "ltm_per_packet", &LTM_FRAME_NUM_BUFFER));
+        ESP_ERROR_CHECK(nvs_get_u8(my_handle, "msp_ltm_same", &MSP_LTM_TO_SAME_PORT));
+        nvs_close(my_handle);
+    }
+}
+
+
 void app_main()
 {
     esp_err_t ret = nvs_flash_init();
@@ -142,6 +164,7 @@ void app_main()
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    read_settings_nvs();
     esp_log_level_set("*", ESP_LOG_INFO);
     init_wifi();
     start_mdns_service();

@@ -20,6 +20,8 @@
 #include <sys/socket.h>
 #include <freertos/event_groups.h>
 #include <esp_log.h>
+#include <string.h>
+#include <nvs.h>
 #include "tcp_server.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -72,6 +74,23 @@ int http_request_type(uint8_t *request_buffer, uint length){
 }
 
 
+void write_settings_to_nvs(){
+    ESP_LOGI(TAG2, "Saving to NVS");
+    nvs_handle my_handle;
+    ESP_ERROR_CHECK(nvs_open("settings", NVS_READWRITE, &my_handle));
+    ESP_ERROR_CHECK(nvs_set_blob(my_handle, "wifi_pass", DEFAULT_PWD, 64));
+    ESP_ERROR_CHECK(nvs_set_u32(my_handle, "baud", DB_UART_BAUD_RATE));
+    ESP_ERROR_CHECK(nvs_set_u8(my_handle, "gpio_tx", DB_UART_PIN_TX));
+    ESP_ERROR_CHECK(nvs_set_u8(my_handle, "gpio_rx", DB_UART_PIN_RX));
+    ESP_ERROR_CHECK(nvs_set_u8(my_handle, "proto", SERIAL_PROTOCOL));
+    ESP_ERROR_CHECK(nvs_set_u16(my_handle, "trans_pack_size", TRANSPARENT_BUF_SIZE));
+    ESP_ERROR_CHECK(nvs_set_u8(my_handle, "ltm_per_packet", LTM_FRAME_NUM_BUFFER));
+    ESP_ERROR_CHECK(nvs_set_u8(my_handle, "msp_ltm_same", MSP_LTM_TO_SAME_PORT));
+    ESP_ERROR_CHECK(nvs_commit(my_handle));
+    nvs_close(my_handle);
+}
+
+
 void parse_save_get_parameters(char *request_buffer, uint length){
     ESP_LOGI(TAG2, "Parsing new settings:");
     char *ptr;
@@ -88,11 +107,11 @@ void parse_save_get_parameters(char *request_buffer, uint length){
             ESP_LOGI(TAG2, "New baud: %i", DB_UART_BAUD_RATE);
         }else if (strcmp(ptr, "gpio_tx") == 0){
             ptr = strtok(NULL, delimiter);
-            DB_UART_PIN_TX = atoi(ptr);
+            if (atoi(ptr)<=GPIO_NUM_MAX) DB_UART_PIN_TX = atoi(ptr);
             ESP_LOGI(TAG2, "New gpio_tx: %i", DB_UART_PIN_TX);
         }else if (strcmp(ptr, "gpio_rx") == 0){
             ptr = strtok(NULL, delimiter);
-            DB_UART_PIN_RX = atoi(ptr);
+            if (atoi(ptr)<=GPIO_NUM_MAX) DB_UART_PIN_RX = atoi(ptr);
             ESP_LOGI(TAG2, "New gpio_rx: %i", DB_UART_PIN_RX);
         } else if (strcmp(ptr, "proto") == 0){
             ptr = strtok(NULL, delimiter);
@@ -122,6 +141,7 @@ void parse_save_get_parameters(char *request_buffer, uint length){
             ptr = strtok(NULL, delimiter);
         }
     }
+    write_settings_to_nvs();
 }
 
 
@@ -219,12 +239,71 @@ char *create_response(char *website_response) {
                               "Server: DroneBridgeESP32\n"
                               "Content-type: text/html, text, plain\n"
                               "\n"
-                              "<!DOCTYPE html><html><head><title>DB for ESP32 Settings</title><meta name=\"viewport\" content=\"width=device-width, user-scalable=no\"/><style> h1 { font-family: Verdana, Geneva, sans-serif; color: #FF7900; } table.DroneBridge { font-family: Verdana, Geneva, sans-serif; background-color: #145396; text-align: right; border-collapse: collapse; } table.DroneBridge td, table.DroneBridge th { padding: 6px 0px; } table.DroneBridge tbody td { font-size: 1rm; font-weight: bold; color: #FFFFFF; padding: 0.5em; } table.DroneBridge td:nth-child(even) { background: #FF7900; } </style></head><body><h1>DroneBridge for ESP32</h1><form action=\"/settings.html\" id=\"settings_form\" method=\"get\" target=\"_blank\"><table class=\"DroneBridge\"><tbody><tr><td>Wifi password</td><td><input type=\"text\" name=\"wifi_pass\" value=\"%s\"></td></tr><tr><td>UART baud rate</td><td><select name=\"baud\" form=\"settings_form\"><option %s value=\"115200\">115200</option><option %s value=\"57600\">57600</option><option %s value=\"38400\">38400</option><option %s value=\"19200\">19200</option><option %s value=\"9600\">9600</option><option %s value=\"4800\">4800</option><option %s value=\"2400\">2400</option></select></td></tr><tr><td>GPIO TX pin number</td><td><input type=\"text\" name=\"gpio_tx\" value=\"%i\"></td></tr><tr><td>GPIO RX pin number</td><td><input type=\"text\" name=\"gpio_rx\" value=\"%i\"></td></tr><tr><td>UART serial protocol</td><td><select name=\"proto\" form=\"settings_form\"><option %s value=\"msp_ltm\">MSP/LTM</option><option %s value=\"trans\">Transparent/MAVLink</option></select></td></tr><tr><td>Transparent packet size</td><td><select name=\"trans_pack_size\" form=\"settings_form\"><option %s value=\"16\">16</option><option %s value=\"32\">32</option><option %s value=\"64\">64</option><option %s value=\"128\">128</option><option %s value=\"256\">256</option></select></td></tr><tr><td>LTM frames per packet</td><td><select name=\"ltm_per_packet\" form=\"settings_form\"><option %s value=\"1\">1</option><option %s value=\"2\">2</option><option %s value=\"3\">3</option><option %s value=\"4\">4</option><option %s value=\"5\">5</option></select></td></tr><tr><td>MSP & LTM to same port</td><td><select name=\"msp_ltm_same\" form=\"settings_form\"><option %s value=\"n\">No - MSP: 1607 LTM: 1604</option><option %s value=\"y\">Yes - all: 1607</option></select></td></tr></tbody></table><p></p><input target= \"_self\" type=\"submit\" value=\"Save\"></form></body></html>\n"
+                              "<!DOCTYPE html><html><head><title>DB for ESP32 Settings</title>"
+                              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">"
+                              "<style> "
+                              "h1 { font-family: Verdana, Geneva, sans-serif; color: #FF7900; } "
+                              "table.DroneBridge { font-family: Verdana, Geneva, sans-serif; background-color: #145396; text-align: right; border-collapse: collapse; } "
+                              "table.DroneBridge td, table.DroneBridge th { padding: 6px 0px; } "
+                              "table.DroneBridge tbody td { font-size: 1rm; font-weight: bold; color: #FFFFFF; padding: 0.5em; } "
+                              "table.DroneBridge td:nth-child(even) { background: #FF7900; }"
+                              "@media only screen and (max-width:768px) { .DroneBridge {width:100%%; }}"
+                              ".foot{color: #145396;font-family: Verdana, Geneva, sans-serif;font-size: 0.8em;}"
+                              "</style>"
+                              "</head>\n"
+                              "<body><h1>DroneBridge for ESP32</h1>"
+                              "<form action=\"/settings.html\" id=\"settings_form\" method=\"get\" target=\"_blank\">"
+                              "<table class=\"DroneBridge\"><tbody><tr><td>Wifi password</td>"
+                              "<td><input type=\"text\" name=\"wifi_pass\" value=\"%s\"></td></tr>"
+                              "<tr><td>UART baud rate</td><td>"
+                              "<select name=\"baud\" form=\"settings_form\">"
+                              "<option %s value=\"115200\">115200</option>"
+                              "<option %s value=\"57600\">57600</option>"
+                              "<option %s value=\"38400\">38400</option>"
+                              "<option %s value=\"19200\">19200</option>"
+                              "<option %s value=\"9600\">9600</option>"
+                              "<option %s value=\"4800\">4800</option>"
+                              "<option %s value=\"2400\">2400</option>"
+                              "</select>"
+                              "</td></tr><tr><td>GPIO TX pin number</td>"
+                              "<td><input type=\"text\" name=\"gpio_tx\" value=\"%i\"></td></tr>"
+                              "<tr><td>GPIO RX pin number</td><td>"
+                              "<input type=\"text\" name=\"gpio_rx\" value=\"%i\">"
+                              "</td></tr><tr><td>UART serial protocol</td><td>"
+                              "<select name=\"proto\" form=\"settings_form\">"
+                              "<option %s value=\"msp_ltm\">MSP/LTM</option>"
+                              "<option %s value=\"trans\">Transparent/MAVLink</option>"
+                              "</select>"
+                              "</td></tr><tr><td>Transparent packet size</td><td>"
+                              "<select name=\"trans_pack_size\" form=\"settings_form\">"
+                              "<option %s value=\"16\">16</option><option %s value=\"32\">32</option>"
+                              "<option %s value=\"64\">64</option><option %s value=\"128\">128</option>"
+                              "<option %s value=\"256\">256</option>"
+                              "</select>"
+                              "</td></tr><tr><td>LTM frames per packet</td><td>"
+                              "<select name=\"ltm_per_packet\" form=\"settings_form\">"
+                              "<option %s value=\"1\">1</option>"
+                              "<option %s value=\"2\">2</option>"
+                              "<option %s value=\"3\">3</option>"
+                              "<option %s value=\"4\">4</option>"
+                              "<option %s value=\"5\">5</option>"
+                              "</select>"
+                              "</td></tr><tr><td>MSP & LTM to same port</td><td>"
+                              "<select name=\"msp_ltm_same\" form=\"settings_form\">"
+                              "<option %s value=\"n\">No - MSP: 1607 LTM: 1604</option>"
+                              "<option %s value=\"y\">Yes - all: 1607</option>"
+                              "</select>"
+                              "</td></tr></tbody></table><p></p>"
+                              "<input target= \"_top\" type=\"submit\" value=\"Save\">"
+                              "</form>"
+                              "<p class=\"foot\">%s</p>\n"
+                              "<p class=\"foot\">&copy; Wolfgang Christl 2018 - Apache 2.0 License</p>"
+                              "</body></html>\n"
                               "", DEFAULT_PWD, baud_selection1, baud_selection2, baud_selection3, baud_selection4,
             baud_selection5, baud_selection6, baud_selection7, DB_UART_PIN_TX, DB_UART_PIN_RX, uart_serial_selection1,
             uart_serial_selection2, trans_pack_size_selection1, trans_pack_size_selection2, trans_pack_size_selection3,
             trans_pack_size_selection4, trans_pack_size_selection5, ltm_size_selection1, ltm_size_selection2,
-            ltm_size_selection3, ltm_size_selection4, ltm_size_selection5, msp_ltm_same_selection1, msp_ltm_same_selection2);
+            ltm_size_selection3, ltm_size_selection4, ltm_size_selection5, msp_ltm_same_selection1, msp_ltm_same_selection2, BUILDVERSION);
     return website_response;
 }
 
@@ -261,6 +340,7 @@ void tcp_server(void *parameter){
             continue;
         }
         uint8_t *request_buffer = malloc(REQUEST_BUF_SIZE* sizeof(uint8_t));
+        char *website_response = malloc(WEBSITE_RESPONSE_BUFFER_SIZE*sizeof(char));
         while(1){
             client_socket = accept(tcp_socket,(struct sockaddr *)&remote_addr, &socklen);
             fcntl(client_socket, F_SETFL, O_NONBLOCK);
@@ -278,13 +358,12 @@ void tcp_server(void *parameter){
                 }
             } while(r > 0);
             // prints the requests for debugging
-            // ESP_LOGI(TAG2,"New connection request,Request data:");
+//            ESP_LOGI(TAG2,"New connection request,Request data:");
 //            for(int i = 0; i < rec_length; i++) {
 //                putchar(request_buffer[i]);
 //            }
             int http_req = http_request_type(request_buffer, rec_length);
             if (http_req == 0){
-                char *website_response = malloc(WEBSITE_RESPONSE_BUFFER_SIZE*sizeof(char));
                 char *response = create_response(website_response);
                 if(write(client_socket , response , strlen(response)) < 0)
                 {
@@ -293,7 +372,6 @@ void tcp_server(void *parameter){
                     vTaskDelay(4000 / portTICK_PERIOD_MS);
                     continue;
                 }
-                free(website_response);
             } else if(http_req == 1){
                 parse_save_get_parameters((char *) request_buffer, rec_length);
                 if(write(client_socket , save_response , strlen(save_response)) < 0)
@@ -308,11 +386,13 @@ void tcp_server(void *parameter){
             }
             close(client_socket);
         }
+        free(website_response);
         free(request_buffer);
         ESP_LOGI(TAG2, "... server will be opened in 5 seconds");
         vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
     ESP_LOGI(TAG2, "...tcp_client task closed\n");
+    vTaskDelete(NULL);
 }
 
 
@@ -320,5 +400,5 @@ void tcp_server(void *parameter){
  * @brief Starts a TCP server that serves the page to change settings & handles the changes
  */
 void start_tcp_server(){
-    xTaskCreate(&tcp_server, "tcp_server", 10240, NULL, 5, NULL);
+    xTaskCreate(&tcp_server, "tcp_server", 8192, NULL, 5, NULL);
 }
