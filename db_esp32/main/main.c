@@ -33,6 +33,7 @@
 #include "db_esp32_control.h"
 #include "globals.h"
 #include "tcp_server.h"
+#include "db_esp32_comm.h"
 
 EventGroupHandle_t wifi_event_group;
 static const char *TAG = "DB_ESP32";
@@ -43,7 +44,6 @@ volatile int client_connected_num = 0;
 char DEST_IP[15] = "192.168.2.2";
 uint8_t DEFAULT_PWD[64] = "dronebridge";
 uint8_t DEFAULT_CHANNEL = 6;
-char BUILDVERSION[] = "v0.1";
 uint8_t SERIAL_PROTOCOL = 2;  // 1,2=MSP, 3,4,5=MAVLink/transparent
 uint8_t DB_UART_PIN_TX = GPIO_NUM_17;
 uint8_t DB_UART_PIN_RX = GPIO_NUM_16;
@@ -176,4 +176,5 @@ void app_main()
     start_mdns_service();
     control_module();
     start_tcp_server();
+    communication_module();
 }

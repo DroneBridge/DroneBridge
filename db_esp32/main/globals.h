@@ -23,6 +23,7 @@
 #include <freertos/event_groups.h>
 
 #define MAX_LTM_FRAMES_IN_BUFFER 5
+#define BUILDVERSION 11    //v0.11
 
 // can be set by user
 extern uint8_t DEFAULT_PWD[64];
@@ -40,7 +41,6 @@ extern EventGroupHandle_t wifi_event_group;
 extern uint8_t MSP_LTM_TO_SAME_PORT;
 
 // system internally
-extern char BUILDVERSION[];
 extern volatile bool client_connected;
 
 #endif //DB_ESP32_GLOBALS_H

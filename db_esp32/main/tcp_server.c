@@ -26,6 +26,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "globals.h"
+#include <math.h>
 
 #define LISTENQ 2
 #define REQUEST_BUF_SIZE 1024
@@ -249,7 +250,8 @@ char *create_response(char *website_response) {
             strcpy(baud_selection7, "selected");
             break;
     }
-
+    char build_version[16];
+    sprintf(build_version, "v%.2f", floorf(BUILDVERSION) / 100);
     sprintf(website_response,"HTTP/1.1 200 OK\r\n"
                               "Server: DroneBridgeESP32\r\n"
                               "Content-type: text/html, text, plain\r\n"
@@ -318,7 +320,7 @@ char *create_response(char *website_response) {
             baud_selection5, baud_selection6, baud_selection7, DB_UART_PIN_TX, DB_UART_PIN_RX, uart_serial_selection1,
             uart_serial_selection2, trans_pack_size_selection1, trans_pack_size_selection2, trans_pack_size_selection3,
             trans_pack_size_selection4, trans_pack_size_selection5, ltm_size_selection1, ltm_size_selection2,
-            ltm_size_selection3, ltm_size_selection4, ltm_size_selection5, msp_ltm_same_selection1, msp_ltm_same_selection2, BUILDVERSION);
+            ltm_size_selection3, ltm_size_selection4, ltm_size_selection5, msp_ltm_same_selection1, msp_ltm_same_selection2, build_version);
     return website_response;
 }
 

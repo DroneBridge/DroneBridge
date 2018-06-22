@@ -56,7 +56,7 @@ include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/com
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/fatfs/src")
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/freertos/include")
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/jsmn/include")
-include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/json/include")
+include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/json/cJSON")
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/json/port/include")
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/libsodium/libsodium/src/libsodium/include")
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/libsodium/libsodium/src/libsodium/include/sodium")
@@ -94,4 +94,6 @@ include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/com
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/wpa_supplicant/include")
 include_directories("/home/cyber/Dokumente/Programming/esp32_SDK/esp/esp-idf/components/wpa_supplicant/port/include")
 
-ADD_EXECUTABLE(db_esp32 main/main.c main/db_esp32_control.c main/globals.h main/sdkconfig.h main/msp_ltm_serial.c main/msp_ltm_serial.h main/db_protocol.h main/tcp_server.c main/tcp_server.h)
+ADD_EXECUTABLE(db_esp32 main/main.c main/db_esp32_control.c main/globals.h main/sdkconfig.h main/msp_ltm_serial.c
+        main/msp_ltm_serial.h main/db_protocol.h main/tcp_server.c main/tcp_server.h main/db_esp32_comm.c
+        main/db_esp32_comm.h main/db_comm_protocol.h main/db_comm.c main/db_comm.h)

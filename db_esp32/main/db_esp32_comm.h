@@ -17,13 +17,9 @@
  *
  */
 
-#ifndef DB_ESP32_DB_ESP32_CONTROL_H
-#define DB_ESP32_DB_ESP32_CONTROL_H
+#ifndef DB_ESP32_DB_ESP32_COMM_H
+#define DB_ESP32_DB_ESP32_COMM_H
 
-#define UDP_BUF_SIZE (1024)
-#define UART_BUF_SIZE (1024)
+void communication_module();
 
-int get_socket_error_code(int socket);
-void control_module();
-
-#endif //DB_ESP32_DB_ESP32_CONTROL_H
+#endif //DB_ESP32_DB_ESP32_COMM_H
