@@ -1,6 +1,20 @@
-# This file is part of DroneBridge licenced under Apache Licence 2
-# https://github.com/seeul8er/DroneBridge/
-# Created by Wolfgang Christl
+#
+# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+#
+#   Copyright 2018 Wolfgang Christl
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
 
 import base64
 import json
@@ -11,7 +25,7 @@ from subprocess import call
 
 from bpf import attach_filter
 from db_comm_messages import change_settings, new_settingsresponse_message, comm_message_extract_info, \
-    check_package_good, change_settings_gopro
+    check_package_good, change_settings_gopro, create_sys_ident_response
 from db_ip_checker import DB_IP_GETTER
 
 
@@ -28,6 +42,20 @@ class DBPort(Enum):
 class DBDir(Enum):
     DB_TO_UAV = b'\x01'
     DB_TO_GND = b'\x03'
+
+
+class DBCommProt(Enum):
+    DB_ORIGIN_GND = 'groundstation'
+    DB_ORIGIN_UAV = 'drone'
+    DB_TYPE_SETTINGS_SUCCESS = 'settingssuccess'
+    DB_TYPE_SYS_IDENT_REQUEST = 'system_ident_req'
+    DB_TYPE_SYS_IDENT_RESPONSE = 'system_ident_rsp'
+    DB_TYPE_SETTINGS_CHANGE = 'settingschange'
+    DB_TYPE_MSP = 'mspcommand'
+    DB_TYPE_SETTINGS_REQUEST = 'settingsrequest'
+    DB_TYPE_SETTINGS_RESPONSE = 'settingsresponse'
+    DB_REQUEST_TYPE_WBC = 'wbc'
+    DB_REQUEST_TYPE_DB = 'db'
 
 
 RADIOTAP_HEADER = b'\x00\x00\x0c\x00\x04\x80\x00\x00\x0c\x00\x18\x00'  # 6Mbit transmission speed set with Ralink chips
@@ -285,19 +313,24 @@ class DBProtocol:
     def _process_db_comm_protocol_type(self, loaded_json):
         """Execute the command given in the DroneBridge communication packet"""
         message = ""
-        if loaded_json['type'] == 'mspcommand':
+        if loaded_json['type'] == DBCommProt.DB_TYPE_MSP:
             # deprecated
             self.sendto_uav(base64.b64decode(loaded_json['MSP']), DBPort.DB_PORT_CONTROLLER.value)
-        elif loaded_json['type'] == 'settingsrequest':
+        elif loaded_json['type'] == DBCommProt.DB_TYPE_SETTINGS_REQUEST:
             if self.comm_direction == DBDir.DB_TO_UAV:
-                message = new_settingsresponse_message(loaded_json, 'groundstation')
+                message = new_settingsresponse_message(loaded_json, DBCommProt.DB_ORIGIN_GND)
             else:
-                message = new_settingsresponse_message(loaded_json, 'drone')
-        elif loaded_json['type'] == 'settingschange':
+                message = new_settingsresponse_message(loaded_json, DBCommProt.DB_ORIGIN_UAV)
+        elif loaded_json['type'] == DBCommProt.DB_TYPE_SETTINGS_CHANGE:
             if self.comm_direction == DBDir.DB_TO_UAV:
-                message = change_settings(loaded_json, 'groundstation')
+                message = change_settings(loaded_json, DBCommProt.DB_ORIGIN_GND)
             else:
-                message = change_settings(loaded_json, 'drone')
+                message = change_settings(loaded_json, DBCommProt.DB_ORIGIN_UAV)
+        elif loaded_json['type'] == DBCommProt.DB_TYPE_SYS_IDENT_REQUEST:
+            if self.comm_direction == DBDir.DB_TO_UAV:
+                message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_GND)
+            else:
+                message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_UAV)
         else:
             print(self.tag + "DB_COMM_PROTO: Unknown message type")
         return message
