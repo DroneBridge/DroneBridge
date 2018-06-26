@@ -22,7 +22,7 @@ import binascii
 from itertools import chain
 import os
 
-from DroneBridge_Protocol import DBCommProt
+from DBCommProt import DBCommProt
 
 tag = 'DB_COMM_MESSAGE: '
 PATH_DRONEBRIDGE_GROUND_SETTINGS = "/boot/DroneBridgeGround.ini"
@@ -51,16 +51,16 @@ def new_settingsresponse_message(loaded_json, origin):
     """
     complete_response = {}
     complete_response['destination'] = 4
-    complete_response['type'] = DBCommProt.DB_TYPE_SETTINGS_RESPONSE
+    complete_response['type'] = DBCommProt.DB_TYPE_SETTINGS_RESPONSE.value
     complete_response['response'] = loaded_json['request']
     complete_response['origin'] = origin
     complete_response['id'] = loaded_json['id']
-    if loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_DB:
+    if loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_DB.value:
         if 'settings' in loaded_json:
             complete_response = read_dronebridge_settings(complete_response, origin, True, loaded_json['settings'])
         else:
             complete_response = read_dronebridge_settings(complete_response, origin, False, None)
-    elif loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_WBC:
+    elif loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
         if 'settings' in loaded_json:
             complete_response = read_wbc_settings(complete_response, True, loaded_json['settings'])
         else:
@@ -101,10 +101,10 @@ def change_settings_db(loaded_json, origin):
     try:
         section = ''
         filepath = ''
-        if origin == DBCommProt.DB_ORIGIN_GND:
+        if origin == DBCommProt.DB_ORIGIN_GND.value:
             section = 'Ground'
             filepath = PATH_DRONEBRIDGE_GROUND_SETTINGS
-        elif origin == DBCommProt.DB_ORIGIN_UAV:
+        elif origin == DBCommProt.DB_ORIGIN_UAV.value:
             section = 'Air'
             filepath = PATH_DRONEBRIDGE_AIR_SETTINGS
         with open(filepath, 'r+') as file:
@@ -128,9 +128,9 @@ def change_settings_db(loaded_json, origin):
 def change_settings(loaded_json, origin):
     """takes a settings change request - executes it - returns a encoded settings change success message"""
     worked = False
-    if loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_DB:
+    if loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_DB.value:
         worked = change_settings_db(loaded_json, origin)
-    elif loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_WBC:
+    elif loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
         worked = change_settings_wbc(loaded_json, origin)
     if worked:
         return new_settingschangesuccess_message(origin, loaded_json['id'])
@@ -146,7 +146,7 @@ def get_firmware_id():
 
 
 def create_sys_ident_response(loaded_json, origin):
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SYS_IDENT_RESPONSE, 'origin': origin,
+    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SYS_IDENT_RESPONSE.value, 'origin': origin,
                           'HID': 0, 'FID': get_firmware_id(), 'id': loaded_json['id']})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
@@ -170,11 +170,11 @@ def read_dronebridge_settings(response_header, origin, specific_request, request
     section = ''  # section in the DroneBridge config file
     comm_ident = ''  # array descriptor in the settings request
     settings = {}  # settings object that gets sent
-    if origin == DBCommProt.DB_ORIGIN_GND:
+    if origin == DBCommProt.DB_ORIGIN_GND.value:
         config.read(PATH_DRONEBRIDGE_GROUND_SETTINGS)
         section = 'GROUND'
         comm_ident = 'Ground'
-    elif origin == DBCommProt.DB_ORIGIN_UAV:
+    elif origin == DBCommProt.DB_ORIGIN_UAV.value:
         config.read(PATH_DRONEBRIDGE_AIR_SETTINGS)
         section = 'AIR'
         comm_ident = 'Air'
@@ -192,7 +192,7 @@ def read_dronebridge_settings(response_header, origin, specific_request, request
     return response_header
 
 
-def read_wbc_settings(response_header, specific_request, requestet_settings):
+def read_wbc_settings(response_header, specific_request, requested_settings):
     """
     Read settings from file and create a valid packet
     :param response_header: Everything but the settings part of the message as a dict
@@ -208,7 +208,7 @@ def read_wbc_settings(response_header, specific_request, requestet_settings):
         config.read_file(lines)
 
     if specific_request:
-        for requested_set in requestet_settings['wbc']:
+        for requested_set in requested_settings['wbc']:
             if requested_set in config[virtual_section]:
                 settings[requested_set] = config.get(virtual_section, requested_set)
     else:

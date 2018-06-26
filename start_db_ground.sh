@@ -63,7 +63,7 @@ echo "DroneBridge-Ground: Calibrating RC using: '$joy_cal'"
 
 echo "DroneBridge-Ground: Trying to start individual modules..."
 echo "DroneBridge-Ground: Starting ip checker module..."
-python3 comm_telemetry/db_ip_checker.py &
+python3 communication/db_ip_checker.py &
 
 if [ $en_comm = "Y" ]; then
 	echo "DroneBridge-Ground: Starting communication module..."
@@ -73,7 +73,7 @@ fi
 echo "DroneBridge-Ground: Starting status module..."
 ./status/status -n $interface_tel -m $mode -c $comm_id &
 
-echo "DroneBridge-Ground: Starting proxy module..."
+echo "DroneBridge-Ground: Starting proxy & telemetry module..."
 ./proxy/proxy -n $interface_proxy -m $mode -p $proxy_port_local_remote -c $comm_id -i $interface_tel -l 1604 &
 
 if [ $en_control = "Y" ]; then

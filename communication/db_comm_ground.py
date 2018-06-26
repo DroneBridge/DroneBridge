@@ -18,7 +18,6 @@
 
 import argparse
 from DroneBridge_Protocol import DBProtocol, DBPort, DBDir
-from db_comm_helper import find_mac
 import time
 
 

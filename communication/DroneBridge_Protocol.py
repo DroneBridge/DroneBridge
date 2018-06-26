@@ -23,6 +23,7 @@ from socket import *
 import select
 from subprocess import call
 
+from DBCommProt import DBCommProt
 from bpf import attach_filter
 from db_comm_messages import change_settings, new_settingsresponse_message, comm_message_extract_info, \
     check_package_good, change_settings_gopro, create_sys_ident_response
@@ -42,20 +43,6 @@ class DBPort(Enum):
 class DBDir(Enum):
     DB_TO_UAV = b'\x01'
     DB_TO_GND = b'\x03'
-
-
-class DBCommProt(Enum):
-    DB_ORIGIN_GND = 'groundstation'
-    DB_ORIGIN_UAV = 'drone'
-    DB_TYPE_SETTINGS_SUCCESS = 'settingssuccess'
-    DB_TYPE_SYS_IDENT_REQUEST = 'system_ident_req'
-    DB_TYPE_SYS_IDENT_RESPONSE = 'system_ident_rsp'
-    DB_TYPE_SETTINGS_CHANGE = 'settingschange'
-    DB_TYPE_MSP = 'mspcommand'
-    DB_TYPE_SETTINGS_REQUEST = 'settingsrequest'
-    DB_TYPE_SETTINGS_RESPONSE = 'settingsresponse'
-    DB_REQUEST_TYPE_WBC = 'wbc'
-    DB_REQUEST_TYPE_DB = 'db'
 
 
 RADIOTAP_HEADER = b'\x00\x00\x0c\x00\x04\x80\x00\x00\x0c\x00\x18\x00'  # 6Mbit transmission speed set with Ralink chips
@@ -289,7 +276,7 @@ class DBProtocol:
         elif loaded_json['destination'] == 2 and check_package_good(extracted_info):
             if self.comm_direction == DBDir.DB_TO_UAV:
                 response_drone = self._redirect_comm_to_drone(raw_data_encoded)
-                if response_drone != False and response_drone!=None:
+                if response_drone != False and response_drone != None:
                     message = self._process_db_comm_protocol_type(loaded_json)
                     self.sendto_smartphone(message, self.APP_PORT_COMM)
                     status = self.sendto_smartphone(response_drone, self.APP_PORT_COMM)
@@ -313,24 +300,24 @@ class DBProtocol:
     def _process_db_comm_protocol_type(self, loaded_json):
         """Execute the command given in the DroneBridge communication packet"""
         message = ""
-        if loaded_json['type'] == DBCommProt.DB_TYPE_MSP:
+        if loaded_json['type'] == DBCommProt.DB_TYPE_MSP.value:
             # deprecated
             self.sendto_uav(base64.b64decode(loaded_json['MSP']), DBPort.DB_PORT_CONTROLLER.value)
-        elif loaded_json['type'] == DBCommProt.DB_TYPE_SETTINGS_REQUEST:
+        elif loaded_json['type'] == DBCommProt.DB_TYPE_SETTINGS_REQUEST.value:
             if self.comm_direction == DBDir.DB_TO_UAV:
-                message = new_settingsresponse_message(loaded_json, DBCommProt.DB_ORIGIN_GND)
+                message = new_settingsresponse_message(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
             else:
-                message = new_settingsresponse_message(loaded_json, DBCommProt.DB_ORIGIN_UAV)
-        elif loaded_json['type'] == DBCommProt.DB_TYPE_SETTINGS_CHANGE:
+                message = new_settingsresponse_message(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+        elif loaded_json['type'] == DBCommProt.DB_TYPE_SETTINGS_CHANGE.value:
             if self.comm_direction == DBDir.DB_TO_UAV:
-                message = change_settings(loaded_json, DBCommProt.DB_ORIGIN_GND)
+                message = change_settings(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
             else:
-                message = change_settings(loaded_json, DBCommProt.DB_ORIGIN_UAV)
-        elif loaded_json['type'] == DBCommProt.DB_TYPE_SYS_IDENT_REQUEST:
+                message = change_settings(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+        elif loaded_json['type'] == DBCommProt.DB_TYPE_SYS_IDENT_REQUEST.value:
             if self.comm_direction == DBDir.DB_TO_UAV:
-                message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_GND)
+                message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
             else:
-                message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_UAV)
+                message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
         else:
             print(self.tag + "DB_COMM_PROTO: Unknown message type")
         return message
