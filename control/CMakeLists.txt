@@ -11,7 +11,7 @@ set(SOURCE_FILES_CONTROL_GROUND
         control_main_ground.c
         parameter.h
         rc_ground.h
-        i6S.h rc_ground.c)
+        i6S.h rc_ground.c opentx.c opentx.h)
 
 set(SOURCE_FILES_CONTROL_AIR
         control_main_air.c rc_air.c rc_air.h)

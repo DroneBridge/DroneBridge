@@ -78,5 +78,5 @@ echo "DroneBridge-Ground: Starting proxy & telemetry module..."
 
 if [ $en_control = "Y" ]; then
 	echo "DroneBridge-Ground: Starting controller module..."
-	./control/control_ground -n $interface_control -j $joy_interface -m $mode -v $rc_proto -g "$joy_cal" -c $comm_id &
+	./control/control_ground -n $interface_control -j $joy_interface -m $mode -v $rc_proto -c $comm_id &
 fi

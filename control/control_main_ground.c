@@ -31,6 +31,7 @@
 #include "../common/db_raw_send_receive.h"
 #include "rc_ground.h"
 #include "../common/ccolors.h"
+#include "opentx.h"
 
 int detect_RC(int new_Joy_IF) {
     int fd;
@@ -112,11 +113,15 @@ int main(int argc, char *argv[]) {
     if (ioctl(sock_fd, JSIOCGNAME(sizeof(RC_name)), RC_name) < 0)
         strncpy(RC_name, "Unknown", sizeof(RC_name));
     close(sock_fd); // We reopen in the RC specific file. Only opened in here to get the name of the controller
+    printf(GRN "DB_CONTROL_GROUND: Detected \"%s\"" RESET "\n", RC_name);
     if (strcmp(i6S_descriptor, RC_name) == 0){
         printf("DB_CONTROL_GROUND: Choosing i6S-Config\n");
+        strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
         i6S(Joy_IF, calibrate_comm);
     } else {
-        printf(RED "DB_CONTROL_GROUND: Your RC \"%s\" is currently not supported. Closing." RESET "\n", RC_name);
+        printf("DB_CONTROL_GROUND: Choosing OpenTX-Config\n");
+        strcpy(calibrate_comm, DEFAULT_OPENTX_CALIBRATION);
+        opentx(Joy_IF, calibrate_comm);
     }
     return 0;
 }
