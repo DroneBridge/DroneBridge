@@ -25,6 +25,7 @@ import netifaces
 key_smartphone_ip_sm = 1111
 key_smartphone_ip_sem = 1112
 
+
 class DB_IP_GETTER():
 
     def __init__(self):
@@ -46,24 +47,22 @@ class DB_IP_GETTER():
 
     def return_smartphone_ip(self):
         # acquire causes lag. Unsolved for the moment. Might be because of status module
-        #self.sem.acquire()
+        # self.sem.acquire()
         ip = str(self.memory.read(key_smartphone_ip_sm).strip(), 'utf-8')
-        #self.sem.release()
+        # self.sem.release()
         return ip
 
 
 def find_smartphone_ip():
     try:
-        interfaces = netifaces.interfaces()
-        for inter in interfaces:
-             if inter == "usb0":
-                 time.sleep(3)
-                 g = netifaces.gateways()
-                 return g["default"][netifaces.AF_INET][0]
+        g = netifaces.gateways()
+        for interface_desc in g[netifaces.AF_INET]:
+            if interface_desc[1] == 'usb0':
+                return interface_desc[0] + '    '
         return "192.168.2.2    "
     except KeyError:
         print("IP_CHECKER: KeyError")
-        return "192.168.29.129"
+        return "192.168.42.129 "
 
 
 def main():
@@ -84,7 +83,7 @@ def main():
         # Initializing sem.o_time to nonzero value
         sem.release()
 
-    while(True):
+    while (True):
         time.sleep(2)
         sem.acquire()
         memory.write(find_smartphone_ip())

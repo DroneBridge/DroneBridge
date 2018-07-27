@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
     }
 
     // init variables
-    int radiotap_length = 0;
+    int radiotap_length = 0, counter = 0;
     int shID = init_shared_memory_ip();
     fd_set fd_socket_set;
     struct timeval select_timeout;
@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
         {
             max_sd = lr_socket_telem;
         }
-        int select_return = select (max_sd+1, &fd_socket_set, NULL, NULL, &select_timeout);
+        int select_return = select(max_sd+1, &fd_socket_set, NULL, NULL, &select_timeout);
         if(select_return == 0){
             // timeout: get IP from IP checker although we always return messages to last knows client ip:port
             client_proxy_addr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
@@ -239,6 +239,11 @@ int main(int argc, char *argv[]) {
                     radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
                     message_length = lr_buffer[radiotap_length+7] | (lr_buffer[radiotap_length+8] << 8); // DB_v2
                     memcpy(udp_buffer, lr_buffer+(radiotap_length + DB_RAW_V2_HEADER_LENGTH), message_length);
+                    counter++;
+                    if (counter>9){
+                        counter = 0;
+                        client_telem_addr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
+                    }
                     sendto (udp_socket, udp_buffer, message_length, 0, (struct sockaddr *) &client_telem_addr,
                             sizeof (client_telem_addr));
                     if (fifo_osd != -1 && write_to_osdfifo == 'Y'){

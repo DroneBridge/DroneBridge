@@ -72,7 +72,28 @@ def new_settingsresponse_message(loaded_json, origin):
 
 def new_settingschangesuccess_message(origin, new_id):
     """returns a settings change success message"""
-    command = json.dumps({'destination': 4, 'type': 'settingssuccess', 'origin': origin, 'id': new_id})
+    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SETTINGS_SUCCESS.value, 'origin': origin, 'id': new_id})
+    crc32 = binascii.crc32(str.encode(command))
+    return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
+
+
+def new_ack_message(origin, new_id):
+    """returns a ACK message"""
+    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_ACK.value, 'origin': origin, 'id': new_id})
+    crc32 = binascii.crc32(str.encode(command))
+    return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
+
+
+def new_ping_response_message(loaded_json, origin):
+    """returns a ping response message"""
+    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_PING_RESPONSE.value, 'origin': origin, 'id': loaded_json['id']})
+    crc32 = binascii.crc32(str.encode(command))
+    return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
+
+
+def new_error_response_message(error_message, origin, new_id):
+    """returns a error response message"""
+    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_ERROR, 'message': error_message, 'origin': origin, 'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
@@ -135,7 +156,7 @@ def change_settings(loaded_json, origin):
     if worked:
         return new_settingschangesuccess_message(origin, loaded_json['id'])
     else:
-        return "error_settingschange".encode()
+        return new_error_response_message('could not change settings', origin, loaded_json['id'])
 
 
 def get_firmware_id():

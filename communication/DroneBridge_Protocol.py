@@ -26,7 +26,8 @@ from subprocess import call
 from DBCommProt import DBCommProt
 from bpf import attach_filter
 from db_comm_messages import change_settings, new_settingsresponse_message, comm_message_extract_info, \
-    check_package_good, change_settings_gopro, create_sys_ident_response
+    check_package_good, change_settings_gopro, create_sys_ident_response, new_error_response_message, \
+    new_ping_response_message
 from db_ip_checker import DB_IP_GETTER
 
 
@@ -105,7 +106,8 @@ class DBProtocol:
                 data, addr = self.comm_sock.recvfrom(UDP_BUFFERSIZE)
                 return data
             except Exception as e:
-                print(self.tag + str(e) + ": Drone is not ready or has wrong IP address of groundstation. Sending hello")
+                print(
+                    self.tag + str(e) + ": Drone is not ready or has wrong IP address of groundstation. Sending hello")
                 self._send_hello()
                 return False
         else:
@@ -129,7 +131,8 @@ class DBProtocol:
                 data, addr = self.comm_sock.recvfrom(UDP_BUFFERSIZE)
                 return data
             except Exception as e:
-                print(self.tag + str(e) + ": Drone is not ready or has wrong IP address of groundstation. Sending hello")
+                print(
+                    self.tag + str(e) + ": Drone is not ready or has wrong IP address of groundstation. Sending hello")
                 self._send_hello()
                 return False
         else:
@@ -190,7 +193,8 @@ class DBProtocol:
                 try:
                     return self.android_sock.sendto(raw_data, (self.ip_smartp, port))
                 except:
-                    print(self.tag + "Could not send to smartphone ("+self.ip_smartp+"). Make sure it is connected.")
+                    print(
+                        self.tag + "Could not send to smartphone (" + self.ip_smartp + "). Make sure it is connected.")
                     return 0
 
     def sendto_groundstation(self, data_bytes, db_port):
@@ -241,7 +245,7 @@ class DBProtocol:
                                               packet[(rth_length + 8):(rth_length + 9)],
                                               byteorder='little', signed=False)
         payload_start = rth_length + DB_V2_HEADER_LENGTH
-        return packet[payload_start:(payload_start+db_v2_payload_length)]
+        return packet[payload_start:(payload_start + db_v2_payload_length)]
 
     def _process_smartphone_command(self, raw_data, thelast_keepalive):
         """We received something from the smartphone. Most likely a communication message. Do something with it."""
@@ -255,7 +259,8 @@ class DBProtocol:
         return thelast_keepalive
 
     def _route_db_comm_protocol(self, raw_data_encoded):
-        """Routing of the DroneBridge communication protocol packets"""
+        """Routing of the DroneBridge communication protocol packets. Only write to local settings if we get a positive
+        response from the drone! Ping requests are a exception!"""
         status = False
         extracted_info = comm_message_extract_info(raw_data_encoded)  # returns json bytes [0] and crc bytes [1]
         try:
@@ -267,7 +272,8 @@ class DBProtocol:
             print(self.tag + "ValueError on decoding extracted_info[0]")
             return False
 
-        if loaded_json['destination'] == 1 and self.comm_direction == DBDir.DB_TO_UAV and check_package_good(extracted_info):
+        if loaded_json['destination'] == 1 and self.comm_direction == DBDir.DB_TO_UAV and check_package_good(
+                extracted_info):
             message = self._process_db_comm_protocol_type(loaded_json)
             if message != "":
                 status = self.sendto_smartphone(message, self.APP_PORT_COMM)
@@ -275,11 +281,23 @@ class DBProtocol:
                 status = True
         elif loaded_json['destination'] == 2 and check_package_good(extracted_info):
             if self.comm_direction == DBDir.DB_TO_UAV:
-                response_drone = self._redirect_comm_to_drone(raw_data_encoded)
-                if response_drone != False and response_drone != None:
+                # Always process ping requests right away! Do not wait for UAV response!
+                if loaded_json['type'] == DBCommProt.DB_TYPE_PING_REQUEST.value:
                     message = self._process_db_comm_protocol_type(loaded_json)
-                    self.sendto_smartphone(message, self.APP_PORT_COMM)
-                    status = self.sendto_smartphone(response_drone, self.APP_PORT_COMM)
+                    status = self.sendto_smartphone(message, self.APP_PORT_COMM)
+                    response_drone = self._redirect_comm_to_drone(raw_data_encoded)
+                    if type(response_drone) is bytearray:
+                        status = self.sendto_smartphone(response_drone, self.APP_PORT_COMM)
+                else:
+                    response_drone = self._redirect_comm_to_drone(raw_data_encoded)
+                    if type(response_drone) is bytearray:
+                        message = self._process_db_comm_protocol_type(loaded_json)
+                        self.sendto_smartphone(message, self.APP_PORT_COMM)
+                        status = self.sendto_smartphone(response_drone, self.APP_PORT_COMM)
+                    else:
+                        message = new_error_response_message('UAV was unreachable - command not executed',
+                                                             DBCommProt.DB_ORIGIN_GND.value, loaded_json['id'])
+                        self.sendto_smartphone(message, self.APP_PORT_COMM)
             else:
                 message = self._process_db_comm_protocol_type(loaded_json)
                 sentbytes = self.sendto_groundstation(message, DBPort.DB_PORT_COMMUNICATION.value)
@@ -318,7 +336,18 @@ class DBProtocol:
                 message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
             else:
                 message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+        elif loaded_json['type'] == DBCommProt.DB_TYPE_PING_REQUEST.value:
+            if self.comm_direction == DBDir.DB_TO_UAV:
+                message = new_ping_response_message(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
+            else:
+                message = new_ping_response_message(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
         else:
+            if self.comm_direction == DBDir.DB_TO_UAV:
+                message = new_error_response_message('unsupported message type', DBCommProt.DB_ORIGIN_GND.value,
+                                                     loaded_json['id'])
+            else:
+                message = new_error_response_message('unsupported message type', DBCommProt.DB_ORIGIN_UAV.value,
+                                                     loaded_json['id'])
             print(self.tag + "DB_COMM_PROTO: Unknown message type")
         return message
 
@@ -328,7 +357,7 @@ class DBProtocol:
             self._clear_monitor_comm_socket_buffer()
             self.first_run = False
         self.sendto_uav(raw_data_encoded, DBPort.DB_PORT_COMMUNICATION.value)
-        response = self.receive_from_db()
+        response = self.receive_from_db(custom_timeout=0.3)
         print(self.tag + "Parsed packet received from drone:")
         print(response)
         return response
@@ -433,7 +462,7 @@ class DBProtocol:
         self.comm_sock.setblocking(True)
 
     def _open_android_udpsocket(self):
-        print(self.tag + "Opening UDP-Socket to smartphone on port: "+str(self.udp_port_smartphone))
+        print(self.tag + "Opening UDP-Socket to smartphone on port: " + str(self.udp_port_smartphone))
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
