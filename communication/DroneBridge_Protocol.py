@@ -27,7 +27,7 @@ from DBCommProt import DBCommProt
 from bpf import attach_filter
 from db_comm_messages import change_settings, new_settingsresponse_message, comm_message_extract_info, \
     check_package_good, change_settings_gopro, create_sys_ident_response, new_error_response_message, \
-    new_ping_response_message
+    new_ping_response_message, new_ack_message, change_cam_selection, init_cam_gpios
 from db_ip_checker import DB_IP_GETTER
 
 
@@ -98,6 +98,7 @@ class DBProtocol:
         self.signal = 0  # signal quality that is measured [dBm]
         self.first_run = True
         self.seq_num = 0
+        init_cam_gpios()
 
     def receive_from_db(self, custom_timeout=1.5):
         """Check if new data from the drone arrived and return packet payload. Default timeout is 1.5s"""
@@ -311,6 +312,13 @@ class DBProtocol:
         elif loaded_json['destination'] == 4:
             if self.comm_direction == DBDir.DB_TO_UAV:
                 status = self.sendto_smartphone(raw_data_encoded, self.APP_PORT_COMM)
+        elif loaded_json['destination'] == 5:
+            if self.comm_direction == DBDir.DB_TO_UAV:
+                status = self.sendto_uav(raw_data_encoded, DBPort.DB_PORT_COMMUNICATION.value)
+            else:
+                message = self._process_db_comm_protocol_type(loaded_json)
+                if self.sendto_groundstation(message, DBPort.DB_PORT_COMMUNICATION.value) == None:
+                    status = True
         else:
             print(self.tag + "DB_COMM_PROTO: Unknown message destination")
         return status
@@ -341,6 +349,9 @@ class DBProtocol:
                 message = new_ping_response_message(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
             else:
                 message = new_ping_response_message(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+        elif loaded_json['type'] == DBCommProt.DB_TYPE_CAMSELECT.value:
+            change_cam_selection(loaded_json['cam'])
+            message = new_ack_message(DBCommProt.DB_ORIGIN_UAV.value, loaded_json['id'])
         else:
             if self.comm_direction == DBDir.DB_TO_UAV:
                 message = new_error_response_message('unsupported message type', DBCommProt.DB_ORIGIN_GND.value,
@@ -371,8 +382,7 @@ class DBProtocol:
         while True:
             r, w, e = select.select([], [self.comm_sock], [], 0)
             if w:
-                num = self.comm_sock.sendto(data_bytes, (self.ip_rx, self.udp_port_rx))
-                return num
+                return self.comm_sock.sendto(data_bytes, (self.ip_rx, self.udp_port_rx))
 
     def _sendto_rx_wifi(self, raw_data_bytes, port_bytes):
         """
@@ -405,9 +415,7 @@ class DBProtocol:
         while True:
             r, w, e = select.select([], [self.comm_sock], [], 0)
             if w:
-                num = self.comm_sock.sendall(RADIOTAP_HEADER + db_v2_raw_header + data_bytes)
-                break
-        return num
+                return self.comm_sock.sendall(RADIOTAP_HEADER + db_v2_raw_header + data_bytes)
 
     def _open_comm_sock(self):
         """Opens a socket that talks to drone (on tx side) or groundstation (on rx side)"""

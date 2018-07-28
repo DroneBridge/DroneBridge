@@ -21,6 +21,8 @@ import configparser
 import binascii
 from itertools import chain
 import os
+import RPi.GPIO as gp
+import evdev
 
 from DBCommProt import DBCommProt
 
@@ -239,6 +241,47 @@ def read_wbc_settings(response_header, specific_request, requested_settings):
 
     response_header['settings'] = settings
     return response_header
+
+
+def init_cam_gpios():
+    gp.setwarnings(False)
+    gp.setmode(gp.BOARD)
+    gp.setup(7, gp.OUT)
+    gp.setup(11, gp.OUT)
+    gp.setup(12, gp.OUT)
+    gp.output(7, False)
+    gp.output(11, True)
+    gp.output(12, True)
+
+
+def change_cam_selection(camera_index):
+    if camera_index == 0:
+        gp.output(7, False)
+        gp.output(11, False)
+        gp.output(12, True)
+    else:
+        gp.output(7, True)
+        gp.output(11, False)
+        gp.output(12, True)
+
+
+def calibrate_jscal_default():
+    devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+    dev_capabilitys_list = devices[0].capabilities().get(3)
+    num_joystick_axis = len(dev_capabilitys_list)
+    calibration_string = "jscal /dev/input/js0 -s " + str(num_joystick_axis)
+    for i in range(num_joystick_axis):
+        absInfo = dev_capabilitys_list[i][1]
+        minimum = absInfo[1]  # minimum value the RC will send for the first axis - raw value!
+        maximum = absInfo[2]  # maximum value the RC will send for the first axis - raw value!
+        center_value = int((minimum + maximum)/2)
+        correction_coeff_min = int(536854528/(maximum - center_value))
+        correction_coeff_max = int(536854528 / (maximum - center_value))
+        calibration_string = calibration_string + ",1,0," + str(center_value) + "," + str(center_value) + "," \
+                             + str(correction_coeff_min) + "," + str(correction_coeff_max)
+    # TODO: execute calibration!
+    print("Calibrating using:")
+    print(calibration_string)
 
 
 def remove_first_line(filepath):
