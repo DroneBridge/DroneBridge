@@ -26,8 +26,8 @@ from subprocess import call
 from DBCommProt import DBCommProt
 from bpf import attach_filter
 from db_comm_messages import change_settings, new_settingsresponse_message, comm_message_extract_info, \
-    check_package_good, change_settings_gopro, create_sys_ident_response, new_error_response_message, \
-    new_ping_response_message, new_ack_message, change_cam_selection, init_cam_gpios
+    comm_crc_correct, change_settings_gopro, create_sys_ident_response, new_error_response_message, \
+    new_ping_response_message, new_ack_message, change_cam_selection, init_cam_gpios, normalize_jscal_axis
 from db_ip_checker import DB_IP_GETTER
 
 
@@ -273,14 +273,24 @@ class DBProtocol:
             print(self.tag + "ValueError on decoding extracted_info[0]")
             return False
 
-        if loaded_json['destination'] == 1 and self.comm_direction == DBDir.DB_TO_UAV and check_package_good(
-                extracted_info):
+        # Check CRC
+        if not comm_crc_correct(extracted_info):
+            message = new_error_response_message('Bad CRC', self.comm_direction.value,
+                                                 loaded_json['id'])
+            if self.comm_direction == DBDir.DB_TO_UAV:
+                self.sendto_smartphone(message, DBPort.DB_PORT_COMMUNICATION.value)
+            else:
+                self.sendto_groundstation(message, DBPort.DB_PORT_COMMUNICATION.value)
+            return False
+
+        # Process communication protocol
+        if loaded_json['destination'] == 1 and self.comm_direction == DBDir.DB_TO_UAV:
             message = self._process_db_comm_protocol_type(loaded_json)
             if message != "":
                 status = self.sendto_smartphone(message, self.APP_PORT_COMM)
             else:
                 status = True
-        elif loaded_json['destination'] == 2 and check_package_good(extracted_info):
+        elif loaded_json['destination'] == 2:
             if self.comm_direction == DBDir.DB_TO_UAV:
                 # Always process ping requests right away! Do not wait for UAV response!
                 if loaded_json['type'] == DBCommProt.DB_TYPE_PING_REQUEST.value:
@@ -352,6 +362,9 @@ class DBProtocol:
         elif loaded_json['type'] == DBCommProt.DB_TYPE_CAMSELECT.value:
             change_cam_selection(loaded_json['cam'])
             message = new_ack_message(DBCommProt.DB_ORIGIN_UAV.value, loaded_json['id'])
+        elif loaded_json['type'] == DBCommProt.DB_TYPE_ADJUSTRC.value:
+            normalize_jscal_axis(loaded_json['device'])
+            message = new_ack_message(DBCommProt.DB_ORIGIN_GND.value, loaded_json['id'])
         else:
             if self.comm_direction == DBDir.DB_TO_UAV:
                 message = new_error_response_message('unsupported message type', DBCommProt.DB_ORIGIN_GND.value,

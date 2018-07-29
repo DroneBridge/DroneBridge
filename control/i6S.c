@@ -30,6 +30,7 @@
 #include "rc_ground.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/ccolors.h"
+#include "i6S.h"
 
 #define JS_EVENT_BUTTON         0x01    /* button pressed/released */
 #define JS_EVENT_AXIS           0x02    /* joystick moved */
@@ -49,7 +50,7 @@ void intHandler(int dummy) {
  * @param calibrate_comm The command to be executed to calibrate the i6S
  * @return The file descriptor
  */
-int initialize_i6S(int new_Joy_IF, char calibrate_comm[]) {
+int initialize_i6S(int new_Joy_IF) {
     int fd;
     char interface_joystick[500];
     char path[] = "/dev/input/js";
@@ -61,7 +62,10 @@ int initialize_i6S(int new_Joy_IF, char calibrate_comm[]) {
     } while (fd < 0 && keepRunning);
     printf("DB_CONTROL_GROUND: Opened joystick interface!\n");
     printf("DB_CONTROL_GROUND: Calibrating...\n");
-    int returnval = system(calibrate_comm);
+    int returnval = system(DEFAULT_i6S_CALIBRATION); // i6S always calibrated by hard coded string - adjustrc does not have any effect
+//    char calibration_command[500];
+//    sprintf(calibration_command, "%s %s", "jscal-restore", interface_joystick);
+//    int returnval = system(calibration_command);
     if (returnval == 0) {
         printf("DB_CONTROL_GROUND: Calibrated i6S\n");
     }else{
@@ -114,7 +118,7 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         int16_t pos_switch2;
     };
 
-    int fd = initialize_i6S(Joy_IF, calibrate_comm);
+    int fd = initialize_i6S(Joy_IF);
 
     struct js_event e;
     struct i6SRC rc;
@@ -192,7 +196,7 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
                 printf(RED "DB_CONTROL_GROUND: Joystick was unplugged! Retrying... " RESET "\n");
-                fd = initialize_i6S(Joy_IF, calibrate_comm);
+                fd = initialize_i6S(Joy_IF);
             } else {
                 printf(RED "DB_CONTROL_GROUND: Error: %s" RESET " \n", strerror(myerror));
             }
@@ -224,17 +228,6 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         if (rc.pitch == 32766) rc.pitch++;
         if (rc.throttle == 32766) rc.throttle++;
         if (rc.yaw == 32766) rc.yaw++;
-//        printf( "%c[;H", 27 );
-//        printf("Roll:     %i          \n",normalize_i6S(rc.roll,500));
-//        printf("Pitch:    %i          \n",normalize_i6S(rc.pitch,500));
-//        printf("Throttle: %i          \n",normalize_i6S(rc.throttle,500));
-//        printf("Yaw:      %i          \n",normalize_i6S(rc.yaw,500));
-//        printf("Cam up:   %i          \n",normalize_i6S(rc.cam_up,500));
-//        printf("Cam down: %i          \n",normalize_i6S(rc.cam_down,500));
-//        printf("Button 0:     %i          \n",rc.button0);
-//        printf("pos_switch 1: %i          \n",rc.pos_switch1);
-//        printf("pos_switch 2: %i          \n",rc.pos_switch2);
-//        printf("Button 5:     %i          \n",rc.button5);
 
         // Channel map should/must be AETR1234!
         JoystickData[0] = normalize_i6S(rc.roll, 500);

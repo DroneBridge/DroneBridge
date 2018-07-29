@@ -45,7 +45,7 @@ void opentx_Handler(int dummy) {
  * @param calibrate_comm The command to be executed to calibrate the OpenTX controller
  * @return The file descriptor
  */
-int initialize_opentx(int new_Joy_IF, char calibrate_comm[]) {
+int initialize_opentx(int new_Joy_IF) {
     int fd;
     char interface_joystick[500];
     char path[] = "/dev/input/js";
@@ -57,7 +57,9 @@ int initialize_opentx(int new_Joy_IF, char calibrate_comm[]) {
     } while (fd < 0 && keepRunning);
     printf("DB_CONTROL_GROUND: Opened joystick interface!\n");
     printf("DB_CONTROL_GROUND: Calibrating...\n");
-    int returnval = system(calibrate_comm);
+    char calibration_command[500];
+    sprintf(calibration_command, "%s %s", "jscal-restore", interface_joystick);
+    int returnval = system(calibration_command);
     if (returnval == 0) {
         printf("DB_CONTROL_GROUND: Calibrated OpenTX RC\n");
     }else{
@@ -86,7 +88,7 @@ int opentx(int Joy_IF, char calibrate_comm[]) {
     //tim.tv_nsec = 10000000L; //100Hz
     int16_t opentx_channels[32] = {0};
 
-    int fd = initialize_opentx(Joy_IF, calibrate_comm);
+    int fd = initialize_opentx(Joy_IF);
     printf("DB_CONTROL_GROUND: DroneBridge OpenTX - starting!\n");
     while (keepRunning) //send loop
     {
@@ -105,7 +107,7 @@ int opentx(int Joy_IF, char calibrate_comm[]) {
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
                 printf(RED "DB_CONTROL_GROUND: Joystick was unplugged! Retrying... " RESET "\n");
-                fd = initialize_opentx(Joy_IF, calibrate_comm);
+                fd = initialize_opentx(Joy_IF);
             } else {
                 printf(RED "DB_CONTROL_GROUND: Error: %s" RESET " \n", strerror(myerror));
             }

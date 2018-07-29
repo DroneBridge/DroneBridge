@@ -30,6 +30,7 @@ class DBCommProt(Enum):
     DB_TYPE_SYS_IDENT_RESPONSE = 'system_ident_rsp'
     DB_TYPE_SETTINGS_CHANGE = 'settingschange'
     DB_TYPE_CAMSELECT = 'camselect'
+    DB_TYPE_ADJUSTRC = 'adjustrc'
     DB_TYPE_MSP = 'mspcommand'
     DB_TYPE_ACK = 'ack'
     DB_TYPE_SETTINGS_REQUEST = 'settingsrequest'

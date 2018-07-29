@@ -18,7 +18,6 @@ rc_proto=$(awk -F "=" '/^rc_proto/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 proxy_port_local_remote=$(awk -F "=" '/^proxy_port_local_remote/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 comm_port_local=$(awk -F "=" '/^comm_port_local/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 joy_interface=$(awk -F "=" '/^joy_interface/ {gsub(/[ \t]/, "", $2); print $2}' $file)
-joy_cal=$(sed -n -e 's/^\s*joy_cal\s*=\s*//p' $file)
 
 if [ "$interface_selection" = 'auto' ]; then
 	NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`

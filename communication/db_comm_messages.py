@@ -22,7 +22,9 @@ import binascii
 from itertools import chain
 import os
 import RPi.GPIO as gp
+from subprocess import call
 import evdev
+
 
 from DBCommProt import DBCommProt
 
@@ -265,23 +267,34 @@ def change_cam_selection(camera_index):
         gp.output(12, True)
 
 
-def calibrate_jscal_default():
+def normalize_jscal_axis(device="/dev/input/js0"):
+    """
+    Reads the raw min and max values that the RC-HID will send to the ground station and calculates the calibration
+    parameters to that the full range is used with no dead zone. The calibration is stored via "jscal-store".
+    NOTE: This function does not calibrate the joystick! The user needs to calibrate the RC itself. This function just
+     tells the system to not use any dead zone and makes sure the full range of the output is being used
+    :param device: The device descriptor
+    :return:
+    """
     devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
     dev_capabilitys_list = devices[0].capabilities().get(3)
-    num_joystick_axis = len(dev_capabilitys_list)
-    calibration_string = "jscal /dev/input/js0 -s " + str(num_joystick_axis)
-    for i in range(num_joystick_axis):
-        absInfo = dev_capabilitys_list[i][1]
-        minimum = absInfo[1]  # minimum value the RC will send for the first axis - raw value!
-        maximum = absInfo[2]  # maximum value the RC will send for the first axis - raw value!
-        center_value = int((minimum + maximum)/2)
-        correction_coeff_min = int(536854528/(maximum - center_value))
-        correction_coeff_max = int(536854528 / (maximum - center_value))
-        calibration_string = calibration_string + ",1,0," + str(center_value) + "," + str(center_value) + "," \
-                             + str(correction_coeff_min) + "," + str(correction_coeff_max)
-    # TODO: execute calibration!
-    print("Calibrating using:")
-    print(calibration_string)
+    if dev_capabilitys_list is not None:
+        num_joystick_axis = len(dev_capabilitys_list)
+        calibration_string = str(num_joystick_axis)
+        for i in range(num_joystick_axis):
+            absInfo = dev_capabilitys_list[i][1]
+            minimum = absInfo[1]  # minimum value the RC will send for the first axis - raw value!
+            maximum = absInfo[2]  # maximum value the RC will send for the first axis - raw value!
+            center_value = int((minimum + maximum)/2)
+            correction_coeff_min = int(536854528/(maximum - center_value))
+            correction_coeff_max = int(536854528 / (maximum - center_value))
+            calibration_string = calibration_string + ",1,0," + str(center_value) + "," + str(center_value) + "," \
+                                 + str(correction_coeff_min) + "," + str(correction_coeff_max)
+        print("Calibrating:")
+        print(calibration_string)
+        call(["jscal", device, "-s", calibration_string])
+        print("Saving calibration")
+        call(["jscal-store", device])
 
 
 def remove_first_line(filepath):
@@ -297,7 +310,7 @@ def comm_message_extract_info(message):
     return alist
 
 
-def check_package_good(extracted_info):
+def comm_crc_correct(extracted_info):
     """
     Checks the CRC32 of the message contained in extracted_info[1]
     :param extracted_info: extracted_info[0] is the message as json, extracted_info[1] are the four crc bytes

@@ -90,7 +90,6 @@ int main(int argc, char *argv[]) {
                 printf("-n network interface for long range \n"
                                "-j number of joystick interface of RC \n"
                                "-m mode: <w|m> for wifi or monitor\n"
-                               "-g a command to calibrate the joystick. Gets executed on initialisation\n"
                                "-v Protocol [1|2|5]: 1 = MSPv1 [Betaflight/Cleanflight]; 2 = MSPv2 [iNAV]; "
                                "3 = MAVLink (unsupported); 4 = MAVLink v2 (unsupported); 5 = DB-RC (default)\n"
                                "-c <communication id> Choose a number from 0-255. Same on groundstation and drone!\n"
