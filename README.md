@@ -1,32 +1,17 @@
 # DroneBridge
-![alt text](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/DroneBridgeLogo-1_smaller.png)
+![DroneBridge](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/dronebridge_logo_signal_text.png)
 
-A wifibroadcast extension to make iNAV & and MAVLink based flight controllers more usable for aerial photography. Intended to be a real alternative to DJI Lightbridge and other similar systems. Videodownlink and telemetry is provided by wifibroadcast. RC, smartphone app, alternative telemetry downlink and command modules are provided by this project.
+DroneBridge is a system based on the [WifiBroadcast](https://befinitiv.wordpress.com/wifibroadcast-analog-like-transmission-of-live-video-data/) approach. A bidirectional digital radio link between two endpoints is established using standard WiFi hardware and a custom protocol. DroneBridge is optimized for use in UAV applications and is a complete system. It is intended be a real alternative to other similar systems, such as DJI Lightbridge or OcuSync.
 
-<b>Try iNAV and support the development!</b>
+DroneBridge features support for **Raspberry Pi**, **ESP32** on the UAV/ground station side and an **android app**.
 
-Many people use Pixhawk based flight controllers for their UAVs. While Pixhawk is a excellent platform for aerial photography and other tasks it is also very expensive compared to iNAV based flight controllers. The iNAV Project aims to bring UAV capabilities to Cleanflight/Betaflight and has been very successfully so far. You can get high quality iNAV compatible FCs from 30€ an on, compared to the 60€ for a Pixracer which may has less interfaces or the hundreds of dollars for a Pixhawk 2.1.
+Visit **["Not just another drone project"](http://wolfgangchristl.de/not-just-another-drone-project/)** for additional information about the project and its goals
 
+##DroneBridge Beta 0.5 released!
 
-<h2>One frequency. One digital radio link to rule them all.</h2>
-<img src="https://github.com/seeul8er/DroneBridge/blob/master/wiki/oneforall.jpg">
+**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases)**
 
-Visit <b>http://wolfgangchristl.de/2017/not-just-another-drone-project/</b> for additional information about the project and its goals
-
-**What range can you expect?**
-Range is the same as with the WifiBroadcast project. Reported ranges are:
-* [2.4Ghz] [3dbi omni antennas] [70mw]: ~1km
-* [2.4Ghz] [3dbi omni antennas][300mW high-power cards]: ~2km
-* [5Ghz][3dbi omni antennas][25mW]: ~250m
-* [5Ghz][3dbi omni antennas][300mW high-power cards]: ~1km
-
-Range strongly depends on your setup and environment. The user must ensure that the system is operated within the legal framework of the respective country.
-
-<h2>DroneBridge Beta 0.4 release!</h2>
-
-**[Download DroneBridge Beta v0.4 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases)**
-
-**[Download DroneBridge Android App 1.2.1](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/Eb3uYDByAbNKiehgtEqL6r8BSOzq2aPoTTcYmlIjaRPGSA?e=R0dUWH)**
+**[DroneBridge android app 1.3](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/Eb3uYDByAbNKiehgtEqL6r8BSOzq2aPoTTcYmlIjaRPGSA?e=R0dUWH)**
 
 **[Get started](https://github.com/seeul8er/DroneBridge/wiki/Setup-Guide)**
 
@@ -35,74 +20,50 @@ To set it up please read the wiki and check out: [WifiBroadcast installation gui
 
 **Discalmer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals. The pilot is responsible for any harm or damage caused by using the provided software or parts of it.**
 
+##One System. One digital radio link to rule them all.
+![DroneBridge concept](https://github.com/seeul8er/DroneBridge/blob/master/wiki/oneforall.jpg)
+
+* **300 m - 14+ km range*** (500 m - 2 km with standard hardware)
+* **1080p video**
+* **110ms glass to glass latency** (using android app)
+* **cheap**: starting at 80€ for hardware
+* **12 channel RC**
+* **LTM & MAVLink telemetry** - Use with mwptools, QGroundControl, Mission Planner etc.
+* **iNAV** & **MAVLink** based flight controller support
+* **bidirectional**
+* full featured **android app**
+* **OSD**
+* **extendability**
+
+*Range strongly depends on your setup and environment. The user must ensure that the system is operated within the legal framework of the respective country.
+
 <h2>DroneBridge Android App</h2>
 
 ![DroneBridge Android App interface](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app-map-2017-10-29-kleiner.png)
 
-<b>Features:</b>
- - Display low latency video stream of wifibroadcast (USB Tethering or Wifi-AP)
- - Implementation of DroneBridge communication protocol
- - Display RC link quality from DroneBridge control module
- - User Interface to change settings of DroneBridge modules and Wifibroadcast
- - Full support for LTM-Protocol
- - Full support for MAVLink Telemetry
- - Show home point and drone on map
- - Calculate battery percent from ampere or voltage using a battery model
- - Show Wifibroadcast status: bad blocks/lost packets - bitrate and link quality
- - Display distance between pilot (app) and drone
- - Support for MSPv1 (Betaflight/Cleanflight) and MSPv2 (iNAV)
+* Easy to use UI & end point of the whole DroneBridge system
+* Low latency video decoding
+* Change settings, calibrate the RC, view telemetry from within the app
 
-<h2>Exemplary hardware setup</h2>
+**[Learn more about the app](https://github.com/seeul8er/DroneBridge/wiki/Android-App)**
 
+## Exemplary hardware setup
 ![possible hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/Hardware_setup.png)
 
-Other configurations where a laptop functions as the groundstation or a HDMI screen/goggles are connected to the ground Pi should be possible but are untested. Other SBC might work.
-
-<h2>DroneBridge Modules</h2>
+## DroneBridge Modules
 
 DroneBridge is highly modularized to provide flexebility and make development easy. There is a common library for Python3 and C that handles everything involving the DroneBridge raw protocol. It configures the sockets, inits the protocol and provides methods for easy transmission.
 
-<h3>Control Module</h2>
+[Read more in the Wiki](https://github.com/seeul8er/DroneBridge/wiki)
 
-You can use the DroneBridge Android app to see what the control module is reading form your RC (channel data).
-
-<b>Features:</b>
- - Tested
- - Fast
- - Secure and safe by design: 
-   - RX side can act as a passthrough or interpreter for DB RC packet to MSP. If no packets arrive nothing is sent to FC just like a "real" RC
-   - Detection of unplugged RC - simple replugging is possible
-   - Custom ID for every frame sent. Allowing for multiple pilots to control their drones without need for reconfiguration. It is nearly impossible to accendantly control one others drone
-   - All data is checked by a appropriate CRC8
- - 12 channels using DroneBridge RC packet
- - Auto calibration (needs to be calibrated once)
- - Any MSP command for FC can be sent to RX and gets passed on (like ACC/MAG calibration, missions etc.)
- - Easy integration of other RCs (currently i6S)
- - Supported by all betaflight/cleanflight based FC software including iNAV (MSP v2)!
- - Custom (raw) communication protocol for more security and less cpu usage
-
-Discalmer: Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals. The pilot is responsible for any harm or damage caused by using this software or parts of it.
-
-<h3>Communication Module</h3>
-
-Allows to change and request settings of WifiBroadcast and DroneBridge modules on drone and groundstation using the DroneBridge app.
-
-<h3>Status Module</h3>
-
- - Reports Wifibroadcast status to DroneBridge app
- - Reports the RC channels sent via DroneBridge control module to DroneBridge app
-
-<h2>Future Milestones</h2>
-
-### Blackbox concept
+## Blackbox concept
 ![Blackbox](https://github.com/seeul8er/DroneBridge/blob/master/wiki/Blackbox.png)
 
 ## coming up:
  - more documentation
  - add MavLink and MSP waypoint missions
- - make DroneBridge more indipendent of WifiBroadcast (video) > support of esp32 or esp8266 modules to allow integration in existing builds using analog video > no need for raspberry pi: This will provide all features but video. Range will be reduced to 150-300m (no antenna mod) as we use esp-modules to do transmission. If you want video you will need your standard analog FPV cameras and googles etc.. Support for analog video grabbers might be added to android app.
- - (integrate GoPro into project) - wifi seems to interfere with GPS- might be a bad idea...
- - implement VR support. Gimbal and yaw of drone can be controlled by head movement
+ - make DroneBridge more indipendent of WifiBroadcast
+ - DroneBridge Cockpit: A client/OS for x86 systems to monitor and control your UAV
  - See **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milestones)**
 
 <h2>You are a developer?</h2>
