@@ -1,5 +1,5 @@
 # DroneBridge
-![DroneBridge](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/dronebridge_logo_signal_text.png)
+![DroneBridge](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/DroneBridgeLogo_text.png)
 
 DroneBridge is a system based on the [WifiBroadcast](https://befinitiv.wordpress.com/wifibroadcast-analog-like-transmission-of-live-video-data/) approach. A bidirectional digital radio link between two endpoints is established using standard WiFi hardware and a custom protocol. DroneBridge is optimized for use in UAV applications and is a complete system. It is intended be a real alternative to other similar systems, such as DJI Lightbridge or OcuSync.
 
@@ -7,7 +7,7 @@ DroneBridge features support for **Raspberry Pi**, **ESP32** on the UAV/ground s
 
 Visit **["Not just another drone project"](http://wolfgangchristl.de/not-just-another-drone-project/)** for additional information about the project and its goals
 
-##DroneBridge Beta 0.5 released!
+## DroneBridge Beta 0.5 released!
 
 **[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases)**
 
@@ -20,7 +20,7 @@ To set it up please read the wiki and check out: [WifiBroadcast installation gui
 
 **Discalmer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals. The pilot is responsible for any harm or damage caused by using the provided software or parts of it.**
 
-##One System. One digital radio link to rule them all.
+## One System. One digital radio link to rule them all.
 ![DroneBridge concept](https://github.com/seeul8er/DroneBridge/blob/master/wiki/oneforall.jpg)
 
 * **300 m - 14+ km range*** (500 m - 2 km with standard hardware)
@@ -31,15 +31,16 @@ To set it up please read the wiki and check out: [WifiBroadcast installation gui
 * **LTM & MAVLink telemetry** - Use with mwptools, QGroundControl, Mission Planner etc.
 * **iNAV** & **MAVLink** based flight controller support
 * **bidirectional**
-* full featured **android app**
+* full featured **Android app**
 * **OSD**
+* **multi camera support**
 * **extendability**
 
 *Range strongly depends on your setup and environment. The user must ensure that the system is operated within the legal framework of the respective country.
 
-<h2>DroneBridge Android App</h2>
+<h2>DroneBridge for Android</h2>
 
-![DroneBridge Android App interface](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app-map-2017-10-29-kleiner.png)
+![DroneBridge for Android app interface](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app-map-2017-10-29-kleiner.png)
 
 * Easy to use UI & end point of the whole DroneBridge system
 * Low latency video decoding
@@ -48,7 +49,11 @@ To set it up please read the wiki and check out: [WifiBroadcast installation gui
 **[Learn more about the app](https://github.com/seeul8er/DroneBridge/wiki/Android-App)**
 
 ## Exemplary hardware setup
-![possible hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/Hardware_setup.png)
+### long range setup
+![DroneBridge long range hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/longrange_setup.png)
+
+### DroneBridge for ESP32
+![DroneBridge for ESP32 hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/db_ESP32_setup.png)
 
 ## DroneBridge Modules
 
@@ -57,7 +62,7 @@ DroneBridge is highly modularized to provide flexebility and make development ea
 [Read more in the Wiki](https://github.com/seeul8er/DroneBridge/wiki)
 
 ## Blackbox concept
-![Blackbox](https://github.com/seeul8er/DroneBridge/blob/master/wiki/Blackbox.png)
+![Blackbox](https://github.com/seeul8er/DroneBridge/blob/nightly/wiki/Blackbox.png)
 
 ## coming up:
  - more documentation
