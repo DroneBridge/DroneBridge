@@ -1019,7 +1019,7 @@ function osdrx_function {
     VIDEORXRUNNING=0
     while [ $VIDEORXRUNNING -ne 1 ]; do
       sleep 0.5
-      VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
+      VIDEORXRUNNING=`pidof rx | wc -w`
       echo -n "."
     done
     echo
@@ -1109,76 +1109,6 @@ function osdtx_function {
     sleep 1
   done
 }
-
-
-# runs on RX (ground pi)
-function mspdownlinkrx_function {
-  echo
-  echo -n "Waiting until video is running ..."
-  VIDEORXRUNNING=0
-  while [ $VIDEORXRUNNING -ne 1 ]; do
-    sleep 0.5
-    VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
-    echo -n "."
-  done
-  echo
-  echo "Video running ..."
-
-  # disabled for now
-  sleep 365d
-  while true; do
-    #
-    #if [ "$RELAY" == "Y" ]; then
-    #    ionice -c 1 -n 4 nice -n -9 cat /root/telemetryfifo4 | /root/wifibroadcast/tx_rawsock -p 1 -b $RELAY_TELEMETRY_BLOCKS -r $RELAY_TELEMETRY_FECS -f $RELAY_TELEMETRY_BLOCKLENGTH -m $TELEMETRY_MIN_BLOCKLENGTH -y 0 relay0 > /dev/null 2>&1 &
-    #fi
-    # update NICS variable in case a NIC has been removed (exclude devices with wlanx)
-    NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot`
-    #nice /root/wifibroadcast/rx -p 4 -d 1 -b $TELEMETRY_BLOCKS -r $TELEMETRY_FECS -f $TELEMETRY_BLOCKLENGTH $NICS | ionice nice /root/wifibroadcast_misc/ftee /root/mspfifo > /dev/null 2>&1
-    echo "Starting msp downlink rx ..."
-    nice /root/wifibroadcast/rx_rc_telemetry -p 4 -o 1 -r 99 $NICS | ionice nice /root/wifibroadcast_misc/ftee /root/mspfifo > /dev/null 2>&1
-    echo "ERROR: MSP RX has been stopped - restarting ..."
-    ps -ef | nice grep "rx_rc_telemetry -p 4" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-    ps -ef | nice grep "ftee /root/mspfifo" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-    sleep 1
-  done
-}
-
-
-## runs on TX (air pi)
-function mspdownlinktx_function {
-  # disabled for now
-  sleep 365d
-  # setup serial port
-  stty -F $FC_MSP_SERIALPORT -imaxbel -opost -isig -icanon -echo -echoe -ixoff -ixon $FC_MSP_BAUDRATE
-  #/root/wifibroadcast/setupuart -d 0 -s $FC_MSP_SERIALPORT -b $FC_MSP_BAUDRATE
-
-  # wait until tx is running to make sure NICS are configured
-  echo
-  echo -n "Waiting until video TX is running ..."
-  VIDEOTXRUNNING=0
-  while [ $VIDEOTXRUNNING -ne 1 ]; do
-    sleep 0.5
-    VIDEOTXRUNNING=`pidof raspivid | wc -w`
-    echo -n "."
-  done
-  echo
-
-  echo "Video running, starting MSP processes ..."
-
-  NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi`
-
-  echo
-  while true; do
-    echo "Starting MSP transmission, FC MSP Serialport: $FC_MSP_SERIALPORT"
-    nice cat $FC_MSP_SERIALPORT | nice /root/wifibroadcast/tx_telemetry -p 4 -c $TELEMETRY_CTS -r 2 -x 1 -d 12 -y 0 $NICS
-    ps -ef | nice grep "cat $FC_MSP_SERIALPORT" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-    ps -ef | nice grep "tx_telemetry -p 4" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-    echo "MSP telemetry TX exited - restarting ..."
-    sleep 1
-  done
-}
-
-
 
 ## runs on RX (ground pi)
 function uplinktx_function {
@@ -1523,7 +1453,7 @@ function wbclogger_function {
   # Waiting until video is running ...
   VIDEORXRUNNING=0
   while [ $VIDEORXRUNNING -ne 1 ]; do
-    VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
+    VIDEORXRUNNING=`pidof rx | wc -w`
     sleep 1
   done
   echo
@@ -1823,22 +1753,22 @@ function dronebridge_ground_function {
   cd /root/dronebridge
   # wait until video is running to make sure NICS are configured and wifibroadcast_rx_status shmem is available
   echo
-  echo -n "Waiting until video reception is running ..."
+  echo -n "Waiting until setup is complete ..."
   VIDEORXRUNNING=0
   while [ $VIDEORXRUNNING -ne 1 ]; do
-    VIDEORXRUNNING=`pidof $DISPLAY_PROGRAM | wc -w`
+    VIDEORXRUNNING=`pidof rx | wc -w`
     sleep 1
     echo -n "."
   done
 
   echo
-  echo "Starting DroneBridge groundstation modules..."
+  echo "Starting DroneBridge ground station modules..."
   nice -n -9 ./start_db_ground.sh &
 }
 
 function dronebridge_air_function {
   # wait until tx is running to make sure NICS are configured
-  echo -n "Waiting until video transmission is running ..."
+  echo -n "Waiting until setup is complete ..."
   VIDEOTXRUNNING=0
   while [ $VIDEOTXRUNNING -ne 1 ]; do
     VIDEOTXRUNNING=`pidof raspivid | wc -w`
@@ -1906,12 +1836,12 @@ if [ -e "/tmp/settings.sh" ]; then
   if [ "$?" == "0" ]; then
     source /tmp/settings.sh
   else
-    echo "ERROR: wifobroadcast config file contains syntax error(s)!"
+    echo "ERROR: wifibroadcast config file contains syntax error(s)!"
     collect_errorlog
     sleep 365d
   fi
 else
-  echo "ERROR: wifobroadcast config file not found!"
+  echo "ERROR: wifibroadcast config file not found!"
   collect_errorlog
   sleep 365d
 fi
@@ -2158,34 +2088,10 @@ case $TTY in
     sleep 365d
   fi
   ;;
-  /dev/tty10) # uplink
-  echo "================== uplink tx rx / rc rx / msp rx / (tty10) ==========================="
+  /dev/tty10)
+  echo "================== WBC programms removed (tty10) ==========================="
   sleep 7
-  if [ "$CAM" == "1" ]; then # we are video TX and uplink RX
-  if [ "$TELEMETRY_UPLINK" != "disabled" ] || [ "$RC" != "disabled" ]; then
-    echo "Uplink and/or R/C enabled ... we are RX"
-    uplinkrx_and_rcrx_function &
-    if [ "$TELEMETRY_UPLINK" == "msp" ]; then
-      mspdownlinktx_function
-    fi
-    sleep 365d
-  else
-    echo "uplink and R/C not enabled in config"
-  fi
   sleep 365d
-else # we are video RX and uplink TX
-  if [ "$TELEMETRY_UPLINK" != "disabled" ]; then
-    echo "uplink  enabled ... we are uplink TX"
-    uplinktx_function &
-    if [ "$TELEMETRY_UPLINK" == "msp" ]; then
-      mspdownlinkrx_function
-    fi
-    sleep 365d
-  else
-    echo "uplink not enabled in config"
-  fi
-  sleep 365d
-fi
 ;;
 /dev/tty11) # tty for dhcp and login
 echo "================== eth0 DHCP client (tty11) ==========================="

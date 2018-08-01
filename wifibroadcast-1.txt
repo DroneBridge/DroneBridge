@@ -2,13 +2,13 @@
 # ============================================================
 # IMPORTANT: IT IS NOT RECOMMENDED TO USE WIFIBROADCAST TELEMETRY/UPLINK/RC WITH DRONEBRIDGE
 # PLEASE USE DRONEBRIDGE MODULES!
-# ONLY USE/CONFIGURE WIFIBROADCAST FOR VIDEO DOWNLINK, NOTHING ELSE!
+# ONLY USE/CONFIGURE WIFIBROADCAST FOR FREQ AND VIDEO DOWNLINK, NOTHING ELSE!
 #
 # Common settings (need to be kept in sync for both TX and RX!)
 # ============================================================
 #
 # Desired frequency in MHz
-FREQ=2472
+FREQ=2412
 #
 # Set to "Y" on the RX for auto-scanning. Frequency still has to be set on TX!
 # Feature might be buggy or not work at all!
@@ -70,6 +70,14 @@ VIDEO_FECS=4
 VIDEO_BLOCKLENGTH=1024
 #
 #
+# Set this to "mavlink" to enable R/C over wifibroadcast using mavlink protocol or "msp" for MSP protocol
+# Set to "sumd" for Graupner SUMD, "ibus" for Flysky IBUS, "srxl" for Multiplex SRXL / XBUS Mode B.
+# Set to "disabled" to disable or to use DroneBridge RC
+# See joyconfig.txt for other settings, default settings work for Taranis in USB Joystick mode
+RC=disabled
+#
+#
+# =========== Do not touch this section! Use DroneBridge modules/config ------
 # Telemetry transmission method:
 # wbc = use wifibroadcast as telemetry up/downlink
 # db = use DroneBridge telemetry methods (recommended)
@@ -81,15 +89,7 @@ TELEMETRY_TRANSMISSION=db
 #
 # Set to "disabled" or "mavlink" for Mavlink (Tower App, Missionplanner, etc.)
 TELEMETRY_UPLINK=disabled
-#
-#
-# Set this to "mavlink" to enable R/C over wifibroadcast using mavlink protocol or "msp" for MSP protocol
-# Set to "sumd" for Graupner SUMD, "ibus" for Flysky IBUS, "srxl" for Multiplex SRXL / XBUS Mode B.
-# Set to "disabled" to disable or to use DroneBridge RC
-# See joyconfig.txt for other settings, default settings work for Taranis in USB Joystick mode
-RC=disabled
-#
-#
+# =================================================== End of section
 #
 # TX settings
 # ============================================================
@@ -129,6 +129,7 @@ KEYFRAMERATE=5
 # Set additional raspivid parameters here
 EXTRAPARAMS="-cd H264 -n -fl -ih -pf high -ex sports -mm average -awb horizon"
 #
+# =========== Do not touch this section! Use DroneBridge modules/config ------
 #
 # Serial port and baudrate (19200 is minimum) to use for the R/C connection between air Pi and flight control
 # Set this to "/dev/serial0" for Pi onboard serial port or  "/dev/ttyUSB0" for USB-to-serial adapter
@@ -146,7 +147,7 @@ FC_TELEMETRY_BAUDRATE=57600
 FC_MSP_SERIALPORT=/dev/ttyUSB0
 FC_MSP_BAUDRATE=115200
 #
-#
+# =================================================== End of section
 #
 # RX settings
 # ============================================================
@@ -190,12 +191,12 @@ RELAY_FREQ=5220
 # Set this to "Y" to disable text messages about Display and Wifi card setup etc.
 QUIET=N
 #
-#
+# IGNORE WITH DroneBridge!
 # serial port settings if using TELEMETRY_TRANSMISSION=external
 EXTERNAL_TELEMETRY_SERIALPORT_GROUND=/dev/serial0
 EXTERNAL_TELEMETRY_SERIALPORT_GROUND_BAUDRATE=57600
 #
-#
+# IGNORE WITH DroneBridge!
 # set to "Y" to enable output of telemetry to serialport on ground Pi (for antenna tracker etc.)
 ENABLE_SERIAL_TELEMETRY_OUTPUT=N
 # baudrate and serialport used for ground Pi telemetry output
@@ -210,7 +211,7 @@ FORWARD_STREAM=raw
 # UDP port to send video stream to, set to 5000 for FPV_VR/DroneBridge app or 5600 for Mission Planner
 VIDEO_UDP_PORT=5000
 #
-#
+# IGNORE WITH DroneBridge!
 # Mavlink forwarder to use. Choose "mavlink-routerd" or "cmavnode" or "disabled" (recommended with DroneBridge)
 MAVLINK_FORWARDER=disabled
 #

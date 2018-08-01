@@ -97,7 +97,7 @@ def new_ping_response_message(loaded_json, origin):
 
 def new_error_response_message(error_message, origin, new_id):
     """returns a error response message"""
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_ERROR, 'message': error_message, 'origin': origin, 'id': new_id})
+    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_ERROR.value, 'message': error_message, 'origin': origin, 'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
