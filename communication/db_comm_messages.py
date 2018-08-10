@@ -248,12 +248,22 @@ def read_wbc_settings(response_header, specific_request, requested_settings):
 def init_cam_gpios():
     gp.setwarnings(False)
     gp.setmode(gp.BOARD)
+
     gp.setup(7, gp.OUT)
     gp.setup(11, gp.OUT)
     gp.setup(12, gp.OUT)
-    gp.output(7, False)
+
+    gp.setup(15, gp.OUT)
+    gp.setup(16, gp.OUT)
+    gp.setup(21, gp.OUT)
+    gp.setup(22, gp.OUT)
+
     gp.output(11, True)
     gp.output(12, True)
+    gp.output(15, True)
+    gp.output(16, True)
+    gp.output(21, True)
+    gp.output(22, True)
 
 
 def change_cam_selection(camera_index):
@@ -261,10 +271,18 @@ def change_cam_selection(camera_index):
         gp.output(7, False)
         gp.output(11, False)
         gp.output(12, True)
-    else:
+    elif camera_index == 1:
         gp.output(7, True)
         gp.output(11, False)
         gp.output(12, True)
+    elif camera_index == 2:
+        gp.output(7, False)
+        gp.output(11, True)
+        gp.output(12, False)
+    elif camera_index == 3:
+        gp.output(7, True)
+        gp.output(11, True)
+        gp.output(12, False)
 
 
 def normalize_jscal_axis(device="/dev/input/js0"):

@@ -20,9 +20,15 @@
 #ifndef CONTROL_STATUS_RC_AIR_H
 #define CONTROL_STATUS_RC_AIR_H
 
+#define RC_SERIAL_PROT_MSPV1            1
+#define RC_SERIAL_PROT_MSPV2            2
+#define RC_SERIAL_PROT_MAVLINKV1        3
+#define RC_SERIAL_PROT_MAVLINKV2        4
+#define RC_SERIAL_PROT_SUMD             5
+
 extern uint8_t serial_data_buffer[1024]; // write the rc protocol data for the serial port in here! init in rc_air
 
-int conf_rc_serial_protocol_air(int new_rc_protocol);
+void conf_rc_serial_protocol_air(int new_rc_protocol, char use_sumd);
 int generate_rc_serial_message(uint8_t *db_rc_protocol);
 
 #endif //CONTROL_STATUS_RC_AIR_H

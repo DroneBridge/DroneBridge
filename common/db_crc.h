@@ -167,7 +167,7 @@ static const uint16_t crc_sumd_table[256] = {
  *
  * \return     The initial crc value.
  */
-static inline crc_t crc_init(void)
+static inline crc_t db_crc_init(void)
 {
     return 0x00;
 }
@@ -181,7 +181,7 @@ static inline crc_t crc_init(void)
  * \param[in] data_len Number of bytes in the \a data buffer.
  * \return             The updated crc value.
  */
-crc_t crc_update(crc_t crc, const void *data, size_t data_len);
+crc_t db_crc_update(crc_t crc, const void *data, size_t data_len);
 
 
 /**
@@ -190,7 +190,7 @@ crc_t crc_update(crc_t crc, const void *data, size_t data_len);
  * \param[in] crc  The current crc value.
  * \return     The final crc value.
  */
-static inline crc_t crc_finalize(crc_t crc)
+static inline crc_t db_crc_finalize(crc_t crc)
 {
     return crc;
 }

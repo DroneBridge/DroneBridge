@@ -55,6 +55,8 @@
 #define APP_PORT_PROXY 		1607 // use this port for all non telemetry MAVLink messages and all MSP messages
 #define APP_PORT_STATUS     1608
 
+#define DB_MAVLINK_SYS_ID	69
+
 
 struct data_uni{
 	uint8_t bytes[DATA_UNI_LENGTH];

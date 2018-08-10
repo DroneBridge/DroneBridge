@@ -54,15 +54,19 @@ class DB_IP_GETTER():
 
 
 def find_smartphone_ip():
-    try:
-        g = netifaces.gateways()
-        for interface_desc in g[netifaces.AF_INET]:
-            if interface_desc[1] == 'usb0':
-                return interface_desc[0] + '    '
+    pi_interfaces = netifaces.interfaces()
+    if 'usb0' in pi_interfaces:
+        try:
+            g = netifaces.gateways()
+            for interface_desc in g[netifaces.AF_INET]:
+                if interface_desc[1] == 'usb0':
+                    return interface_desc[0] + '    '
+            return "192.168.2.2    "
+        except KeyError:
+            print("IP_CHECKER: KeyError")
+            return "192.168.42.129 "
+    else:
         return "192.168.2.2    "
-    except KeyError:
-        print("IP_CHECKER: KeyError")
-        return "192.168.42.129 "
 
 
 def main():

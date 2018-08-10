@@ -23,6 +23,8 @@
 #include "../common/db_protocol.h"
 #include "../common/db_crc.h"
 #include "../common/ccolors.h"
+#include "../common/mavlink/c_library_v2/common/mavlink.h"
+
 
 int serial_rc_protocol, i_rc_air, i_sumd_air;
 
@@ -184,13 +186,28 @@ void generate_mspv2(uint16_t *rc_channel_data) {
     serial_data_buffer[32] = crc_mspv2_air;
 }
 
+uint16_t generate_mavlinkv2_rc_overwrite(uint16_t *rc_channel_data) {
+    mavlink_message_t message;
+    mavlink_msg_rc_channels_override_pack(DB_MAVLINK_SYS_ID, 1, &message, 0, 0, rc_channel_data[0], rc_channel_data[1],
+                                          rc_channel_data[2], rc_channel_data[3], rc_channel_data[4], rc_channel_data[5],
+                                          rc_channel_data[6], rc_channel_data[7], rc_channel_data[8], rc_channel_data[9],
+                                          rc_channel_data[10], rc_channel_data[11], 0, 0, 0, 0, 0, 0);
+    return mavlink_msg_to_send_buffer(serial_data_buffer, &message);
+}
+
 /**
  * Sets the desired RC protocol that is outputted to serial port
- * @param new_serial_protocol 1:MSPv1, 2:MSPv2, 3:MAVLink v1, 4:MAVLink v2, 5: SUMD
+ * @param new_serial_protocol 1:MSPv1, 2:MSPv2, 3:MAVLink v1, 4 or 5:MAVLink v2
+ * @param use_sumd Use SUMD if set to 'Y'
  * @return
  */
-int conf_rc_serial_protocol_air(int new_serial_protocol){
-    serial_rc_protocol = new_serial_protocol;
+void conf_rc_serial_protocol_air(int new_serial_protocol, char use_sumd){
+    if (use_sumd == 'Y')
+        serial_rc_protocol = RC_SERIAL_PROT_SUMD;
+    else if (new_serial_protocol == 4 || new_serial_protocol == 5)
+        serial_rc_protocol = RC_SERIAL_PROT_MAVLINKV2;
+    else
+        serial_rc_protocol = new_serial_protocol;
 }
 
 /**
@@ -239,17 +256,17 @@ int generate_rc_serial_message(uint8_t *db_rc_protocol){
 /*        for(i_rc_air = 0; i_rc_air < DB_RC_NUM_CHANNELS; i_rc_air++) {
             rc_channels[i_rc_air] += 1000;
         }*/
-        if (serial_rc_protocol == 1){
+        if (serial_rc_protocol == RC_SERIAL_PROT_MSPV1){
             generate_msp(rc_channels);
             return 30;
-        }else if (serial_rc_protocol == 2){
+        }else if (serial_rc_protocol == RC_SERIAL_PROT_MSPV2){
             generate_mspv2(rc_channels);
             return 33;
-        }else if (serial_rc_protocol == 3)
+        }else if (serial_rc_protocol == RC_SERIAL_PROT_MAVLINKV1)
             perror(RED "MAVLink v1 RC packets unsupported - use SUMD" RESET "\n");
-        else if (serial_rc_protocol == 4)
-            perror(RED "MAVLink v2 RC packets unsupported - use SUMD" RESET "\n");
-        else if (serial_rc_protocol == 5) {
+        else if (serial_rc_protocol == RC_SERIAL_PROT_MAVLINKV2)
+            return generate_mavlinkv2_rc_overwrite(rc_channels);
+        else if (serial_rc_protocol == RC_SERIAL_PROT_SUMD) {
             generate_sumd(rc_channels);
             return 29;
         }

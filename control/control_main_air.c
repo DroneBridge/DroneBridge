@@ -157,9 +157,10 @@ int main(int argc, char *argv[])
                                "\n\t-v Protocol over serial port [1|2|3|4]:\n"
                                   "\t\t1 = MSPv1 [Betaflight/Cleanflight]\n"
                                   "\t\t2 = MSPv2 [iNAV] (default)\n"
-                                  "\t\t3 = MAVLink (RC unsupported)\n"
-                                  "\t\t4 = MAVLink v2 (RC unsupported)\n"
-                                  "\t\t5 = MAVLink (plain) pass through (-l <chunk size>)"
+                                  "\t\t3 = MAVLink v1 (RC unsupported)\n"
+                                  "\t\t4 = MAVLink v2\n"
+                                  "\t\t5 = MAVLink (plain) pass through (-l <chunk size>) - recommended with MAVLink, "
+                                  "FC needs to support MAVLink v2 for RC"
                                "\n\t-l only relevant with -v 5 option. Telemetry bytes per packet over long range "
                                "(default: %i)"
                                "\n\t-e [Y|N] enable/disable RC over SUMD. If disabled -v & -u options are used for RC."
@@ -177,10 +178,7 @@ int main(int argc, char *argv[])
                 abort ();
         }
     }
-    if (use_sumd == 'Y')
-        conf_rc_serial_protocol_air(5);
-    else
-        conf_rc_serial_protocol_air(serial_protocol_control);
+    conf_rc_serial_protocol_air(serial_protocol_control, use_sumd);
 // -------------------------------
 // Setting up network interface
 // -------------------------------

@@ -15,10 +15,12 @@ else()
             db_get_ip.h
             db_raw_receive.c
             db_raw_receive.h db_raw_send_receive.c wifibroadcast.h wbc_lib.h db_crc.h shared_memory.c shared_memory.h
-            mavlink msp_serial.c msp_serial.h db_crc.c ccolors.h db_debug_utils.c db_debug_utils.h)
-
+            msp_serial.c msp_serial.h db_crc.c ccolors.h db_debug_utils.c db_debug_utils.h
+            mavlink)
 
     add_library(db_common STATIC ${LIB_SRCS})
+
+
     if(UNIX AND NOT APPLE)
         target_link_libraries(db_common rt)
     endif()

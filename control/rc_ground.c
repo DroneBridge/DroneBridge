@@ -24,6 +24,7 @@
 #include "../common/db_crc.h"
 #include "../common/shared_memory.h"
 #include "../common/db_protocol.h"
+#include "../common/mavlink/c_library_v2/common/mavlink.h"
 
 
 int rc_protocol;
@@ -33,6 +34,7 @@ int i_crc, i_rc;
 unsigned int rc_crc_tbl_idx, mspv2_tbl_idx;
 db_rc_values *shm_rc_values = NULL;
 struct timeval timecheck;
+uint8_t mav_packet_buf[MAVLINK_MAX_PACKET_LEN];
 
 // pointing right into the sockets send buffer for max performance
 struct data_uni *monitor_databuffer = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
@@ -154,8 +156,14 @@ void generate_mspv2(unsigned short *newJoystickData) {
     monitor_databuffer->bytes[36] = crc_mspv2;
 }
 
-void generate_mavlink_v1(unsigned short newJoystickData[NUM_CHANNELS]) {
-    // TODO
+
+uint16_t generate_mavlinkv2_rc_overwrite(unsigned short jdat[NUM_CHANNELS]) {
+    mavlink_message_t message;
+    mavlink_msg_rc_channels_override_pack(DB_MAVLINK_SYS_ID, 1, &message, 0, 0, jdat[0], jdat[1],
+                                                               jdat[2], jdat[3], jdat[4], jdat[5], jdat[6], jdat[7],
+                                                               jdat[8], jdat[9], jdat[10], jdat[11], jdat[12], jdat[13],
+                                                               0, 0, 0, 0);
+    return mavlink_msg_to_send_buffer(monitor_databuffer->bytes, &message);
 }
 
 void generate_db_rc_message(uint16_t channels[NUM_CHANNELS]){
@@ -228,11 +236,8 @@ int send_rc_packet(uint16_t channel_data[]) {
     }else if (rc_protocol == 2){
         generate_mspv2(channel_data);
         send_packet_hp(DB_PORT_CONTROLLER, MSP_V2_DATA_LENGTH, update_seq_num(&rc_seq_number));
-    }else if (rc_protocol == 3){
-        generate_mavlink_v1(channel_data);
-        // TODO: set db_payload length, send MAVLink
     }else if (rc_protocol == 4){
-        // TODO: generate MAVLink v2
+        send_packet_hp(DB_PORT_RC, generate_mavlinkv2_rc_overwrite(channel_data), update_seq_num(&rc_seq_number));
     } else if (rc_protocol == 5){
         generate_db_rc_message(channel_data);
         send_packet_hp(DB_PORT_RC, DB_RC_DATA_LENGTH, update_seq_num(&rc_seq_number));
