@@ -52,6 +52,8 @@ startup_comm="python3 your_script.py -uav"
 **Variable types**
 All values must be Strings except the version. Version must be an Integer.
 
+The startup_comm is executed via python: `subprocess.Popen(startup_comm, shell='True')`
+
 ### Accessing telemetry stream
 **UAV:** Currently, there is no (fast/simple) way of accessing the telemetry stream on the UAV. You would need to connect to an additional serial port of you FC and get telemetry via that one. Alternatively you can open a raw socket that listens for packets with destination DroneBridge telemetry port (port: 0x02 - or any other port/packet format in case you want different information). You can use the DroneBridge libs to do that (untested). The Linux Kernel and raw sockets allow you to monitor not just the received packets of the wifi adapters, but also all outgoing packets
 
