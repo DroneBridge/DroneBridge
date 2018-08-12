@@ -30,5 +30,6 @@ extern uint8_t serial_data_buffer[1024]; // write the rc protocol data for the s
 
 void conf_rc_serial_protocol_air(int new_rc_protocol, char use_sumd);
 int generate_rc_serial_message(uint8_t *db_rc_protocol);
+void open_rc_rx_shm();
 
 #endif //CONTROL_STATUS_RC_AIR_H

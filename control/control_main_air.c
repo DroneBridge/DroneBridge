@@ -179,6 +179,7 @@ int main(int argc, char *argv[])
         }
     }
     conf_rc_serial_protocol_air(serial_protocol_control, use_sumd);
+    open_rc_rx_shm(); // open/init shared memory to write RC values into it
 // -------------------------------
 // Setting up network interface
 // -------------------------------

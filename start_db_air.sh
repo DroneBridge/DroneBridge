@@ -8,6 +8,7 @@ en_tel=$(awk -F "=" '/^en_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 en_video=$(awk -F "=" '/^en_video/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 en_comm=$(awk -F "=" '/^en_comm/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 en_control=$(awk -F "=" '/^en_control/ {gsub(/[ \t]/, "", $2); print $2}' $file)
+en_plugin=$(awk -F "=" '/^en_plugin/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 
 interface_control=$(awk -F "=" '/^interface_control/ {gsub(/[ \t]/, "", $2); print $2}' $file)
 interface_tel=$(awk -F "=" '/^interface_tel/ {gsub(/[ \t]/, "", $2); print $2}' $file)
@@ -26,7 +27,7 @@ serial_int_sumd=$(awk -F "=" '/^serial_int_sumd/ {gsub(/[ \t]/, "", $2); print $
 
 if [ "$interface_selection" = 'auto' ]; then
     NICS=`ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v relay | nice grep -v wifihotspot`
-    echo -n "NICS:"
+    echo -n "Network adapters: "
     echo $NICS
     for NIC in $NICS
 	do
@@ -59,14 +60,14 @@ if [ "$DRIVER" = "ath9k_htc" ]; then
     chipset_comm=2
 fi
 
-if [ "$serial_int_cont" = "$serial_int_tel" ] && [ "$en_tel" = "Y" ]; then
+if [ "$serial_int_cont" = "$serial_int_tel" ] && [ "$en_tel" = "Y" ] && [ "$en_control" = "Y" ]; then
 	echo "Error: Control module and telemetry module are assigned to the same serial port. Disabling telemetry module. Control module only supports MAVLink telemetry."
-	en_tel = "N"
+	en_tel="N"
 fi
 
-if [ "$serial_int_cont" = "$serial_int_sumd" ] && [ "$enable_sumd_rc" = "Y" ]; then
+if [ "$serial_int_cont" = "$serial_int_sumd" ] && [ "$enable_sumd_rc" = "Y" ] && [ "$en_control" = "Y" ]; then
 	echo "Error: Control module and SUMD output are assigned to the same serial port. Disabling SUMD."
-	enable_sumd_rc = "N"
+	enable_sumd_rc="N"
 fi
 
 echo "DroneBridge-Air: Communication ID: $comm_id"
@@ -83,10 +84,14 @@ fi
 if [ "$en_tel" = "Y" ]; then
 	echo "DroneBridge-Air: Starting telemetry module..."
 	./telemetry/telemetry_air -n $interface_tel -f $serial_int_tel -r $baud_tel -m $mode -c $comm_id -l $tel_proto &
-	# python3 communication/db_telemetry_air.py -n $interface_tel -f $serial_int_tel -r $baud_tel -m $mode -c $comm_id -l $tel_proto &
 fi
 
 if [ "$en_control" = "Y" ]; then
 	echo "DroneBridge-Air: Starting controller module..."
 	./control/control_air -n $interface_control -u $serial_int_cont -m $mode -c $comm_id -a $chipset_control -v $serial_prot -l $pass_through_packet_size -r $baud_control -e $enable_sumd_rc -s $serial_int_sumd &
+fi
+
+if [ "$en_plugin" = "Y" ]; then
+    echo "DroneBridge-Air: Starting plugin module..."
+    python3 plugin/db_plugin.py &
 fi

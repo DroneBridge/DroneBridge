@@ -24,10 +24,11 @@
 #include "../common/db_crc.h"
 #include "../common/ccolors.h"
 #include "../common/mavlink/c_library_v2/common/mavlink.h"
+#include "../common/shared_memory.h"
 
 
-int serial_rc_protocol, i_rc_air, i_sumd_air;
-
+int serial_rc_protocol, i_rc_air, i_sumd_air, i_rc;
+db_rc_values *shm_rc_values = NULL;
 uint8_t serial_data_buffer[1024] = {0}; // write the data for the serial port in here!
 
 uint16_t rc_channels[DB_RC_NUM_CHANNELS] = {0}, sumd_multiplier = 8, crc_sumd_air = 0;;
@@ -242,6 +243,13 @@ int deserialize_db_rc_protocol(uint8_t *db_rc_protocol_message) {
 }
 
 /**
+ * Init shared memory to write RC values before forwarding to FC
+ */
+void open_rc_rx_shm(){
+    shm_rc_values = db_rc_values_memory_open();
+}
+
+/**
  * Takes a DroneBridge RC protocol message, checks it and generates a <valid message> to be sent over the serial port.
  * <valid message> protocol is specified via "conf_rc_protocol_air(int protocol)" (MSPv1, MSPv2, MAVLink v1, MAVLink v2)
  * @param db_rc_protocol
@@ -253,9 +261,12 @@ int generate_rc_serial_message(uint8_t *db_rc_protocol){
         rc_channels[0] += 1000; rc_channels[1] += 1000; rc_channels[2] += 1000; rc_channels[3] += 1000;
         rc_channels[4] += 1000; rc_channels[5] += 1000; rc_channels[6] += 1000; rc_channels[7] += 1000;
         rc_channels[8] += 1000; rc_channels[9] += 1000; rc_channels[10] += 1000; rc_channels[11] += 1000;
-/*        for(i_rc_air = 0; i_rc_air < DB_RC_NUM_CHANNELS; i_rc_air++) {
-            rc_channels[i_rc_air] += 1000;
-        }*/
+        // Update shared memory so that other modules/plugins can read from it
+        shm_rc_values->ch[0] = rc_channels[0];shm_rc_values->ch[1] = rc_channels[1];shm_rc_values->ch[2] = rc_channels[2];
+        shm_rc_values->ch[3] = rc_channels[3];shm_rc_values->ch[4] = rc_channels[4];shm_rc_values->ch[5] = rc_channels[5];
+        shm_rc_values->ch[6] = rc_channels[6];shm_rc_values->ch[7] = rc_channels[7];shm_rc_values->ch[8] = rc_channels[8];
+        shm_rc_values->ch[9] = rc_channels[9];shm_rc_values->ch[10] = rc_channels[10];shm_rc_values->ch[11] = rc_channels[11];
+
         if (serial_rc_protocol == RC_SERIAL_PROT_MSPV1){
             generate_msp(rc_channels);
             return 30;
