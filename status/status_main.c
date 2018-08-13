@@ -99,7 +99,6 @@ int main(int argc, char *argv[]) {
     db_rc_status_message.ident[0] = '$';
     db_rc_status_message.ident[1] = 'D';
     db_rc_status_message.message_id = 2;
-
     DB_SYSTEM_STATUS_MESSAGE db_sys_status_message;
     db_sys_status_message.ident[0] = '$';
     db_sys_status_message.ident[1] = 'D';
@@ -117,6 +116,9 @@ int main(int argc, char *argv[]) {
     db_rc_values *rc_values = db_rc_values_memory_open();
     // open wbc rx status shared memory
     wifibroadcast_rx_status_t *wbc_rx_status = wbc_status_memory_open();
+    // open wbc air sys status shared memory - gets read by OSD
+    wifibroadcast_rx_status_t_sysair *wbc_sys_air_status = wbc_sysair_status_memory_open();
+
     int number_cards = wbc_rx_status->wifi_adapter_cnt;
 
     // set up long range receiving socket
@@ -161,12 +163,15 @@ int main(int argc, char *argv[]) {
             radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
             // message_length = lr_buffer[radiotap_length+19] | (lr_buffer[radiotap_length+20] << 8);
             // process payload (currently only one type of raw status frame is supported: RC_AIR --> STATUS_GROUND)
-            // must be a data_rc_status_update
+            // must be a uav_rc_status_update_message
             db_sys_status_message.rssi_drone = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH];
             db_sys_status_message.packetloss_rc = (uint8_t) (
                     (1 - (lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1] / rc_send_rate)) * 100);
             wbc_rc_status->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
             wbc_rc_status->lost_packet_cnt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1];
+            wbc_sys_air_status->cpuload = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 2];
+            wbc_sys_air_status->temp = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 3];
+            wbc_sys_air_status->undervolt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 4];
         }
         best_dbm = -128;
         for(cardcounter=0; cardcounter<number_cards; ++cardcounter) {

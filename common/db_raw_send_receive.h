@@ -26,7 +26,7 @@
 
 // That is the buffer that will be sent over the socket. Create a pointer to a part of this array and fill it with your
 // data, like e.g.:
-// struct data_rc_status_update *rc_status_update_data = (struct data_rc_status_update *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+// struct uav_rc_status_update_message *rc_status_update_data = (struct uav_rc_status_update_message *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
 extern uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH];
 
 typedef struct {

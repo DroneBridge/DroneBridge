@@ -49,6 +49,8 @@ uint8_t buf[BUF_SIZ];
 uint8_t mavlink_telemetry_buf[2048] = {0}, mavlink_message_buf[256] = {0};
 uint8_t telemetry_seq_number = 0;
 int mav_tel_message_counter = 0, mav_tel_buf_length = 0;
+long double cpu_u_new[4] = {1}, cpu_u_old[4] = {1}, loadavg;
+float systemp, millideg;
 
 void intHandler(int dummy)
 {
@@ -91,6 +93,57 @@ void send_buffered_mavlink_tel(int length_message, mavlink_message_t *mav_messag
         mav_tel_message_counter = 0;
         mav_tel_buf_length = 0;
     }
+}
+
+/**
+ * Gets CPU usage on Linux systems. Needs to be called periodically. No one time calls!
+ * @return CPU load in %
+ */
+uint8_t get_cpu_usage(){
+    FILE *fp;
+    fp = fopen("/proc/stat","r");
+    if (fscanf(fp, "%*s %Lf %Lf %Lf %Lf", &cpu_u_new[0], &cpu_u_new[1], &cpu_u_new[2], &cpu_u_new[3]) < 4)
+        perror("DB_CONTROL_AIR: Could not read CPU usage\n");
+    fclose(fp);
+    loadavg = ((cpu_u_old[0] + cpu_u_old[1] + cpu_u_old[2]) - (cpu_u_new[0] + cpu_u_new[1] + cpu_u_new[2])) /
+            ((cpu_u_old[0]+cpu_u_old[1]+cpu_u_old[2]+cpu_u_old[3]) - (cpu_u_new[0]+cpu_u_new[1]+cpu_u_new[2]+cpu_u_new[3]));
+    memcpy(cpu_u_old, cpu_u_new, 4);
+    return (uint8_t) loadavg;
+}
+
+/**
+ * Reads the CPU temperature from a Linux system
+ * @return CPU temperature in °C
+ */
+uint8_t get_cpu_temp(){
+    FILE *thermal;
+    thermal = fopen("/sys/class/thermal/thermal_zone0/temp","r");
+    if (fscanf(thermal,"%f",&millideg) < 1)
+        perror("DB_CONTROL_AIR: Could not read CPU temperature\n");
+    fclose(thermal);
+    systemp = millideg / 1000;
+    return (uint8_t) systemp;
+}
+
+/**
+ * //TODO: parse output
+ * Reads the current undervoltage value from RPi
+ * @return 1 if currently not enough voltage supplied to Pi; 0 if all OK
+ */
+uint8_t get_undervolt(){
+    FILE *fp;
+    char path[1035];
+    fp = popen("vcgencmd get_throttled", "r");
+    if (fp == NULL) {
+        printf("Failed to run command\n" );
+        exit(1);
+    }
+    /* Read the output a line at a time - output it. */
+    while (fgets(path, sizeof(path)-1, fp) != NULL) {
+        printf("%s", path);
+    }
+    pclose(fp);
+    return (uint8_t) 0;
 }
 
 int main(int argc, char *argv[])
@@ -275,7 +328,7 @@ int main(int argc, char *argv[])
     struct timeval timecheck;
 
     // create our data pointer directly inside the buffer (monitor_framebuffer) that is sent over the socket
-    struct data_rc_status_update *rc_status_update_data = (struct data_rc_status_update *)
+    struct uav_rc_status_update_message *rc_status_update_data = (struct uav_rc_status_update_message *)
             (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
     struct data_uni *data_uni_to_ground = (struct data_uni *)
             (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
@@ -430,7 +483,7 @@ int main(int argc, char *argv[])
         }
 
         // --------------------------------
-        // Send a status update to status module on groundstation
+        // Send a status update to status module on ground station
         // --------------------------------
         gettimeofday(&timecheck, NULL);
         rightnow = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
@@ -439,6 +492,8 @@ int main(int argc, char *argv[])
             rc_status_update_data->bytes[0] = rssi;
             // lost packets/second (it is a estimate)
             rc_status_update_data->bytes[1] = (int8_t) (lost_packet_count * ((double) 1000 / (rightnow - start)));
+            rc_status_update_data->bytes[2] = get_cpu_usage();
+            rc_status_update_data->bytes[3] = get_cpu_temp();
             send_packet_hp( DB_PORT_STATUS, (u_int16_t) 6, update_seq_num(&status_seq_number));
 
             lost_packet_count = 0;

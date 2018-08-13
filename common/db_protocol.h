@@ -61,8 +61,10 @@
 struct data_uni{
 	uint8_t bytes[DATA_UNI_LENGTH];
 };
-struct data_rc_status_update {
-	int8_t bytes[6]; // [0] = rssi drone side; [1] = packets_received_per_second; [rest] = to make it long enough!?
+// Sent by control module on air side - received by status module on ground station
+// [0] = rssi drone side; [1] = packets_received_per_second; [2] AirPi CPU usage; [3] AirPi CPU temp; [rest] = unused.
+struct uav_rc_status_update_message {
+	int8_t bytes[6];
 };
 struct radiotap_header {
 	uint8_t bytes[RADIOTAP_LENGTH];

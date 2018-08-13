@@ -62,7 +62,7 @@ typedef struct {
     uint16_t bitrate_kbit;
     uint16_t bitrate_measured_kbit;
     uint8_t cts;
-    uint8_t undervolt;
+    uint8_t undervolt; // 1=undervoltage
 } wifibroadcast_rx_status_t_sysair;
 
 typedef struct {
