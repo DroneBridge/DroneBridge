@@ -27,7 +27,7 @@
 #include <errno.h>
 #include "../common/ccolors.h"
 #include "../common/db_crc.h"
-#include "../common/db_debug_utils.h"
+#include "../common/db_utils.h"
 
 
 uint8_t serial_data_buffer[1024];

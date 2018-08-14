@@ -33,7 +33,7 @@
 #include <fcntl.h>
 #include "../common/db_protocol.h"
 #include "../common/ccolors.h"
-#include "../common/db_debug_utils.h"
+#include "../common/db_utils.h"
 #include "../common/db_raw_send_receive.h"
 
 bool volatile keep_running = true;

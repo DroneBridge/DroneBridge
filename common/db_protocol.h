@@ -103,7 +103,7 @@ typedef struct {
 	uint32_t damaged_blocks_wbc;
 	uint32_t lost_packets_wbc;
 	uint32_t kbitrate_wbc;
-	uint8_t crc;
+	uint8_t voltage_status;		// bit 0: if 1 GNDPi is on low voltage; bit 1: if 1 AirPi is on low voltage
 } __attribute__((packed)) DB_SYSTEM_STATUS_MESSAGE;
 
 typedef struct {

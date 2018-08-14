@@ -35,6 +35,7 @@
 #include "../common/db_raw_receive.h"
 #include "../common/shared_memory.h"
 #include "../common/ccolors.h"
+#include "../common/db_utils.h"
 
 bool volatile keeprunning = true;
 char if_name_telemetry[IFNAMSIZ];
@@ -106,7 +107,7 @@ int main(int argc, char *argv[]) {
     db_sys_status_message.mode = 'm';
     db_sys_status_message.packetloss_rc = 0;
     db_sys_status_message.rssi_drone = 0;
-    db_sys_status_message.crc = 0x66;
+    db_sys_status_message.voltage_status = 0;
 
     process_command_line_args(argc, argv);
 
@@ -182,6 +183,7 @@ int main(int argc, char *argv[]) {
         db_sys_status_message.damaged_blocks_wbc = wbc_rx_status->damaged_block_cnt;
         db_sys_status_message.lost_packets_wbc = wbc_rx_status->lost_packet_cnt;
         db_sys_status_message.kbitrate_wbc = wbc_rx_status-> kbitrate;
+        db_sys_status_message.voltage_status = ((wbc_sys_air_status->undervolt << 1) | get_undervolt());
         if (wbc_rx_status->tx_restart_cnt > restarts) {
             restarts++;
             usleep ((__useconds_t) 1e7);
