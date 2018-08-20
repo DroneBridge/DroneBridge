@@ -41,7 +41,7 @@ char if_name_telemetry[IFNAMSIZ], if_name_serial[IFNAMSIZ], telem_type[15] = "au
 char db_mode;
 char serial_port[] = "/dev/ttyAMA0";
 uint8_t comm_id = DEFAULT_V2_COMMID, tel_seq_number = 0;
-int c, app_port_proxy, baud_rate, serial_socket, buffer_two_ltm_messages, bitrate_op;
+int c, baud_rate, serial_socket, buffer_two_ltm_messages, bitrate_op;
 uint8_t ltm_frame_buf[MAX_LTM_FRAME_SIZE*2];
 
 
@@ -222,13 +222,12 @@ int process_command_line_args(int argc, char *argv[]){
     strncpy(if_name_telemetry, DEFAULT_DB_IF, IFNAMSIZ);
     strncpy(if_name_serial, serial_port, IFNAMSIZ);
     db_mode = DEFAULT_DB_MODE;
-    app_port_proxy = APP_PORT_TELEMETRY;
     //baud_rate = 4800;
     baud_rate = 115200;
     buffer_two_ltm_messages = 1;
     bitrate_op = 4;
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:f:l:p:m:r:c:b:x:")) != -1)
+    while ((c = getopt (argc, argv, "n:f:l:m:r:c:b:x:")) != -1)
     {
         switch (c)
         {
@@ -240,9 +239,6 @@ int process_command_line_args(int argc, char *argv[]){
                 break;
             case 'l':
                 strncpy(telem_type, optarg, 15);
-                break;
-            case 'p':
-                app_port_proxy = (int) strtol(optarg, NULL, 10);
                 break;
             case 'm':
                 db_mode = *optarg;
@@ -261,7 +257,7 @@ int process_command_line_args(int argc, char *argv[]){
                 break;
             case '?':
                 printf("usage: telemetry_air [-n DB_INTERFACE] [-f SERIALPORT]\n"
-                       "                           [-l TELEMETRY_TYPE] [-p UDP_PORT_TX] [-m MODE]\n"
+                       "                           [-l TELEMETRY_TYPE] [-m MODE]\n"
                        "                           [-r BAUDRATE] [-c COMM_ID] -x [BUFFER_LTM]\n"
                        "                           [-b BITRATE]\n"
                        "\n"
@@ -275,10 +271,6 @@ int process_command_line_args(int argc, char *argv[]){
                        "  -l TELEMETRY_TYPE  Set telemetry type manually. Default is [auto]. Use\n"
                        "                     [ltm|mavlink|auto]\n"
                        "  -x BUFFER_LTM      [0=No|1=Yes] Always buffer two ltm messages to send them together\n"
-                       "  -p UDP_PORT_TX     Local and remote port on which we need to address our\n"
-                       "                     packets for the ground station and listen for commands\n"
-                       "                     coming from the ground station (same port number on TX and RX\n"
-                       "                     - you may not change the default: 1604)\n"
                        "  -b BITRATE         Transmission bit rate for the long range link. (Ralink chipsets only)\n"
                        "                     \t1 = 2.5Mbit\n"
                        "                     \t2 = 4.5Mbit\n"
