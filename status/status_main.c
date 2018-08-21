@@ -37,6 +37,8 @@
 #include "../common/ccolors.h"
 #include "../common/db_utils.h"
 
+#define UDP_STATUS_BUFF_SIZE 2048
+
 bool volatile keeprunning = true;
 char if_name_telemetry[IFNAMSIZ];
 char db_mode;
@@ -89,6 +91,7 @@ int process_command_line_args(int argc, char *argv[]){
 int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
+    struct timespec timestamp;
     int restarts = 0, udp_status_socket, shID, cardcounter = 0, select_return, radiotap_length;
     struct timeval timecheck;
     long start, rightnow, status_message_update_rate = 100; // send status messages every 100ms (10Hz)
@@ -96,18 +99,13 @@ int main(int argc, char *argv[]) {
     ssize_t l;
     uint8_t counter = 0;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
+    uint8_t udp_status_buffer[UDP_STATUS_BUFF_SIZE];
 
-    DB_RC_STATUS_MESSAGE db_rc_status_message;
-    db_rc_status_message.ident[0] = '$';
-    db_rc_status_message.ident[1] = 'D';
-    db_rc_status_message.message_id = 2;
+    DB_RC_MESSAGE db_rc_status_message;
+    db_rc_status_message.ident[0] = '$'; db_rc_status_message.ident[1] = 'D'; db_rc_status_message.message_id = 2;
     DB_SYSTEM_STATUS_MESSAGE db_sys_status_message;
-    db_sys_status_message.ident[0] = '$';
-    db_sys_status_message.ident[1] = 'D';
-    db_sys_status_message.message_id = 1;
-    db_sys_status_message.mode = 'm';
-    db_sys_status_message.packetloss_rc = 0;
-    db_sys_status_message.rssi_drone = 0;
+    db_sys_status_message.ident[0] = '$'; db_sys_status_message.ident[1] = 'D'; db_sys_status_message.message_id = 1;
+    db_sys_status_message.mode = 'm'; db_sys_status_message.packetloss_rc = 0; db_sys_status_message.rssi_drone = 0;
     db_sys_status_message.voltage_status = 0;
 
     process_command_line_args(argc, argv);
@@ -116,6 +114,8 @@ int main(int argc, char *argv[]) {
     wifibroadcast_rx_status_t_rc *wbc_rc_status = wbc_rc_status_memory_open();
     // open db rc shared memory
     db_rc_values *rc_values = db_rc_values_memory_open();
+    // open db rc overwrite shared memory
+    db_rc_overwrite_values *rc_overwrite_values = db_rc_overwrite_values_memory_open();
     // open wbc rx status shared memory
     wifibroadcast_rx_status_t *wbc_rx_status = wbc_status_memory_open();
     // open wbc air sys status shared memory - gets read by OSD
@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
     socket_timeout.tv_usec = 100000; // 10Hz
 
     // set up UDP status socket & dest. address for status messages (remoteServAddr)
-    struct sockaddr_in remoteServAddr, udp_status_addr;
+    struct sockaddr_in remoteServAddr, udp_status_addr, client_status_addr;
     remoteServAddr.sin_family = AF_INET;
     remoteServAddr.sin_addr.s_addr = inet_addr("192.168.2.2");
     remoteServAddr.sin_port = htons(app_port_status);
@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
 
         if(select_return == -1)
         {
-            perror("DB_CONTROL_AIR: select() returned error: ");
+            perror("DB_STATUS_GROUND: select() returned error: ");
         }else if (select_return > 0){
             if (FD_ISSET(long_range_socket, &fd_socket_set)){
                 // ---------------
@@ -206,9 +206,26 @@ int main(int argc, char *argv[]) {
 
             if (FD_ISSET(udp_status_socket, &fd_socket_set)){
                 // ---------------
-                // status message from ground control station (app) - most likely a RC overwrite message/command
+                // status message from ground control station (app)
                 // ---------------
-                //TODO: RC overwrite message payload to shared memory
+                l = recvfrom(udp_status_socket, udp_status_buffer, UDP_STATUS_BUFF_SIZE, 0,
+                             (struct sockaddr *)&client_status_addr, (socklen_t *) sizeof(client_status_addr));
+                int err = errno;
+                if (l > 0){
+                    switch (udp_status_buffer[2]) {
+                        case 0x03:
+                            // DB RC overwrite message
+                            memcpy(rc_overwrite_values->ch, &udp_status_buffer[3], (size_t) 2*NUM_CHANNELS);
+                            clock_gettime(CLOCK_MONOTONIC_COARSE, &timestamp);
+                            rc_overwrite_values->timestamp = timestamp;
+                            break;
+                        default:
+                            printf(RED "Unknown status message received from GCS" RESET "\n");
+                            break;
+                    }
+                } else {
+                    printf(RED "DB_STATUS_GROUND: UDP socket received an error: %s" RESET "\n", strerror(err));
+                }
             }
         }
 
@@ -241,7 +258,7 @@ int main(int argc, char *argv[]) {
             // DB RC-status message
             // ---------------
             memcpy(db_rc_status_message.channels, rc_values->ch, 2*NUM_CHANNELS);
-            sendto (udp_status_socket, &db_rc_status_message, sizeof(DB_RC_STATUS_MESSAGE), 0, (struct sockaddr *) &remoteServAddr,
+            sendto (udp_status_socket, &db_rc_status_message, sizeof(DB_RC_MESSAGE), 0, (struct sockaddr *) &remoteServAddr,
                     sizeof (remoteServAddr));
 
             gettimeofday(&timecheck, NULL);

@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     char calibrate_comm[500];
     uint8_t comm_id;
     int Joy_IF, c, bitrate_op, rc_protocol;
-    char db_mode = 'm';
+    char db_mode = 'm'; char allow_rc_overwrite = 'N';
 
     // Command Line processing
     Joy_IF = JOY_INTERFACE;
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
     strcpy(ifName, DEFAULT_IF);
     opterr = 0;
-    while ((c = getopt(argc, argv, "n:j:m:b:g:v:c:")) != -1) {
+    while ((c = getopt(argc, argv, "n:j:m:b:g:v:o:c:")) != -1) {
         switch (c) {
             case 'n':
                 strncpy(ifName, optarg, IFNAMSIZ);
@@ -82,6 +82,9 @@ int main(int argc, char *argv[]) {
             case 'v':
                 rc_protocol = (int) strtol(optarg, NULL, 10);
                 break;
+            case 'o':
+                allow_rc_overwrite = *optarg;
+                break;
             case 'c':
                 comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
@@ -94,6 +97,7 @@ int main(int argc, char *argv[]) {
                                "-m mode: [w|m] for wifi or monitor\n"
                                "-v Protocol [1|2|4|5]: 1 = MSPv1 [Betaflight/Cleanflight]; 2 = MSPv2 [iNAV]; "
                                "3 = MAVLink v1 (unsupported); 4 = MAVLink v2; 5 = DB-RC (default)\n"
+                               "-o [Y|N] enable/disable RC overwrite\n"
                                "-c [communication id] Choose a number from 0-255. Same on groundstation and drone!\n"
                                "-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
                                "5 = 18Mbit\n(bitrate option only supported with Ralink chipsets)\n");
@@ -107,8 +111,8 @@ int main(int argc, char *argv[]) {
         printf(RED "DB_CONTROL_GROUND: Could not open socket " RESET "\n");
         exit(-1);
     }
-    conf_rc_protocol(rc_protocol);
-    open_rc_tx_shm();
+    conf_rc(rc_protocol, allow_rc_overwrite);
+    open_rc_shm();
 
     int sock_fd = detect_RC(Joy_IF);
     if (ioctl(sock_fd, JSIOCGNAME(sizeof(RC_name)), RC_name) < 0)

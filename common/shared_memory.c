@@ -120,3 +120,35 @@ db_rc_values *db_rc_values_memory_open(void) {
     db_rc_values_memory_init(tretval);
     return (db_rc_values*)retval;
 }
+
+void db_rc_overwrite_values_memory_init(db_rc_overwrite_values *rc_values) {
+    for(int i = 0; i < NUM_CHANNELS; i++) {
+        rc_values->ch[i] = 0;
+    }
+}
+
+db_rc_overwrite_values *db_rc_overwrite_values_memory_open(void) {
+    int fd;
+    for(;;) {
+        fd = shm_open("/db_rc_overwrite", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        if(fd > 0) {
+            break;
+        }
+        printf("db_rc_overwrite_values_memory_open: Waiting for init ... %s\n", strerror(errno));
+        usleep((__useconds_t) 1e5);
+    }
+
+    if (ftruncate(fd, sizeof(db_rc_overwrite_values)) == -1) {
+        perror("db_rc_overwrite_values_memory_open: ftruncate");
+        exit(1);
+    }
+
+    void *retval = mmap(NULL, sizeof(db_rc_overwrite_values), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (retval == MAP_FAILED) {
+        perror("db_rc_overwrite_values_memory_open: mmap");
+        exit(1);
+    }
+    db_rc_overwrite_values *tretval = (db_rc_overwrite_values*)retval;
+    db_rc_overwrite_values_memory_init(tretval);
+    return tretval;
+}

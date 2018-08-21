@@ -33,8 +33,10 @@ crc_t crc_rc;
 int i_crc, i_rc;
 unsigned int rc_crc_tbl_idx, mspv2_tbl_idx;
 db_rc_values *shm_rc_values = NULL;
-struct timeval timecheck;
+db_rc_overwrite_values *shm_rc_overwrite = NULL;
+struct timespec timestamp;
 uint8_t mav_packet_buf[MAVLINK_MAX_PACKET_LEN];
+bool en_rc_overwrite = false;
 
 // pointing right into the sockets send buffer for max performance
 struct data_uni *monitor_databuffer = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
@@ -205,27 +207,42 @@ void generate_db_rc_message(uint16_t channels[NUM_CHANNELS]){
 /**
  * Sets the desired RC protocol.
  * @param new_rc_protocol 1:MSPv1, 2:MSPv2, 3:MAVLink v1, 4:MAVLink v2, 5:DB-RC
+ * @param allow_rc_overwrite Set to 'Y' if you want to allow the overwrite of RC channels via a shm/external app
  * @return
  */
-int conf_rc_protocol(int new_rc_protocol){
+int conf_rc(int new_rc_protocol, char allow_rc_overwrite){
     rc_protocol = new_rc_protocol;
+    en_rc_overwrite = allow_rc_overwrite == 'Y' ? true : false;
 }
 
 /**
- * Init shared memory to write RC values before sending
+ * Init shared memory: RC values before sending & RC overwrite shm
  */
-void open_rc_tx_shm(){
+void open_rc_shm(){
     shm_rc_values = db_rc_values_memory_open();
+    shm_rc_overwrite = db_rc_overwrite_values_memory_open();
 }
 
 /**
  * Takes the channel data (1000-2000) and builds valid packets from it. Depending on specified RC protocol.
+ * Looks for channels to be overwritten by an external app and stores channel values in a shm segment
  * @param contData Values in between 1000 and 2000
  * @return
  */
 int send_rc_packet(uint16_t channel_data[]) {
-    // TODO: check for RC overwrite!
-    // Update shared memory so status module can read RC values
+    if (en_rc_overwrite){
+        clock_gettime(CLOCK_MONOTONIC_COARSE, &timestamp);
+        // check if shm was updated min. 100ms ago
+        if (((timestamp.tv_sec - shm_rc_overwrite->timestamp.tv_sec) * (long)1e9 + (timestamp.tv_nsec -
+                                                                                   shm_rc_overwrite->timestamp.tv_nsec))
+                                                                                   <= 100000000L){
+            for(i_rc = 0; i_rc < NUM_CHANNELS; i_rc++) {
+                if (shm_rc_overwrite->ch > 0)
+                    channel_data[i_rc] = shm_rc_overwrite->ch[i_rc];
+            }
+        }
+    }
+    // Update shared memory so status module or other apps can read RC channel values
     for(i_rc = 0; i_rc < NUM_CHANNELS; i_rc++) {
         shm_rc_values->ch[i_rc] = channel_data[i_rc];
     }

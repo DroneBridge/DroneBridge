@@ -21,7 +21,7 @@
 #define CONTROL_TX_H
 
 int send_rc_packet(uint16_t channel_data[]);
-int conf_rc_protocol(int new_rc_protocol);
-void open_rc_tx_shm();
+int conf_rc(int new_rc_protocol, char allow_rc_overwrite);
+void open_rc_shm();
 
 #endif //CONTROL_TX_H

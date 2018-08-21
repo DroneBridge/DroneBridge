@@ -18,6 +18,7 @@
  */
 
 #include <stdint.h>
+#include <time.h>
 
 #ifndef DB_PROTOCOL_H_INCLUDED
 #define DB_PROTOCOL_H_INCLUDED
@@ -53,7 +54,7 @@
 #define APP_PORT_COMM       1603
 #define APP_PORT_TELEMETRY  1604 // accepts MAVLink and LTM telemetry messages. Non MAVLink telemetry messages get rerouted internally to APP_PORT_PROXY
 #define APP_PORT_PROXY 		1607 // use this port for all non telemetry MAVLink messages and all MSP messages
-#define APP_PORT_STATUS     1608
+#define APP_PORT_STATUS     1608 // for all kinds of status protocol messages. Same port on ground station and app
 
 #define DB_MAVLINK_SYS_ID	69
 
@@ -108,12 +109,17 @@ typedef struct {
 
 typedef struct {
 	uint8_t ident[2];
-	uint8_t message_id;
+	uint8_t message_id; // 2 for RC status; 3 for RC overwrite
 	uint16_t channels[NUM_CHANNELS];
-} __attribute__((packed)) DB_RC_STATUS_MESSAGE;
+} __attribute__((packed)) DB_RC_MESSAGE;
 
 typedef struct {
 	uint16_t ch[NUM_CHANNELS];
 } __attribute__((packed)) db_rc_values;
+
+typedef struct {
+    struct timespec timestamp;
+    uint16_t ch[NUM_CHANNELS];
+} __attribute__((packed)) db_rc_overwrite_values;
 
 #endif // DB_PROTOCOL_H_INCLUDED
