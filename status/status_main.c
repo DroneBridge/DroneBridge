@@ -133,6 +133,7 @@ int main(int argc, char *argv[]) {
 
     // set up UDP status socket & dest. address for status messages (remoteServAddr)
     struct sockaddr_in remoteServAddr, udp_status_addr, client_status_addr;
+    socklen_t client_status_addr_len = sizeof(client_status_addr);
     remoteServAddr.sin_family = AF_INET;
     remoteServAddr.sin_addr.s_addr = inet_addr("192.168.2.2");
     remoteServAddr.sin_port = htons(app_port_status);
@@ -140,19 +141,19 @@ int main(int argc, char *argv[]) {
     udp_status_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     udp_status_addr.sin_port = htons(app_port_status);
     udp_status_socket = socket (AF_INET, SOCK_DGRAM, 0);
-    if (bind(udp_status_socket, (struct sockaddr *) &udp_status_addr, sizeof (udp_status_addr)) < 0) {
-        printf(RED "DB_PROXY_GROUND: Unable to bind to port %i (%s)\n" RESET, app_port_status, strerror(errno));
-        exit (EXIT_FAILURE);
-    }
+    const int y = 1;
+    setsockopt(udp_status_socket, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int));
     if (udp_status_socket < 0) {
         printf (RED "DB_STATUS_GROUND: %s: Unable to open status socket" RESET "\n", strerror(errno));
         exit (EXIT_FAILURE);
     }
     int broadcast=1;
-    const int y = 1;
-    setsockopt(udp_status_socket, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int));
     if (setsockopt(udp_status_socket, SOL_SOCKET, SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
         printf(RED "DB_STATUS_GROUND: %s" RESET "\n",strerror(errno));
+    }
+    if (bind(udp_status_socket, (struct sockaddr *) &udp_status_addr, sizeof (udp_status_addr)) < 0) {
+        printf(RED "DB_PROXY_GROUND: Unable to bind to port %i (%s)\n" RESET, app_port_status, strerror(errno));
+        exit (EXIT_FAILURE);
     }
 
     // get IP shared memory ID
@@ -209,7 +210,7 @@ int main(int argc, char *argv[]) {
                 // status message from ground control station (app)
                 // ---------------
                 l = recvfrom(udp_status_socket, udp_status_buffer, UDP_STATUS_BUFF_SIZE, 0,
-                             (struct sockaddr *)&client_status_addr, (socklen_t *) sizeof(client_status_addr));
+                             (struct sockaddr *)&client_status_addr, &client_status_addr_len);
                 int err = errno;
                 if (l > 0){
                     switch (udp_status_buffer[2]) {

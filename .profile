@@ -1981,7 +1981,7 @@ case $TTY in
   sleep 365d
   ;;
   /dev/tty4) # unused
-  echo "================== DroneBridge v0.5 Beta (tty4) ==========================="
+  echo "================== DroneBridge v0.6 Beta (tty4) ==========================="
   if [ "$CAM" == "0" ]; then
     if [ "$RC" != "disabled" ]; then
       rssirx_function
@@ -2155,22 +2155,22 @@ sleep 365d
 /dev/tty12) # tty for local interactive login
 echo
 if [ "$CAM" == "0" ]; then
-  echo -n "Welcome to DroneBridge v0.5 Beta (Ground) - "
+  echo -n "Welcome to DroneBridge v0.6 Beta (Ground) - "
   read -p "Press <enter> to login"
   killall osd
   rw
 else
-  echo -n "Welcome to DroneBridge v0.5 Beta (UAV) - "
+  echo -n "Welcome to DroneBridge v0.6 Beta (UAV) - "
   read -p "Press <enter> to login"
   rw
 fi
 ;;
 *) # all other ttys used for interactive login
 if [ "$CAM" == "0" ]; then
-  echo "Welcome to DroneBridge v0.5 Beta (Ground) - type 'ro' to switch filesystems back to read-only"
+  echo "Welcome to DroneBridge v0.6 Beta (Ground) - type 'ro' to switch filesystems back to read-only"
   rw
 else
-  echo "Welcome to DroneBridge v0.5 Beta (UAV) - type 'ro' to switch filesystems back to read-only"
+  echo "Welcome to DroneBridge v0.6 Beta (UAV) - type 'ro' to switch filesystems back to read-only"
   rw
 fi
 ;;

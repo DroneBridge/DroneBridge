@@ -146,20 +146,20 @@ int main(int argc, char *argv[]) {
     servAddr.sin_family = AF_INET;
     servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servAddr.sin_port = htons(app_port_proxy);
+
     const int y = 1;
     setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int));
-
     if (udp_socket < 0) {
         printf(RED "DB_PROXY_GROUND: Unable to open socket (%s)\n" RESET, strerror(errno));
-        exit (EXIT_FAILURE);
-    }
-    if (bind(udp_socket, (struct sockaddr *) &servAddr, sizeof (servAddr)) < 0) {
-        printf(RED "DB_PROXY_GROUND: Unable to bind to port %i (%s)\n" RESET, app_port_proxy, strerror(errno));
         exit (EXIT_FAILURE);
     }
     int broadcast=1;
     if (setsockopt(udp_socket, SOL_SOCKET, SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
         printf(RED "DB_PROXY_GROUND: Unable to set broadcast option %s\n" RESET,strerror(errno));
+    }
+    if (bind(udp_socket, (struct sockaddr *) &servAddr, sizeof (servAddr)) < 0) {
+        printf(RED "DB_PROXY_GROUND: Unable to bind to port %i (%s)\n" RESET, app_port_proxy, strerror(errno));
+        exit (EXIT_FAILURE);
     }
 
     // init variables

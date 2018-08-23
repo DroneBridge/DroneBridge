@@ -29,9 +29,9 @@ def main():
         # plugin_license = config.get('About', 'license')
         # plugin_website = config.get('About', 'website')
         plugin_startup_comm = config.get(command_section, 'startup_comm')
-        print("DB_PLUGIN: Starting - " + plugin_name + " v" + str(plugin_version) + " by " + plugin_author)
-        Popen([plugin_startup_comm], shell=True)
-
+        if not plugin_startup_comm == "":
+            print("DB_PLUGIN: Starting - " + plugin_name + " v" + str(plugin_version) + " by " + plugin_author)
+            Popen([plugin_startup_comm], shell=True)
 
 
 if __name__ == "__main__":

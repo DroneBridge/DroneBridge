@@ -29,6 +29,7 @@
 #include <zconf.h>
 #include "db_protocol.h"
 
+
 /**
  * Copied form DroneBridge common lib
  * @return
@@ -45,10 +46,10 @@ void db_rc_values_memory_init(db_rc_values *rc_values) {
  * Control module writes RC values in there.
  * @return
  */
-db_rc_values *db_rc_values_memory_open() {
+db_rc_values *db_rc_values_memory_open(void) {
     int fd;
     for(;;) {
-        fd = shm_open("/db_rc_values", O_RDONLY | O_CREAT, S_IRUSR | S_IWUSR);
+        fd = shm_open("/db_rc_values", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd > 0) {
             break;
         }
@@ -74,7 +75,7 @@ db_rc_values *db_rc_values_memory_open() {
 int main(int argc, char *argv[]) {
     db_rc_values *rc_values = db_rc_values_memory_open();
     while (1){
-        printf("CH1 %i", rc_values->ch[0]);
+        printf("CH1 %i\n", rc_values->ch[0]);
         sleep(1);
     }
 }

@@ -32,21 +32,21 @@ The `settings.ini` contains the following information:
 *   Start command to run on ground station
 *   Start command to run on UAV
 
-**Important: All of the fields below must exist. They need to be set. ```startup_comm``` can be ```""```**
+**Important: All of the fields below must exist. They need to be set. ```startup_comm=``` can be empty. Do not set any value**
 
 **Example file:**
 ```INI
 [About]
-name="ExamplePlugin"
+name=ExamplePlugin
 version=1
-author="seeul8er"
-license="Apache License 2.0"
-website="github.com/seeul8er/DroneBridge/plugins/example_plugin"
+author=seeul8er
+license=Apache License 2.0
+website=github.com/seeul8er/DroneBridge/plugins/example_plugin
 
 [ground]
-startup_comm="python3 your_script.py -ground"
+startup_comm=python3 your_script.py -ground
 [uav]
-startup_comm="python3 your_script.py -uav"
+startup_comm=python3 your_script.py -uav
 ```
 
 **Variable types**
