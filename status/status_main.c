@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
     struct timespec timestamp;
-    int restarts = 0, udp_status_socket, shID, cardcounter = 0, select_return, radiotap_length;
+    int restarts = 0, udp_status_socket, shID, cardcounter = 0, select_return, radiotap_length, max_sd;
     struct timeval timecheck;
     long start, rightnow, status_message_update_rate = 100; // send status messages every 100ms (10Hz)
     int8_t best_dbm = 0;
@@ -169,7 +169,12 @@ int main(int argc, char *argv[]) {
         FD_ZERO (&fd_socket_set);
         FD_SET (long_range_socket, &fd_socket_set);
         FD_SET (udp_status_socket, &fd_socket_set);
-        select_return = select (FD_SETSIZE, &fd_socket_set, NULL, NULL, &socket_timeout);
+        max_sd = long_range_socket;
+        if (udp_status_socket > max_sd)
+        {
+            max_sd = udp_status_socket;
+        }
+        select_return = select (max_sd+1, &fd_socket_set, NULL, NULL, &socket_timeout);
         // ---------------
         // Get IP from IP Checker shared memory segment 10th time
         // ---------------

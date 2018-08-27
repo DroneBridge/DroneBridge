@@ -257,7 +257,6 @@ int main(int argc, char *argv[])
 // -------------------------------
 //    Setting up UART interface for RC commands over SUMD
 // -------------------------------
-    // TODO: needs debugging
     int socket_rc_serial = -1;
     if (use_sumd == 'Y'){
         do
@@ -475,7 +474,7 @@ int main(int argc, char *argv[])
             rc_status_update_data->bytes[2] = get_cpu_usage();
             rc_status_update_data->bytes[3] = get_cpu_temp();
             rc_status_update_data->bytes[4] = get_undervolt();
-            send_packet_hp( DB_PORT_STATUS, (u_int16_t) 6, update_seq_num(&status_seq_number));
+            send_packet_hp(DB_PORT_STATUS, (u_int16_t) 6, update_seq_num(&status_seq_number));
 
             lost_packet_count = 0;
             gettimeofday(&timecheck, NULL);

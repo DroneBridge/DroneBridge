@@ -84,7 +84,13 @@ wifibroadcast_rx_status_t_sysair *wbc_sysair_status_memory_open(void) {
         }
         usleep(100000);
     }
-    void *retval = mmap(NULL, sizeof(wifibroadcast_rx_status_t_sysair), PROT_READ, MAP_SHARED, fd, 0);
+
+    if (ftruncate(fd, sizeof(wifibroadcast_rx_status_t_sysair)) == -1) {
+        perror("wbc_sysair_status_memory_open: ftruncate");
+        exit(1);
+    }
+
+    void *retval = mmap(NULL, sizeof(wifibroadcast_rx_status_t_sysair), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (retval == MAP_FAILED) { perror("mmap"); exit(1); }
     return (wifibroadcast_rx_status_t_sysair*)retval;
 }
