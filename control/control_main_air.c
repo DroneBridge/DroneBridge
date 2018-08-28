@@ -50,7 +50,7 @@ uint8_t buf[BUF_SIZ];
 uint8_t mavlink_telemetry_buf[2048] = {0}, mavlink_message_buf[256] = {0};
 uint8_t telemetry_seq_number = 0;
 int mav_tel_message_counter = 0, mav_tel_buf_length = 0;
-long double cpu_u_new[4] = {1}, cpu_u_old[4] = {1}, loadavg;
+long double cpu_u_new[4], cpu_u_old[4], loadavg;
 float systemp, millideg;
 
 void intHandler(int dummy)
@@ -107,8 +107,8 @@ uint8_t get_cpu_usage(){
         perror("DB_CONTROL_AIR: Could not read CPU usage\n");
     fclose(fp);
     loadavg = ((cpu_u_old[0] + cpu_u_old[1] + cpu_u_old[2]) - (cpu_u_new[0] + cpu_u_new[1] + cpu_u_new[2])) /
-              ((cpu_u_old[0]+cpu_u_old[1]+cpu_u_old[2]+cpu_u_old[3]) - (cpu_u_new[0]+cpu_u_new[1]+cpu_u_new[2]+cpu_u_new[3]));
-    memcpy(cpu_u_old, cpu_u_new, 4);
+              ((cpu_u_old[0]+cpu_u_old[1]+cpu_u_old[2]+cpu_u_old[3]) - (cpu_u_new[0]+cpu_u_new[1]+cpu_u_new[2]+cpu_u_new[3]))*100;
+    memcpy(cpu_u_old, cpu_u_new, sizeof(cpu_u_new));
     return (uint8_t) loadavg;
 }
 
