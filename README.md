@@ -9,9 +9,9 @@ Visit **["Not just another drone project"](http://wolfgangchristl.de/not-just-an
 
 ## DroneBridge Beta 0.5 released!
 
-**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases)**
+**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.5)**
 
-**[DroneBridge android app 1.3](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/Eb3uYDByAbNKiehgtEqL6r8BSOzq2aPoTTcYmlIjaRPGSA?e=R0dUWH)**
+**[DroneBridge for Android 1.2.4](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/Ec38kmt91ilNvYx6xnFwwQgBb9UDGDCGt6L34zZZ9YeMlw)**
 
 **[Get started](https://github.com/seeul8er/DroneBridge/wiki/Setup-Guide)**
 
@@ -50,10 +50,10 @@ To set it up please read the wiki and check out: [WifiBroadcast installation gui
 
 ## Exemplary hardware setup
 ### long range setup
-![DroneBridge long range hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/longrange_setup.png)
+![DroneBridge long range hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/longrange_setup.png)
 
 ### DroneBridge for ESP32
-![DroneBridge for ESP32 hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/db_ESP32_setup.png)
+![DroneBridge for ESP32 hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/db_ESP32_setup.png)
 
 ## DroneBridge Modules
 
@@ -62,7 +62,7 @@ DroneBridge is highly modularized to provide flexebility and make development ea
 [Read more in the Wiki](https://github.com/seeul8er/DroneBridge/wiki)
 
 ## Blackbox concept
-![Blackbox](https://github.com/seeul8er/DroneBridge/blob/nightly/wiki/Blackbox.png)
+![Blackbox](https://github.com/seeul8er/DroneBridge/blob/master/wiki/Blackbox.png)
 
 ## coming up:
  - more documentation
