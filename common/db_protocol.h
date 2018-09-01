@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 #include <time.h>
+#include <net/if.h>
 
 #ifndef DB_PROTOCOL_H_INCLUDED
 #define DB_PROTOCOL_H_INCLUDED
@@ -121,5 +122,54 @@ typedef struct {
     struct timespec timestamp;
     uint16_t ch[NUM_CHANNELS];
 } __attribute__((packed)) db_rc_overwrite_values;
+
+typedef struct {
+	uint32_t received_packet_cnt;
+	uint32_t wrong_crc_cnt;
+	int8_t current_signal_dbm;
+	int8_t type; // 0 = Atheros, 1 = Ralink
+	int signal_good;
+	char name[IFNAMSIZ];
+} __attribute__((packed)) db_adapter_status;
+
+typedef struct {
+    time_t last_update;
+    uint32_t received_block_cnt;
+    uint32_t damaged_block_cnt;
+    uint32_t lost_packet_cnt;
+    uint32_t received_packet_cnt;
+    uint32_t lost_per_block_cnt;
+    uint32_t tx_restart_cnt;
+    uint32_t kbitrate;
+    uint32_t wifi_adapter_cnt;
+    db_adapter_status adapter[8];
+} __attribute__((packed)) db_gnd_status_t;
+
+typedef struct {
+    time_t last_update;
+    uint32_t received_block_cnt;
+    uint32_t damaged_block_cnt;
+    uint32_t lost_packet_cnt;
+    uint32_t received_packet_cnt;
+    uint32_t lost_per_block_cnt;
+    uint32_t tx_restart_cnt;
+    uint32_t kbitrate;
+    uint32_t wifi_adapter_cnt;
+    db_adapter_status adapter[8];
+} __attribute__((packed)) db_rc_status_t;
+
+typedef struct {
+    time_t last_update;
+    uint8_t cpuload;
+    uint8_t temp;
+    uint32_t injected_block_cnt;
+    uint32_t skipped_fec_cnt;
+    uint32_t injection_fail_cnt;
+    long long injection_time_block;
+    uint16_t bitrate_kbit;
+    uint16_t bitrate_measured_kbit;
+    uint8_t cts;
+    uint8_t undervolt; // 1=undervoltage
+} __attribute__((packed)) db_uav_status_t;
 
 #endif // DB_PROTOCOL_H_INCLUDED
