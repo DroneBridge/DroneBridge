@@ -7,7 +7,7 @@ about: Create a report to help us improve
 Reporters can deviate from this template if they have a clear understanding of the problem and the software parts that might be involved.
 
 **Describe the bug**
-A clear and concise description of what the bug is.
+A clear and concise description of what the bug is. Does/Did it happen on earlier releases?
 
 **(if useful) Steps to reproduce the behavior:**
 1. Go to '...'
