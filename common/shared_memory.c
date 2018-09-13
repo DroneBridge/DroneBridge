@@ -76,7 +76,7 @@ wifibroadcast_rx_status_t_sysair *wbc_sysair_status_memory_open(void) {
     int fd = 0;
     int sharedmem = 0;
     while(sharedmem == 0) {
-        fd = shm_open("/wifibroadcast_rx_status_sysair", O_RDWR, S_IRUSR | S_IWUSR);
+        fd = shm_open("/wifibroadcast_rx_status_sysair", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd < 0) {
             fprintf(stderr, "Could not open wbc_sysair_status_memory_open - will try again ...\n");
         } else {

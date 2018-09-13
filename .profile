@@ -1,9 +1,9 @@
+#!/bin/bash
 # /root/.profile - main EZ-Wifibroadcast script
 # (c) 2017 by Rodizio. Licensed under GPL2
 # Modified to be used with DroneBridge by Wolfgang Christl
-
-#
-# functions
+# I know this thing is more than awful, but since I got no time rewriting it,
+# I am happy to keep using it from WBC - Wolfgang
 #
 
 function tmessage() {
@@ -239,6 +239,12 @@ function prepare_nic() {
     tmessage "WARNING: Unsupported or experimental wifi card: $DRIVER"
   fi
 
+  case $DRIVER in
+  *881[24]au)
+    DRIVER=rtl881x
+    ;;
+  esac
+
   tmessage -n "Setting up $1: "
   if [ "$DRIVER" == "ath9k_htc" ]; then # set bitrates for Atheros via iw
     ifconfig $1 up || {
@@ -320,7 +326,7 @@ function prepare_nic() {
 
   fi
 
-  if [ "$DRIVER" == "rt2800usb" ] || [ "$DRIVER" == "mt7601u" ] || [ "$DRIVER" == "rtl8192cu" ] || [ "$DRIVER" == "8812au" ]; then # do not set bitrate for Ralink, Mediatek, Realtek, done through tx parameter
+  if [ "$DRIVER" == "rt2800usb" ] || [ "$DRIVER" == "mt7601u" ] || [ "$DRIVER" == "rtl8192cu" ] || [ "$DRIVER" == "rtl881x" ]; then # do not set bitrate for Ralink, Mediatek, Realtek, done through tx parameter
     tmessage -n "monitor mode.. "
     iw dev $1 set monitor none || {
       echo
@@ -353,9 +359,9 @@ function prepare_nic() {
     else
       echo
     fi
-  if [ "$DRIVER" == "8812au" -a -n "$3" ]; then
-    iw $1 set txpower fixed $3
-  fi
+    if [ "$DRIVER" == "rtl881x" ]; then
+      iw $1 set txpower fixed 3000
+    fi
   fi
 
 }
@@ -586,18 +592,17 @@ function tx_function() {
   fi
   echo
 
-  RALINK=0
-
+  DRIVER=$(cat /sys/class/net/$NICS/device/uevent | nice grep DRIVER | sed 's/DRIVER=//')
+  case $DRIVER in
+  *881[24]au)
+    DRIVER=rtl881x
+    ;;
+  esac
+  VIDEO_FRAMETYPE=1
   if [ "$TXMODE" == "single" ]; then
-    DRIVER=$(cat /sys/class/net/$NICS/device/uevent | nice grep DRIVER | sed 's/DRIVER=//')
-    if [ "$DRIVER" != "ath9k_htc" ]; then # in single mode and ralink cards always, use frametype 1 (data)
-      VIDEO_FRAMETYPE=0
-      RALINK=1
+    if [ "$DRIVER" != "ath9k_htc" ] && [ "$DRIVER" != "rtl881x" ]; then # single mode ralink/mediatek cards use short data frames // not anymore - use RTS
+      VIDEO_FRAMETYPE=2
     fi
-  # for txmode dual always use frametype 1
-  else
-    VIDEO_FRAMETYPE=1
-    RALINK=1
   fi
 
   #echo "Wifi bitrate: $VIDEO_WIFI_BITRATE, Video frametype: $VIDEO_FRAMETYPE"
@@ -609,32 +614,23 @@ function tx_function() {
     VIDEO_WIFI_BITRATE=5
   fi
 
-  DRIVER=$(cat /sys/class/net/$NICS/device/uevent | nice grep DRIVER | sed 's/DRIVER=//')
-  if [ "$CTS_PROTECTION" == "auto" ] && [ "$DRIVER" == "ath9k_htc" ]; then # only use CTS protection with Atheros
-    echo -n "Checking for other wifi traffic ... "
-    WIFIPPS=$(/root/wifibroadcast/wifiscan $NICS)
-    echo -n "$WIFIPPS PPS: "
-    if [ "$WIFIPPS" != "0" ]; then # wifi networks detected, enable CTS
-      echo "Wifi traffic detected, CTS enabled"
+  CTS=N
+  if [ "$DRIVER" == "ath9k_htc" ]; then
+    if [ "$CTS_PROTECTION" == "auto" ]; then # only use CTS protection with Atheros
+      echo -n "Checking for other wifi traffic ... "
+      WIFIPPS=$(/root/wifibroadcast/wifiscan $NICS)
+      echo -n "$WIFIPPS PPS: "
+      if [ "$WIFIPPS" != "0" ]; then # wifi networks detected, enable CTS
+        echo "Wifi traffic detected, CTS enabled"
+        VIDEO_FRAMETYPE=1
+        TELEMETRY_CTS=1
+        CTS=Y
+      fi
+    elif [ "$CTS_PROTECTION" == "Y" ]; then
+      echo "CTS Protection enabled in config"
       VIDEO_FRAMETYPE=1
       TELEMETRY_CTS=1
       CTS=Y
-    else
-      echo "No wifi traffic detected, CTS disabled"
-      CTS=N
-    fi
-  else
-    if [ "$CTS_PROTECTION" == "N" ]; then
-      echo "CTS Protection disabled in config"
-      CTS=N
-    else
-      if [ "$DRIVER" == "ath9k_htc" ]; then
-        echo "CTS Protection enabled in config"
-        CTS=Y
-      else
-        echo "CTS Protection not supported!"
-        CTS=N
-      fi
     fi
   fi
 
@@ -790,11 +786,9 @@ function rx_function() {
   /root/wifibroadcast/sharedmem_init_rx
 
   # start virtual serial port for cmavnode and ser2net
-  ionice -c 3 nice socat -lf /wbc_tmp/socat1.log -d -d pty,raw,echo=0 pty,raw,echo=0 &
-  >/dev/null 2>&1
+  ionice -c 3 nice socat -lf /wbc_tmp/socat1.log -d -d pty,raw,echo=0 pty,raw,echo=0 & >/dev/null 2>&1
   sleep 1
-  ionice -c 3 nice socat -lf /wbc_tmp/socat2.log -d -d pty,raw,echo=0 pty,raw,echo=0 &
-  >/dev/null 2>&1
+  ionice -c 3 nice socat -lf /wbc_tmp/socat2.log -d -d pty,raw,echo=0 pty,raw,echo=0 & >/dev/null 2>&1
   sleep 1
   # setup virtual serial ports
   stty -F /dev/pts/0 -icrnl -ocrnl -imaxbel -opost -isig -icanon -echo -echoe -ixoff -ixon 57600
@@ -1513,7 +1507,7 @@ function tether_check_function() {
         cat /root/telemetryfifo5 >/dev/pts/0 &
         if [ "$MAVLINK_FORWARDER" == "mavlink-routerd" ]; then
           ionice -c 3 nice /root/mavlink-router/mavlink-routerd -e $PHONE_IP:14550 /dev/pts/1:57600 &
-        elif ["$MAVLINK_FORWARDER" == "cmavnode"]; then
+        elif [ "$MAVLINK_FORWARDER" == "cmavnode" ]; then
           cp /boot/cmavnode.conf /tmp/
           echo "targetip=$PHONE_IP" >>/tmp/cmavnode.conf
           ionice -c 3 nice /root/cmavnode/cmavnode --file /tmp/cmavnode.conf &
@@ -1625,7 +1619,7 @@ function hotspot_check_function() {
           nice cat /root/telemetryfifo5 >/dev/pts/0 &
           if [ "$MAVLINK_FORWARDER" == "mavlink-routerd" ]; then
             ionice -c 3 nice /root/mavlink-router/mavlink-routerd -e $IP:14550 /dev/pts/1:57600 &
-          elif ["$MAVLINK_FORWARDER" == "cmavnode"]; then
+          elif [ "$MAVLINK_FORWARDER" == "cmavnode" ]; then
             cp /boot/cmavnode.conf /tmp/
             echo "targetip=$IP" >>/tmp/cmavnode.conf
             ionice -c 3 nice /root/cmavnode/cmavnode --file /tmp/cmavnode.conf &
@@ -1656,7 +1650,7 @@ function hotspot_check_function() {
           cat /root/telemetryfifo5 >/dev/pts/0 &
           if [ "$MAVLINK_FORWARDER" == "mavlink-routerd" ]; then
             ionice -c 3 nice /root/mavlink-router/mavlink-routerd -e $IP:14550 /dev/pts/1:57600 &
-          elif ["$MAVLINK_FORWARDER" == "cmavnode"]; then
+          elif [ "$MAVLINK_FORWARDER" == "cmavnode" ]; then
             cp /boot/cmavnode.conf /tmp/
             echo "targetip=$IP" >>/tmp/cmavnode.conf
             ionice -c 3 nice /root/cmavnode/cmavnode --file /tmp/cmavnode.conf &
@@ -1826,7 +1820,6 @@ if [ "$CAM" == "0" ]; then # if we are RX ...
 fi
 
 if [ -e "/tmp/settings.sh" ]; then
-  OK=$(bash -n /tmp/settings.sh)
   if [ "$?" == "0" ]; then
     source /tmp/settings.sh
   else
@@ -2103,7 +2096,6 @@ case $TTY in
     sleep 2
     if cat /sys/class/net/eth0/carrier | nice grep -q 1; then
       echo "Ethernet connection detected"
-      CARRIER=1
       if nice pump -i eth0 --no-ntp -h $EZHOSTNAME; then
         ETHCLIENTIP=$(ifconfig eth0 | grep "inet addr" | cut -d ':' -f 2 | cut -d ' ' -f 1)
         # kill and pause OSD so we can safeley start wbc_status
