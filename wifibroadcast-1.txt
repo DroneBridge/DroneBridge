@@ -159,7 +159,7 @@ AIRODUMP=N
 AIRODUMP_SECONDS=25
 #
 #
-# set this to "Y" to enable Wifi Hotspot. Default SSID is "EZ-Wifibroadcast", password is "wifibroadcast".
+# set this to "Y" to enable Wifi Hotspot. Default SSID is "DroneBridge", password is "dronebridge".
 # See apconfig.txt for configuration. This will forward the received video and telemetry streams to a
 # smartphone/tablet or computer connected to the RX Pi via WiFi.
 WIFI_HOTSPOT=Y
