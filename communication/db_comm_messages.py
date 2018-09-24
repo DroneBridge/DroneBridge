@@ -29,8 +29,7 @@ import evdev
 from DBCommProt import DBCommProt
 
 tag = 'DB_COMM_MESSAGE: '
-PATH_DRONEBRIDGE_GROUND_SETTINGS = "/boot/DroneBridgeGround.ini"
-PATH_DRONEBRIDGE_AIR_SETTINGS = "/boot/DroneBridgeAir.ini"
+PATH_DRONEBRIDGE_SETTINGS = "/boot/DroneBridgeConfig.ini"
 PATH_WBC_SETTINGS = "/boot/wifibroadcast-1.txt"
 PATH_DB_VERSION = "/boot/db_version.txt"
 
@@ -125,14 +124,11 @@ def change_settings_wbc(loaded_json, origin):
 def change_settings_db(loaded_json, origin):
     try:
         section = ''
-        filepath = ''
         if origin == DBCommProt.DB_ORIGIN_GND.value:
             section = 'Ground'
-            filepath = PATH_DRONEBRIDGE_GROUND_SETTINGS
         elif origin == DBCommProt.DB_ORIGIN_UAV.value:
             section = 'Air'
-            filepath = PATH_DRONEBRIDGE_AIR_SETTINGS
-        with open(filepath, 'r+') as file:
+        with open(PATH_DRONEBRIDGE_SETTINGS, 'r+') as file:
             lines = file.readlines()
             for key in loaded_json['settings'][section]:
                 for index, line in enumerate(lines):
@@ -182,7 +178,7 @@ def change_settings_gopro(loaded_json):
     pass
 
 
-def read_dronebridge_settings(response_header, origin, specific_request, requestet_settings):
+def read_dronebridge_settings(response_header, origin, specific_request, requested_settings):
     """
     Read settings from file and create a valid packet
     :param response_header: Everything but the settings part of the message as a dict
@@ -196,18 +192,20 @@ def read_dronebridge_settings(response_header, origin, specific_request, request
     comm_ident = ''  # array descriptor in the settings request
     settings = {}  # settings object that gets sent
     if origin == DBCommProt.DB_ORIGIN_GND.value:
-        config.read(PATH_DRONEBRIDGE_GROUND_SETTINGS)
+        config.read(PATH_DRONEBRIDGE_SETTINGS)
         section = 'GROUND'
         comm_ident = 'Ground'
     elif origin == DBCommProt.DB_ORIGIN_UAV.value:
-        config.read(PATH_DRONEBRIDGE_AIR_SETTINGS)
+        config.read(PATH_DRONEBRIDGE_SETTINGS)
         section = 'AIR'
         comm_ident = 'Air'
 
     if specific_request:
-        for requested_set in requestet_settings[comm_ident]:
+        for requested_set in requested_settings[comm_ident]:
             if requested_set in config[section]:
                 settings[requested_set] = config.get(section, requested_set)
+            elif requested_set in config['COMMON']:
+                settings[requested_set] = config.get('COMMON', requested_set)
     else:
         for key in config[section]:
             if key not in db_settings_blacklist:
