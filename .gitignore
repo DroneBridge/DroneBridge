@@ -60,3 +60,5 @@ communication/venv/
 control/control_ground
 
 *.a
+
+startup/__pycache__/
