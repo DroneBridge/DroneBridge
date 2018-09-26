@@ -8,21 +8,21 @@ class Chipset(Enum):
     MEDIATEK = 'mt7601u'
 
 
-def isatheros_card(drivername):
+def is_atheros_card(drivername):
     if drivername.startswith('ath'):
         return True
     else:
         return False
 
 
-def isralink_card(drivername):
+def is_ralink_card(drivername):
     if drivername.startswith('rt') and drivername[2].isnumeric():
         return True
     else:
         return False
 
 
-def isrealtek_card(drivername):
+def is_realtek_card(drivername):
     if drivername.startswith('rtl'):
         return True
     else:

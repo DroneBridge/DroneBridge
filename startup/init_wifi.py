@@ -1,38 +1,32 @@
-import configparser
 import argparse
-import os
 import time
 
-from Chipset import isatheros_card, isrealtek_card
+from Chipset import is_atheros_card, is_realtek_card
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
 from subprocess import Popen
 
+from common_helpers import read_dronebridge_config, get_bit_rate, HOTSPOT_NIC, PI3_WIFI_NIC
+
 PATH_DB_VERSION = "../db_version.txt"
-PATH_CONFIG_FILE = os.path.join(os.sep, 'boot', os.sep, 'DroneBridgeConfig.ini')
 COMMON = 'COMMON'
 GROUND = 'GROUND'
 UAV = 'AIR'
 
-p3wifi_nic = 'intwifi0'
-hotspotname = 'wifihotspot0'
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Sets up the entire DroneBridge system including wireless adapters')
-    parser.add_argument('-o', action='store', dest='location', default='g',
-                        help='set to \'g\' if executed on ground station or \'u\' if you want to set up UAV side')
+    parser.add_argument('-g', action='store_true', dest='gnd',
+                        help='setup adapters on the ground station - if not set setup adapters for the UAV')
     return parser.parse_args()
 
 
 def main():
     parsedArgs = parse_args()
-    SETUP_GND = True  # If true we are operating on the ground station else we are on the UAV (by .profile via Cam)
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    config.read(PATH_CONFIG_FILE)
-    if parsedArgs.location == 'u':
-        SETUP_GND = False
+    SETUP_GND = False  # If true we are operating on the ground station else we are on the UAV (by .profile via Cam)
+    config = read_dronebridge_config()
+    if parsedArgs.gnd:
+        SETUP_GND = True
         print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for UAV")
     else:
         print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for ground station")
@@ -68,7 +62,7 @@ def setup_network_interfaces(SETUP_GND, config):
     waitfor_network_adapters(wifi_ap_if)
     winterfaces = pyw.winterfaces()
     for winterface_name in winterfaces:
-        if winterface_name is not hotspotname:  # Leave ap-if alone
+        if winterface_name is not HOTSPOT_NIC:  # Leave ap-if alone
             if freq_ovr == 'N':
                 # Set one frequency for each adapter
                 setup_card(winterface_name, freq, datarate)
@@ -86,39 +80,33 @@ def setup_card(interface_name, frequency, data_rate=3):
     print("Setting " + interface_name + " " + driver_name + " " + frequency + "MHz")
     pyw.down(wifi_card)
     pyw.modeset(wifi_card, 'monitor')
-    if isrealtek_card(driver_name):
+    if is_realtek_card(driver_name):
         # Other cards power settings are set via e.g. 'txpower_atheros 58' or 'txpower_ralink 0' (defaults)
         pyw.txset(wifi_card, 30, 'fixed')
     pyw.up(wifi_card)
     pyw.freqset(wifi_card, frequency)
-    if isatheros_card(driver_name):
+    if is_atheros_card(driver_name):
         # for all other cards the transmission rate is set via the radiotap header
         set_bitrate(interface_name, data_rate)
 
 
 def set_bitrate(interface_name, datarate):
-    if datarate == 1:
-        bit_rate = '6'
-    elif datarate == 2:
-        bit_rate = '11'
-    elif datarate == 3:
-        bit_rate = '12'
-    elif datarate == 4:
-        bit_rate = '18'
-    elif datarate == 5:
-        bit_rate = '24'
-    else:
-        bit_rate = '36'
-    Popen(['iw dev ' + interface_name + ' set bitrates legacy-2.4 ' + bit_rate], shell=True)
+    Popen(['iw dev ' + interface_name + ' set bitrates legacy-2.4 ' + get_bit_rate(datarate)], shell=True)
 
 
 def waitfor_network_adapters(wifi_ap_if):
+    """
+    Wait for at least one network adapter to be detected by the OS. Adapters that will be used for the Wifi AP will be
+    ignored
+    :param wifi_ap_if: Name of the wifi adapter that will be the access point - this one will be ignored
+    :return:
+    """
     keep_waiting = True
     print("Waiting for wifi adapters to be detected ", end="")
     while keep_waiting:
         winterfaces = pyw.winterfaces()
         try:
-            winterfaces.remove(p3wifi_nic)
+            winterfaces.remove(PI3_WIFI_NIC)
         except ValueError:
             pass
         try:
@@ -135,11 +123,11 @@ def waitfor_network_adapters(wifi_ap_if):
 
 def setup_hotspot(interface):
     if interface == 'internal':
-        card = pyw.getcard(p3wifi_nic)
+        card = pyw.getcard(PI3_WIFI_NIC)
     else:
         card = pyw.getcard(interface)
     pyw.down(card)
-    Popen(["ip link set " + card.dev + " name " + hotspotname], shell=True)
+    Popen(["ip link set " + card.dev + " name " + HOTSPOT_NIC], shell=True)
     pyw.up(card)
     pyw.inetset(card, '192.168.2.1')
 

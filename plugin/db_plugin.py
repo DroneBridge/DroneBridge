@@ -4,7 +4,7 @@ import argparse
 from subprocess import Popen
 
 
-def parseArguments():
+def parse_arguments():
     parser = argparse.ArgumentParser(description='This DroneBridge module starts all plugins located in /boot/plugins')
     parser.add_argument('-g', action='store_true', dest='gnd',
                         help='start plugins for ground station - if not set we start plugins for UAV')
@@ -12,7 +12,7 @@ def parseArguments():
 
 
 def main():
-    parsedArgs = parseArguments()
+    parsedArgs = parse_arguments()
     if parsedArgs.gnd:
         command_section = 'ground'
     else:
