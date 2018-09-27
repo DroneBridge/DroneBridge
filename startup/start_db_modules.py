@@ -1,9 +1,11 @@
 import argparse
+import subprocess
+
 import pyric.pyw as pyw
 from subprocess import Popen
 
 from Chipset import is_atheros_card
-from common_helpers import read_dronebridge_config, PI3_WIFI_NIC, HOTSPOT_NIC
+from common_helpers import read_dronebridge_config, PI3_WIFI_NIC, HOTSPOT_NIC, get_bit_rate
 
 COMMON = 'COMMON'
 GROUND = 'GROUND'
@@ -27,6 +29,10 @@ def start_gnd_modules():
     """
     config = read_dronebridge_config()
     communication_id = config.getint(COMMON, 'communication_id')
+    fps = config.getint(COMMON, 'fps')
+    video_blocks = config.getint(COMMON, 'video_blocks')
+    video_fecs = config.getint(COMMON, 'video_fecs')
+    video_blocklength = config.getint(COMMON, 'video_blocklength')
     datarate = config.getint(GROUND, 'datarate')
     interface_selection = config.get(GROUND, 'interface_selection')
     interface_control = config.get(GROUND, 'interface_control')
@@ -54,7 +60,7 @@ def start_gnd_modules():
     if interface_selection == 'auto':
         interface_control = get_interface()
         interface_tel = interface_control
-        interface_video = interface_control
+        interface_video = get_all_monitor_interfaces(True)
         interface_comm = interface_control
         interface_proxy = interface_control
 
@@ -83,6 +89,18 @@ def start_gnd_modules():
         print(GND_STRING_TAG + " Starting plugin module...")
         Popen(["python3 plugin/db_plugin.py -g &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
+    if en_video == 'Y':
+        print("Starting video module ... (FEC: "+str(video_blocks)+"/"+str(video_fecs)+"/"+str(video_blocklength)+")")
+        # TODO start display program
+        wbc_receive = Popen("/root/wifibroadcast/rx -p 0 -d 1 -b "+str(video_blocks)+" -r "+str(video_fecs)+" -f "
+                            + str(video_blocklength)+" " + interface_video, stdout=subprocess.PIPE,
+                            stdin=None, stderr=None, close_fds=True)
+        Popen("ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
+              "/root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee "
+              "/root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee "
+              "/root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
+              "/root/videofifo1 >/dev/null 2>&1", shell=True, stdin=wbc_receive, stdout=None, stderr=None, close_fds=True)
+
 
 def start_uav_modules():
     """
@@ -98,18 +116,19 @@ def start_uav_modules():
     interface_tel = config.get(UAV, 'interface_tel')
     interface_video = config.get(UAV, 'interface_video')
     interface_comm = config.get(UAV, 'interface_comm')
-    en_control = config.get(GROUND, 'en_control')
-    en_video = config.get(GROUND, 'en_video')
-    en_comm = config.get(GROUND, 'en_comm')
-    en_plugin = config.get(GROUND, 'en_plugin')
-    en_tel = config.get(GROUND, 'en_tel')
-    video_blocks = config.getint(UAV, 'video_blocks')
-    video_fecs = config.getint(UAV, 'video_fecs')
-    video_blocklength = config.getint(UAV, 'video_blocklength')
+    en_control = config.get(UAV, 'en_control')
+    en_video = config.get(UAV, 'en_video')
+    en_comm = config.get(UAV, 'en_comm')
+    en_plugin = config.get(UAV, 'en_plugin')
+    en_tel = config.get(UAV, 'en_tel')
+    video_blocks = config.getint(COMMON, 'video_blocks')
+    video_fecs = config.getint(COMMON, 'video_fecs')
+    video_blocklength = config.getint(COMMON, 'video_blocklength')
     extraparams = config.get(UAV, 'extraparams')
     keyframerate = config.getint(UAV, 'keyframerate')
     width = config.getint(UAV, 'width')
     heigth = config.getint(UAV, 'heigth')
+    fps = config.getint(COMMON, 'fps')
     video_bitrate = config.get(UAV, 'video_bitrate')
     video_channel_util = config.getint(UAV, 'video_channel_util')
     serial_int_tel = config.get(UAV, 'serial_int_tel')
@@ -124,13 +143,20 @@ def start_uav_modules():
     chipset_type_cont = 1
 
     # ---------- pre-init ------------------------
-    if is_atheros_card(interface_control):
-        chipset_type_cont = 2
     if interface_selection == 'auto':
         interface_control = get_interface()
         interface_tel = interface_control
-        interface_video = interface_control
+        interface_video = get_all_monitor_interfaces(True)
         interface_comm = interface_control
+    if is_atheros_card(interface_control):
+        chipset_type_cont = 2
+    if video_bitrate == 'auto':
+        #TODO: calculate bitrate
+        video_bitrate = 4000
+    if cts_protection == 'Y' and is_atheros_card(get_interface()) and interface_selection == 'auto':
+        video_frametype = 1  # standard data frames
+    else:
+        video_frametype = 2  # RTS frames
 
     # ---------- Error pre-check ------------------------
     if serial_int_cont == serial_int_tel and en_control == en_tel and en_control == 'Y':
@@ -168,6 +194,17 @@ def start_uav_modules():
         print(UAV_STRING_TAG + " Starting plugin module...")
         Popen(["python3 plugin/db_plugin.py &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
+    if en_video == 'Y':
+        print(UAV_STRING_TAG + "Starting video transmission, FEC "+str(video_blocks)+"/"+str(video_fecs)+"/"
+              + str(video_blocklength)+": "+str(width)+" x "+str(heigth)+" "+str(fps)+" fps, video bitrate: "
+              + str(video_bitrate)+" kBit/s, Keyframerate: "+str(keyframerate)+ " frametype: "+str(video_frametype))
+        raspivid_task = Popen("raspivid -w "+str(width)+" -h "+str(heigth)+" -fps "+str(fps)+" -b "+str(video_bitrate)
+                              + " -g " + str(keyframerate)+" -t 0 "+extraparams+" -o", stdout=subprocess.PIPE,
+                              stdin=None, stderr=None, close_fds=True)
+        Popen("/root/wifibroadcast/tx_rawsock -p 0 -b "+str(video_blocks)+" -r "+str(video_fecs)+" -f "
+                         +str(video_blocklength)+" -t "+str(video_frametype)+" -d "+str(get_bit_rate(datarate))+" -y 0 "
+                         + interface_video, stdin=raspivid_task.stdout, stdout=None, stderr=None, close_fds=True)
+
 
 def get_interface():
     """
@@ -180,6 +217,29 @@ def get_interface():
             card = pyw.getcard(interface_name)
             if pyw.modeget(card) == 'monitor':
                 return interface_name
+    print("ERROR: Could not find working interface - get_interface()")
+    return None
+
+
+def get_all_monitor_interfaces(formated=False):
+    """
+    Find all possibly working wifi interfaces that can be used by a DroneBridge modules
+    :param formated Formated to be used as input for WBC video module
+    :return: List of names of interfaces set to monitor mode
+    """
+    w_interfaces = []
+    interface_names = pyw.winterfaces()
+    for interface_name in interface_names:
+        if interface_name != PI3_WIFI_NIC and interface_name != HOTSPOT_NIC:
+            card = pyw.getcard(interface_name)
+            if pyw.modeget(card) == 'monitor':
+                w_interfaces.append(interface_name)
+    if formated:
+        formated_str = ""
+        for w_int in w_interfaces:
+            formated_str = formated_str + " " + w_int
+        return formated_str
+    return w_interfaces
 
 
 def main():

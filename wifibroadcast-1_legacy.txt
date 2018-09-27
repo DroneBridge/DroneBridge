@@ -1,4 +1,56 @@
 #!/bin/bash
+# ============================================================
+# IMPORTANT: IT IS NOT RECOMMENDED TO USE WIFIBROADCAST TELEMETRY/UPLINK/RC WITH DRONEBRIDGE
+# PLEASE USE DRONEBRIDGE MODULES!
+# ONLY USE/CONFIGURE WIFIBROADCAST FOR FREQ AND VIDEO DOWNLINK, NOTHING ELSE!
+#
+# Common settings (need to be kept in sync for both TX and RX!)
+# ============================================================
+#
+# Desired frequency in MHz
+FREQ=2412
+#
+# Set to "Y" on the RX for auto-scanning. Frequency still has to be set on TX!
+# Feature might be buggy or not work at all!
+FREQSCAN=N
+#
+# the following frequencies are supported:
+# 2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484 (Ralink and Atheros)
+# 2312, 2317, 2322, 2327, 2332, 2337, 2342, 2347, 2352, 2357, 2362, 2367, 2372, 2377, 2382, 2387, 2392, 2397, 2402, 2407 (Atheros only)
+# 2477, 2482, 2487, 2489, 2492, 2494, 2497, 2499, 2512, 2532, 2572, 2592, 2612, 2632, 2652, 2672, 2692, 2712 (Atheros only)
+#
+# 5180, 5200, 5220, 5240, 5260, 5280, 5300, 5320
+# 5500, 5520, 5540, 5560, 5580, 5600, 5620, 5640, 5660, 5680, 5700
+# 5745, 5765, 5785, 5805, 5825
+#
+# 2.3Ghz and 2.5-2.7Ghz band only works with Atheros cards. Check your local regulations before transmitting!
+# Frequencies higher than 2512MHz work with Atheros, but with a lot lower transmit power and sensitivity and
+# thus greatly reduced range. Only useable for short-range applications!
+#
+#
+# Set this to "single" for single TX wifi card, for dual TX wifi cards set "dual".
+# MAC addresses and frequency for the RX and TX wifi need to be set here when dual TX mode is enabled.
+#
+TXMODE=single
+#
+MAC_RX[0]=ec086b1c7834
+FREQ_RX[0]=2472
+#
+MAC_RX[1]=00c0ca849ea1
+FREQ_RX[1]=2472
+#
+MAC_RX[2]=24050f953373
+FREQ_RX[2]=5745
+#
+MAC_RX[3]=24050f0f3eaa
+FREQ_RX[3]=5745
+#
+#
+MAC_TX[0]=24050f0f3eaa
+FREQ_TX[0]=5745
+#
+MAC_TX[1]=ec086b1c7834
+FREQ_TX[1]=2472
 #
 #
 # Wifi Datarate. Lower settings yield higher range and vice versa.
