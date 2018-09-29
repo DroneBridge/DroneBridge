@@ -52,7 +52,7 @@ int process_command_line_args(int argc, char *argv[]){
     app_port_proxy = APP_PORT_PROXY;
     app_port_telem = APP_PORT_TELEMETRY;
     opterr = 0;
-    bitrate_op = DEFAULT_BITRATE_OPTION;
+    bitrate_op = 1;
     while ((c = getopt (argc, argv, "n:m:c:p:b:t:i:l:o:")) != -1)
     {
         switch (c)
@@ -98,8 +98,9 @@ int process_command_line_args(int argc, char *argv[]){
                        " to forward to DB_raw. Default port:%i"
                        "\n\t-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
                        "\n\t-o [Y|N] Write telemetry to /root/telemetryfifo1 FIFO (default: Y)"
-                       "\n\t-b bitrate: \n\t1 = 2.5Mbit\n\t2 = 4.5Mbit\n\t3 = 6Mbit\n\t4 = 12Mbit (default)\n\t"
-                               "5 = 18Mbit\n\t(bitrate option only supported with Ralink chipsets)"
+                       "\n\t-b bit rate: \n\t\t1 = 6Mbit (default)\n\t\t2 = 11Mbit\n\t\t3 = 12Mbit"
+                       "\n\t\t4 = 18Mbit\n\t\t5 = 24Mbit\n\t\t(bitrate option only supported with "
+                       "Ralink chipsets)"
                         , APP_PORT_PROXY);
                 break;
             default:

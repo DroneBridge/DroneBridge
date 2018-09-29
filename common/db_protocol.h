@@ -36,7 +36,6 @@
 #define DEFAULT_DB_MODE         'm'
 #define DEFAULT_DB_IF           "18a6f716a511"
 #define DEFAULT_V2_COMMID		0x01
-#define DEFAULT_BITRATE_OPTION  4
 
 #define NUM_CHANNELS            14      // max number of channels sent over DroneBridge control module (ground)
 #define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge RC protocol

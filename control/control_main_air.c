@@ -128,7 +128,7 @@ uint8_t get_cpu_temp(){
 
 int main(int argc, char *argv[])
 {
-    int c, chipset_type = 1, bitrate_op = 4, chucksize = 64;
+    int c, chipset_type = 1, bitrate_op = 1, chucksize = 64;
     int serial_protocol_control = 2, baud_rate = 115200;
     char use_sumd = 'N';
     char sumd_interface[IFNAMSIZ];
@@ -203,8 +203,8 @@ int main(int argc, char *argv[])
                                "\n\t-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
                                "\n\t-r Baud rate of the serial interface -u (MSP/MAVLink) (2400, 4800, 9600, 19200, "
                                "38400, 57600, 115200 (default: %i))"
-                               "\n\t-b bit rate: \n\t\t1 = 2.5Mbit\n\t\t2 = 4.5Mbit\n\t\t3 = 6Mbit"
-                               "\n\t\t4 = 12Mbit (default)\n\t\t5 = 18Mbit\n\t\t(bitrate option only supported with "
+                               "\n\t-b bit rate: \n\t\t1 = 6Mbit (default)\n\t\t2 = 11Mbit\n\t\t3 = 12Mbit"
+                               "\n\t\t4 = 18Mbit\n\t\t5 = 24Mbit\n\t\t(bitrate option only supported with "
                                "Ralink chipsets)", chucksize, baud_rate);
                 break;
             default:

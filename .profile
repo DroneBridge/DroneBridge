@@ -10,27 +10,7 @@ function tmessage() {
   fi
 }
 
-function check_alive_function() {
-  # function to check if packets coming in, if not, re-start hello_video to clear frozen display
-  while true; do
-    # pause while saving is in progress
-    pause_while
-    ALIVE=$(nice /root/wifibroadcast/check_alive)
-    if [ $ALIVE == "0" ]; then
-      echo "no new packets, restarting hello_video and sleeping for 5s ..."
-      ps -ef | nice grep "cat /root/videofifo1" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-      ps -ef | nice grep "$DISPLAY_PROGRAM" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-      ionice -c 1 -n 4 nice -n -10 cat /root/videofifo1 | ionice -c 1 -n 4 nice -n -10 $DISPLAY_PROGRAM >/dev/null 2>&1 &
-      sleep 5
-    else
-      echo "received packets, doing nothing ..."
-    fi
-  done
-}
-
 function tx_function() {
-
-  # if yes, we don't do the bitrate measuring to increase chances we "survive"
   if [ "$UNDERVOLT" == "0" ]; then
     if [ "$VIDEO_BITRATE" == "auto" ]; then
       echo -n "Measuring max. available bitrate .. "
@@ -49,28 +29,6 @@ function tx_function() {
     BITRATE_MEASURED_KBIT=2000
     echo "Using reduced bitrate: 1000 kBit due to undervoltage!"
   fi
-
-  echo $BITRATE_KBIT >/tmp/bitrate_kbit
-  echo $BITRATE_MEASURED_KBIT >/tmp/bitrate_measured_kbit
-  echo
-  echo "Starting transmission in $TXMODE mode, FEC $VIDEO_BLOCKS/$VIDEO_FECS/$VIDEO_BLOCKLENGTH: $WIDTH x $HEIGHT $FPS fps, video bitrate: $BITRATE_KBIT kBit/s, Keyframerate: $KEYFRAMERATE"
-  nice -n -9 raspivid -w $WIDTH -h $HEIGHT -fps $FPS -b $BITRATE -g $KEYFRAMERATE -t 0 $EXTRAPARAMS -o - | nice -n -9 /root/wifibroadcast/tx_rawsock -p 0 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH -t $VIDEO_FRAMETYPE -d $VIDEO_WIFI_BITRATE -y 0 $NICS
-}
-
-function rx_function() {
-
-  while true; do
-    pause_while
-
-    ionice -c 1 -n 4 nice -n -10 cat /root/videofifo1 | ionice -c 1 -n 4 nice -n -10 $DISPLAY_PROGRAM >/dev/null 2>&1 &
-    ionice -c 3 nice cat /root/videofifo3 >>$VIDEOFILE &
-
-    # update NICS variable in case a NIC has been removed (exclude devices with wlanx)
-    NICS=$(ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot)
-
-    tmessage "Starting RX ... (FEC: $VIDEO_BLOCKS/$VIDEO_FECS/$VIDEO_BLOCKLENGTH)"
-    ionice -c 1 -n 3 /root/wifibroadcast/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
-  done
 }
 
 ## runs on RX (ground pi)
@@ -109,8 +67,8 @@ function tether_check_function() {
       PHONE_IP=$(ip route show 0.0.0.0/0 dev usb0 | cut -d\  -f3)
       echo "Android IP: $PHONE_IP"
 
-      nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$PHONE_IP:$TELEMETRY_UDP_PORT &
-      nice /root/wifibroadcast/rssi_forward $PHONE_IP 5003 &
+      #nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$PHONE_IP:$TELEMETRY_UDP_PORT &
+      #nice /root/wifibroadcast/rssi_forward $PHONE_IP 5003 &
 
       if [ "$FORWARD_STREAM" == "rtp" ]; then
         ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$PHONE_IP >/dev/null 2>&1 &
@@ -159,16 +117,6 @@ function tether_check_function() {
           ps -ef | nice grep "socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2" | nice grep -v grep | awk '{print $2}' | xargs kill -9
           ps -ef | nice grep "gst-launch-1.0" | nice grep -v grep | awk '{print $2}' | xargs kill -9
           ps -ef | nice grep "cat /root/videofifo2" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "cat /root/telemetryfifo5" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "cmavnode" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "mavlink-routerd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "tshark" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "rssi_forward" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          # kill msp processes
-          ps -ef | nice grep "cat /root/mspfifo" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          #ps -ef | nice grep "socat /dev/pts/3" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "ser2net" | nice grep -v grep | awk '{print $2}' | xargs kill -9
         fi
         sleep 1
       done
@@ -202,8 +150,8 @@ function hotspot_check_function() {
       if nice ping -I eth0 -c 1 -W 1 -n -q 192.168.1.2 >/dev/null 2>&1; then
         IP="192.168.1.2"
         echo "Ethernet device detected. IP: $IP"
-        nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
-        nice /root/wifibroadcast/rssi_forward $IP 5003 &
+        #nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
+        #nice /root/wifibroadcast/rssi_forward $IP 5003 &
         if [ "$FORWARD_STREAM" == "rtp" ]; then
           ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP >/dev/null 2>&1 &
         else
@@ -216,7 +164,7 @@ function hotspot_check_function() {
         IP="192.168.2.2"
         echo "Wifi device detected. IP: $IP"
         # nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
-        nice /root/wifibroadcast/rssi_forward $IP 5003 &
+        #nice /root/wifibroadcast/rssi_forward $IP 5003 &
         if [ "$FORWARD_STREAM" == "rtp" ]; then
           ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP >/dev/null 2>&1 &
         else
@@ -273,16 +221,7 @@ function hotspot_check_function() {
           ps -ef | nice grep "socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2" | nice grep -v grep | awk '{print $2}' | xargs kill -9
           ps -ef | nice grep "gst-launch-1.0" | nice grep -v grep | awk '{print $2}' | xargs kill -9
           ps -ef | nice grep "cat /root/videofifo2" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "cat /root/telemetryfifo5" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "cmavnode" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "mavlink-routerd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "tshark" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "rssi_forward" | nice grep -v grep | awk '{print $2}' | xargs kill -9
           # kill msp processes
-          ps -ef | nice grep "cat /root/mspfifo" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          #ps -ef | nice grep "socat /dev/pts/3" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "ser2net" | nice grep -v grep | awk '{print $2}' | xargs kill -9
 
         fi
         sleep 1
@@ -294,39 +233,39 @@ function hotspot_check_function() {
   done
 }
 
-function dronebridge_ground_function() {
-  echo
-  cd /root/dronebridge
-  # wait until video is running to make sure NICS are configured and wifibroadcast_rx_status shmem is available
-  echo
-  echo -n "Waiting until setup is complete ..."
-  VIDEORXRUNNING=0
-  while [ $VIDEORXRUNNING -ne 1 ]; do
-    VIDEORXRUNNING=$(pidof rx | wc -w)
-    sleep 1
-    echo -n "."
-  done
+# function dronebridge_ground_function() {
+#   echo
+#   cd /root/dronebridge
+#   # wait until video is running to make sure NICS are configured and wifibroadcast_rx_status shmem is available
+#   echo
+#   echo -n "Waiting until setup is complete ..."
+#   VIDEORXRUNNING=0
+#   while [ $VIDEORXRUNNING -ne 1 ]; do
+#     VIDEORXRUNNING=$(pidof rx | wc -w)
+#     sleep 1
+#     echo -n "."
+#   done
 
-  echo
-  echo "Starting DroneBridge ground station modules..."
-  nice -n -9 ./start_db_ground.sh &
-}
+#   echo
+#   echo "Starting DroneBridge ground station modules..."
+#   nice -n -9 ./start_db_ground.sh &
+# }
 
-function dronebridge_air_function() {
-  # wait until tx is running to make sure NICS are configured
-  echo -n "Waiting until setup is complete ..."
-  VIDEOTXRUNNING=0
-  while [ $VIDEOTXRUNNING -ne 1 ]; do
-    VIDEOTXRUNNING=$(pidof raspivid | wc -w)
-    sleep 1
-    echo -n "."
-  done
+# function dronebridge_air_function() {
+#   # wait until tx is running to make sure NICS are configured
+#   echo -n "Waiting until setup is complete ..."
+#   VIDEOTXRUNNING=0
+#   while [ $VIDEOTXRUNNING -ne 1 ]; do
+#     VIDEOTXRUNNING=$(pidof raspivid | wc -w)
+#     sleep 1
+#     echo -n "."
+#   done
 
-  echo
-  echo "Starting DroneBridge UAV modules ..."
-  cd /root/dronebridge
-  nice -n -9 ./start_db_air.sh &
-}
+#   echo
+#   echo "Starting DroneBridge UAV modules ..."
+#   cd /root/dronebridge
+#   nice -n -9 ./start_db_air.sh &
+# }
 
 #
 # Start of script
@@ -373,33 +312,18 @@ if [ "$CAM" == "0" ]; then # if we are RX ...
     fi
   fi
 fi
-# mmormota's stutter-free hello_video.bin: "hello_video.bin.30-mm" (for 30fps) or "hello_video.bin.48-mm" (for 48 and 59.9fps)
-# befinitiv's hello_video.bin: "hello_video.bin.240-befi" (for any fps, use this for higher than 59.9fps)
 
-if [ "$FPS" == "59.9" ]; then
-  DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.48-mm
-else
-  if [ "$FPS" -eq 30 ]; then
-    DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.30-mm
-  fi
-  if [ "$FPS" -lt 60 ]; then
-    DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.48-mm
-  fi
-  if [ "$FPS" -gt 60 ]; then
-    DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.240-befi
-  fi
-fi
 
 case $TTY in
 /dev/tty1) # video stuff and general stuff like wifi card setup etc.
   printf "\033[12;0H"
   echo
   tmessage "Display: $(tvservice -s | cut -f 3-20 -d " ")"
-  echo
+  python3 /root/dronebridge/startup/init_wifi.py
   if [ "$CAM" == "0" ]; then
-    rx_function
+    python3 /root/dronebridge/startup/start_db_modules.py -g
   else
-    tx_function
+    python3 /root/dronebridge/startup/start_db_modules.py
   fi
   ;;
 /dev/tty2) # osd stuff
@@ -411,20 +335,20 @@ case $TTY in
   echo "OSD not enabled in configfile"
   sleep 365d
   ;;
-/dev/tty3) # r/c stuff
+/dev/tty3)
   echo "==================(tty3) ==========================="
   sleep 365d
   ;;
-/dev/tty4) # unused
+/dev/tty4)
   echo "================== DroneBridge v0.6 Beta (tty4) ==========================="
-  if [ "$CAM" == "0" ]; then
-    dronebridge_ground_function
-  else
-    dronebridge_air_function
-  fi
+  # if [ "$CAM" == "0" ]; then
+  #   dronebridge_ground_function
+  # else
+  #   dronebridge_air_function
+  # fi
   sleep 365d
   ;;
-/dev/tty5) # screenshot stuff
+/dev/tty5)
   echo "================== (tty5) ==========================="
   sleep 365d
   ;;
@@ -468,19 +392,9 @@ case $TTY in
     sleep 365d
   fi
   ;;
-/dev/tty9) # check alive
-  echo "================== CHECK ALIVE (tty9) ==========================="
-  #	sleep 365d
-
-  if [ "$CAM" == "0" ]; then
-    echo "Waiting some time until everything else is running ..."
-    sleep 15
-    check_alive_function
-    echo
-  else
-    echo "Cam found, we are TX, check alive function disabled"
-    sleep 365d
-  fi
+/dev/tty9)
+  echo "================== (tty9) ==========================="
+  sleep 365d
   ;;
 /dev/tty10)
   echo "================== (tty10) ==========================="

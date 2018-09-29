@@ -1,4 +1,6 @@
 import argparse
+import os
+import sys
 import time
 
 from Chipset import is_atheros_card, is_realtek_card
@@ -50,7 +52,7 @@ def setup_network_interfaces(SETUP_GND, config):
         list_man_freqs[2] = config.getint(GROUND, 'frq_3')
         list_man_nics[3] = config.get(GROUND, 'nic_4')
         list_man_freqs[3] = config.getint(GROUND, 'frq_4')
-    wifi_ap_if = config.get(section, 'wifi_ap_if')
+    wifi_ap_if = config.get(GROUND, 'wifi_ap_if')
     datarate = config.getint(section, 'datarate')
     freq_ovr = config.get(section, 'freq_ovr')
     list_man_nics[0] = config.get(section, 'nic_1')
@@ -77,7 +79,7 @@ def setup_network_interfaces(SETUP_GND, config):
 def setup_card(interface_name, frequency, data_rate=3):
     wifi_card = pyw.getcard(interface_name)
     driver_name = iwhw.ifdriver(interface_name)
-    print("Setting " + interface_name + " " + driver_name + " " + frequency + "MHz")
+    print("Setting " + interface_name + " " + driver_name + " " + str(frequency) + "MHz")
     pyw.down(wifi_card)
     pyw.modeset(wifi_card, 'monitor')
     if is_realtek_card(driver_name):
@@ -139,5 +141,18 @@ def get_firmware_id():
     return version_num
 
 
+def check_root():
+    """
+    Checks if script is executed with root privileges and if not tries to run as root (requesting password)
+    :return:
+    """
+    if os.geteuid() != 0:
+        print("Script not started as root. Running sudo..")
+        args = ['sudo', sys.executable] + sys.argv + [os.environ]
+        # the next line replaces the currently-running process with the sudo
+        os.execlpe('sudo', *args)
+
+
 if __name__ == "__main__":
+    check_root()
     main()

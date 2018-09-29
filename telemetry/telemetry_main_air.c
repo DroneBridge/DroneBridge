@@ -225,7 +225,7 @@ int process_command_line_args(int argc, char *argv[]){
     //baud_rate = 4800;
     baud_rate = 115200;
     buffer_two_ltm_messages = 1;
-    bitrate_op = 4;
+    bitrate_op = 1;
     opterr = 0;
     while ((c = getopt (argc, argv, "n:f:l:m:r:c:b:x:")) != -1)
     {
@@ -272,11 +272,12 @@ int process_command_line_args(int argc, char *argv[]){
                        "                     [ltm|mavlink|auto]\n"
                        "  -x BUFFER_LTM      [0=No|1=Yes] Always buffer two ltm messages to send them together\n"
                        "  -b BITRATE         Transmission bit rate for the long range link. (Ralink chipsets only)\n"
-                       "                     \t1 = 2.5Mbit\n"
-                       "                     \t2 = 4.5Mbit\n"
-                       "                     \t3 = 6Mbit\n"
-                       "                     \t4 = 12Mbit (default)\n"
-                       "                     \t5 = 18Mbit\n"
+                       "                     \t1 = 6Mbit (default)\n"
+                       "                     \t2 = 11Mbit\n"
+                       "                     \t3 = 12Mbit\n"
+                       "                     \t4 = 18Mbit\n"
+                       "                     \t5 = 24Mbit\n"
+                       "                     \t5 = 36Mbit\n"
                        "  -m MODE            Set the mode in which communication should happen. Use\n"
                        "                     [wifi|monitor]\n"
                        "  -r BAUDRATE        Baudrate for the serial port:\n"

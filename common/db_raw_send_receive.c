@@ -85,20 +85,23 @@ void set_bitrate(int bitrate_option) {
             radiotap_header_pre[8] = 0x05;
             break;
         case 2:
-            radiotap_header_pre[8] = 0x09;
+            radiotap_header_pre[8] = 0x0b;
             break;
         case 3:
             radiotap_header_pre[8] = 0x0c;
             break;
         case 4:
-            radiotap_header_pre[8] = 0x18;
-            break;
-        case 5:
             radiotap_header_pre[8] = 0x24;
             break;
+        case 5:
+            radiotap_header_pre[8] = 0x36;
+            break;
+        case 6:
+            radiotap_header_pre[8] = 0x54;
+            break;
         default:
+            radiotap_header_pre[8] = 0x0c;
             fprintf(stderr,"DB_SEND: Wrong bitrate option\n");
-            exit(1);
     }
 
 }

@@ -29,7 +29,7 @@ def start_gnd_modules():
     """
     config = read_dronebridge_config()
     communication_id = config.getint(COMMON, 'communication_id')
-    fps = config.getint(COMMON, 'fps')
+    fps = config.getfloat(COMMON, 'fps')
     video_blocks = config.getint(COMMON, 'video_blocks')
     video_fecs = config.getint(COMMON, 'video_fecs')
     video_blocklength = config.getint(COMMON, 'video_blocklength')
@@ -90,7 +90,7 @@ def start_gnd_modules():
         Popen(["python3 plugin/db_plugin.py -g &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_video == 'Y':
-        print("Starting video module ... (FEC: "+str(video_blocks)+"/"+str(video_fecs)+"/"+str(video_blocklength)+")")
+        print(GND_STRING_TAG + "Starting video module... (FEC: "+str(video_blocks)+"/"+str(video_fecs)+"/"+str(video_blocklength)+")")
         # TODO start display program
         wbc_receive = Popen("/root/wifibroadcast/rx -p 0 -d 1 -b "+str(video_blocks)+" -r "+str(video_fecs)+" -f "
                             + str(video_blocklength)+" " + interface_video, stdout=subprocess.PIPE,
@@ -100,6 +100,10 @@ def start_gnd_modules():
               "/root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee "
               "/root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
               "/root/videofifo1 >/dev/null 2>&1", shell=True, stdin=wbc_receive, stdout=None, stderr=None, close_fds=True)
+        print(GND_STRING_TAG + "Starting video player...")
+        video_pipe = Popen("cat /root/videofifo1", stdin=None, stdout=subprocess.PIPE, stderr=None, close_fds=True)
+        Popen(get_video_player(fps) + " >/dev/null 2>&1 &", shell=True, stdin=video_pipe, stdout=None, stderr=None,
+              close_fds=True)
 
 
 def start_uav_modules():
@@ -128,7 +132,7 @@ def start_uav_modules():
     keyframerate = config.getint(UAV, 'keyframerate')
     width = config.getint(UAV, 'width')
     heigth = config.getint(UAV, 'heigth')
-    fps = config.getint(COMMON, 'fps')
+    fps = config.getfloat(COMMON, 'fps')
     video_bitrate = config.get(UAV, 'video_bitrate')
     video_channel_util = config.getint(UAV, 'video_channel_util')
     serial_int_tel = config.get(UAV, 'serial_int_tel')
@@ -150,13 +154,16 @@ def start_uav_modules():
         interface_comm = interface_control
     if is_atheros_card(interface_control):
         chipset_type_cont = 2
-    if video_bitrate == 'auto':
-        #TODO: calculate bitrate
-        video_bitrate = 4000
     if cts_protection == 'Y' and is_atheros_card(get_interface()) and interface_selection == 'auto':
         video_frametype = 1  # standard data frames
     else:
         video_frametype = 2  # RTS frames
+    if video_bitrate == 'auto' and en_video == 'Y':
+        video_bitrate = measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, video_frametype,
+                                                    datarate, interface_video)
+        print(UAV_STRING_TAG + "Available bandwidth is " + str(video_bitrate / 1000) + "Kbit/s")
+        video_bitrate = video_channel_util * int(video_bitrate) / 100
+        print(UAV_STRING_TAG + "Setting video bitrate to " + str(video_bitrate/1000) + " kBit/s")
 
     # ---------- Error pre-check ------------------------
     if serial_int_cont == serial_int_tel and en_control == en_tel and en_control == 'Y':
@@ -240,6 +247,24 @@ def get_all_monitor_interfaces(formated=False):
             formated_str = formated_str + " " + w_int
         return formated_str
     return w_interfaces
+
+
+def measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, video_frametype, datarate, interface_video):
+    tx_measure = Popen("/root/wifibroadcast/tx_measure -p 77 -b "+str(video_blocks)+" -r "+str(video_fecs)+" -f "
+          +str(video_blocklength)+" -t "+str(video_frametype)+" -d "+str(get_bit_rate(datarate))+" -y 0 " + interface_video,
+                       stdout=subprocess.PIPE, shell=True, stdin=None, stderr=None, close_fds=True)
+    return int(tx_measure.stdout.readline())
+
+
+def get_video_player(fps):
+    # mmormota's stutter-free hello_video.bin: "hello_video.bin.30-mm" (for 30fps) or "hello_video.bin.48-mm" (for 48 and 59.9fps)
+    # befinitiv's hello_video.bin: "hello_video.bin.240-befi" (for any fps, use this for higher than 59.9fps)
+    if fps == 30:
+        return '/opt/vc/src/hello_pi/hello_video/hello_video.bin.30-mm'
+    elif fps <= 60:
+        return '/opt/vc/src/hello_pi/hello_video/hello_video.bin.48-mm'
+    else:
+        return '/opt/vc/src/hello_pi/hello_video/hello_video.bin.240-befi'
 
 
 def main():
