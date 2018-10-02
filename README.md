@@ -38,7 +38,7 @@ To set it up please read the wiki and check out: [WifiBroadcast installation gui
 
 *Range strongly depends on your setup and environment. The user must ensure that the system is operated within the legal framework of the respective country.
 
-<h2>DroneBridge for Android</h2>
+## DroneBridge for Android
 
 ![DroneBridge for Android app interface](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app-map-2017-10-29-kleiner.png)
 
@@ -71,7 +71,7 @@ DroneBridge is highly modularized to provide flexebility and make development ea
  - DroneBridge Cockpit: A client/OS for x86 systems to monitor and control your UAV
  - See **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milestones)**
 
-<h2>You are a developer?</h2>
+## You are a developer?
 
 Check out the **[wiki](https://github.com/seeul8er/DroneBridge/wiki)**
 
@@ -88,3 +88,9 @@ Join the **[Gitter room](https://gitter.im/DroneBridge/Lobby?utm_source=share-li
 There is a nightly branch with the most up to date code! It is not guaranteed that the code in that branch is working or even compiling!
 
 **Feel free to ask questions and criticize each and everything!**
+
+## Licenses
+
+ * All of the code (especially DroneBridge modules & lib_dbcommon - C or Python) is under the Apache 2 license if not specified otherwise
+ * WifiBroadcast legacy code (video, OSD, .profile, hello_video) is licensed as specified or under the GPL v2 license
+ * All Kernel drivers/patches are under GPL v2 license
