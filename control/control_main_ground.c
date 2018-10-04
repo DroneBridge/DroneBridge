@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     // Command Line processing
     Joy_IF = JOY_INTERFACE;
     rc_protocol = 5;
-    bitrate_op = DEFAULT_BITRATE_OPTION;
+    bitrate_op = 1;
     comm_id = DEFAULT_V2_COMMID;
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
     strcpy(ifName, DEFAULT_IF);
@@ -99,8 +99,8 @@ int main(int argc, char *argv[]) {
                                "3 = MAVLink v1 (unsupported); 4 = MAVLink v2; 5 = DB-RC (default)\n"
                                "-o [Y|N] enable/disable RC overwrite\n"
                                "-c [communication id] Choose a number from 0-255. Same on groundstation and drone!\n"
-                       "\n\t-b bit rate: \n\t\t1 = 6Mbit\n\t\t2 = 11Mbit\n\t\t3 = 12Mbit"
-                       "\n\t\t4 = 18Mbit (default)\n\t\t5 = 24Mbit\n\t\t(bitrate option only supported with "
+                       "\n\t-b bit rate: \n\t\t0 = 2Mbit (default)\n\t\t1 = 6Mbit\n\t\t2 = 9Mbit\n\t\t3 = 12Mbit"
+                       "\n\t\t4 = 18Mbit\n\t\t5 = 24Mbit\n\t\t(bitrate option only supported with "
                        "Ralink chipsets)\n");
                 return -1;
             default:

@@ -76,7 +76,7 @@ def setup_network_interfaces(SETUP_GND, config):
                     print("Unknown adapter " + winterface_name + " - could not set it up.")
 
 
-def setup_card(interface_name, frequency, data_rate=3):
+def setup_card(interface_name, frequency, data_rate=2):
     wifi_card = pyw.getcard(interface_name)
     driver_name = iwhw.ifdriver(interface_name)
     print("Setting " + interface_name + " " + driver_name + " " + str(frequency) + "MHz")

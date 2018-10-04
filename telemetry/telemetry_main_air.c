@@ -272,6 +272,7 @@ int process_command_line_args(int argc, char *argv[]){
                        "                     [ltm|mavlink|auto]\n"
                        "  -x BUFFER_LTM      [0=No|1=Yes] Always buffer two ltm messages to send them together\n"
                        "  -b BITRATE         Transmission bit rate for the long range link. (Ralink chipsets only)\n"
+                       "                     \t0 = 2Mbit\n"
                        "                     \t1 = 6Mbit (default)\n"
                        "                     \t2 = 11Mbit\n"
                        "                     \t3 = 12Mbit\n"

@@ -81,23 +81,26 @@ struct data_uni *monitor_databuffer_internal = (struct data_uni *) (monitor_fram
  */
 void set_bitrate(int bitrate_option) {
     switch (bitrate_option){
+        case 0:
+            radiotap_header_pre[8] = 0x04;
+            break;
         case 1:
-            radiotap_header_pre[8] = 0x05;
+            radiotap_header_pre[8] = 0x0c;
             break;
         case 2:
-            radiotap_header_pre[8] = 0x0b;
+            radiotap_header_pre[8] = 0x12;
             break;
         case 3:
-            radiotap_header_pre[8] = 0x0c;
+            radiotap_header_pre[8] = 0x18;
             break;
         case 4:
             radiotap_header_pre[8] = 0x24;
             break;
         case 5:
-            radiotap_header_pre[8] = 0x36;
+            radiotap_header_pre[8] = 0x30;
             break;
         case 6:
-            radiotap_header_pre[8] = 0x54;
+            radiotap_header_pre[8] = 0x1b;
             break;
         default:
             radiotap_header_pre[8] = 0x0c;
