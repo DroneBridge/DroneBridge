@@ -14,14 +14,14 @@ GROUND = 'GROUND'
 UAV = 'AIR'
 GND_STRING_TAG = 'DroneBridge GND: '
 UAV_STRING_TAG = 'DroneBridge UAV: '
-DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "home", "cyber", "Dokumente", "Programming", "gitkrakenrepos", "DroneBridge")
-# DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "root", "dronebridge")
+# DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "home", "cyber", "Dokumente", "Programming", "gitkrakenrepos", "DroneBridge")
+DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "root", "dronebridge")
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='This script starts all DroneBridge modules. First setup the wifi '
                                                  'adapters.')
-    parser.add_argument('-g', action='store_true', dest='gnd',
+    parser.add_argument('-g', action='store_true', dest='gnd', default=False,
                         help='start modules running on the ground station - if not set we start modules for UAV')
     return parser.parse_args()
 
@@ -65,6 +65,7 @@ def start_gnd_modules():
     print(GND_STRING_TAG + "Trying to start individual modules...")
     if interface_selection == 'auto':
         interface_control = get_interface()
+        print("Using: " + interface_control + " for all modules")
         interface_tel = interface_control
         interface_video = get_all_monitor_interfaces(True)
         interface_comm = interface_control
@@ -81,10 +82,10 @@ def start_gnd_modules():
     Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status') + " " + interface_tel
            + " -m m -c "+str(communication_id)+" &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
-    print(GND_STRING_TAG + "Starting proxy & telemetry module...")
-    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy') + " -n "+interface_proxy+" -m m -p "
-           + str(proxy_port_local_remote)+" -c "+str(communication_id) + " -i "+interface_tel+" -l "
-           + str(port_smartphone_ltm)+" &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+    # print(GND_STRING_TAG + "Starting proxy & telemetry module...")
+    # Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy') + " -n "+interface_proxy+" -m m -p "
+    #        + str(proxy_port_local_remote)+" -c "+str(communication_id) + " -i "+interface_tel+" -l "
+    #        + str(port_smartphone_ltm)+" &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_control == 'Y':
         print(GND_STRING_TAG + "Starting control module...")
@@ -100,16 +101,17 @@ def start_gnd_modules():
     if en_video == 'Y':
         print(GND_STRING_TAG + "Starting video module... (FEC: "+str(video_blocks)+"/"+str(video_fecs)+"/"+str(video_blocklength)+")")
         # TODO start display program
-        wbc_receive = Popen(os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'rx') + " -p 0 -d 1 -b "+str(video_blocks)
-                            + " -r "+str(video_fecs)+" -f " + str(video_blocklength)+" " + interface_video,
-                            stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
-        Popen("ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
-              "/root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee "
-              "/root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee "
-              "/root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
-              "/root/videofifo1 >/dev/null 2>&1", shell=True, stdin=wbc_receive, stdout=None, stderr=None, close_fds=True)
-        print(GND_STRING_TAG + "Starting video player...")
-        video_pipe = Popen("cat /root/videofifo1", stdin=None, stdout=subprocess.PIPE, stderr=None, close_fds=True)
+        # wbc_receive = Popen(os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'rx') + " -p 0 -d 1 -b "+str(video_blocks)
+        #                     + " -r "+str(video_fecs)+" -f " + str(video_blocklength)+" " + interface_video,
+        #                     stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
+    #     Popen("ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
+    #           "/root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee "
+    #           "/root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee "
+    #           "/root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
+    #           "/root/videofifo1 >/dev/null 2>&1", shell=True, stdin=wbc_receive, stdout=None, stderr=None, close_fds=True)
+    #     print(GND_STRING_TAG + "Starting video player...")
+        video_pipe = Popen("cat /root/videofifo1", stdin=None, stdout=subprocess.PIPE, stderr=None, close_fds=True,
+                           shell=True)
         Popen(get_video_player(fps) + " >/dev/null 2>&1 &", shell=True, stdin=video_pipe, stdout=None, stderr=None,
               close_fds=True)
 

@@ -4,13 +4,14 @@ import sys
 import time
 
 from Chipset import is_atheros_card, is_realtek_card
+from CColors import CColors
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
 from subprocess import Popen
 
 from common_helpers import read_dronebridge_config, get_bit_rate, HOTSPOT_NIC, PI3_WIFI_NIC
 
-PATH_DB_VERSION = "../db_version.txt"
+PATH_DB_VERSION = os.path.join(os.sep, "boot", "db_version.txt")
 COMMON = 'COMMON'
 GROUND = 'GROUND'
 UAV = 'AIR'
@@ -18,7 +19,7 @@ UAV = 'AIR'
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Sets up the entire DroneBridge system including wireless adapters')
-    parser.add_argument('-g', action='store_true', dest='gnd',
+    parser.add_argument('-g', action='store_true', dest='gnd', default=False,
                         help='setup adapters on the ground station - if not set setup adapters for the UAV')
     return parser.parse_args()
 
@@ -29,15 +30,16 @@ def main():
     config = read_dronebridge_config()
     if parsedArgs.gnd:
         SETUP_GND = True
-        print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for UAV")
+        print(CColors.OKGREEN + "Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for ground station"
+              + CColors.ENDC)
     else:
-        print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for ground station")
+        print(CColors.OKGREEN + "Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for UAV" + CColors.ENDC)
     print("Settings up network interfaces")
     # TODO: check for USB Stick?!
     # TODO: low voltage check on startup till we update OSD code
+    setup_network_interfaces(SETUP_GND, config)  # blocks until interface becomes available
     if SETUP_GND and config.get(GROUND, 'wifi_ap') == 'Y':
         setup_hotspot(config.get(GROUND, 'wifi_ap_if'))
-    setup_network_interfaces(SETUP_GND, config)
 
 
 def setup_network_interfaces(SETUP_GND, config):
@@ -60,6 +62,7 @@ def setup_network_interfaces(SETUP_GND, config):
     list_man_nics[1] = config.get(section, 'nic_2')
     list_man_freqs[1] = config.getint(section, 'frq_2')
 
+    print("Waiting for network adapters to become ready")
     # SET THE PARAMETERS
     waitfor_network_adapters(wifi_ap_if)
     winterfaces = pyw.winterfaces()
@@ -77,19 +80,20 @@ def setup_network_interfaces(SETUP_GND, config):
 
 
 def setup_card(interface_name, frequency, data_rate=2):
-    wifi_card = pyw.getcard(interface_name)
-    driver_name = iwhw.ifdriver(interface_name)
-    print("Setting " + interface_name + " " + driver_name + " " + str(frequency) + "MHz")
-    pyw.down(wifi_card)
-    pyw.modeset(wifi_card, 'monitor')
-    if is_realtek_card(driver_name):
-        # Other cards power settings are set via e.g. 'txpower_atheros 58' or 'txpower_ralink 0' (defaults)
-        pyw.txset(wifi_card, 30, 'fixed')
-    pyw.up(wifi_card)
-    pyw.freqset(wifi_card, frequency)
-    if is_atheros_card(driver_name):
-        # for all other cards the transmission rate is set via the radiotap header
-        set_bitrate(interface_name, data_rate)
+    if interface_name != PI3_WIFI_NIC:
+        wifi_card = pyw.getcard(interface_name)
+        driver_name = iwhw.ifdriver(interface_name)
+        print("Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz")
+        pyw.down(wifi_card)
+        pyw.modeset(wifi_card, 'monitor')
+        if is_realtek_card(driver_name):
+            # Other cards power settings are set via e.g. 'txpower_atheros 58' or 'txpower_ralink 0' (defaults)
+            pyw.txset(wifi_card, 30, 'fixed')
+        pyw.up(wifi_card)
+        pyw.freqset(wifi_card, frequency)
+        if is_atheros_card(driver_name):
+            # for all other cards the transmission rate is set via the radiotap header
+            set_bitrate(interface_name, data_rate)
 
 
 def set_bitrate(interface_name, datarate):
@@ -120,7 +124,8 @@ def waitfor_network_adapters(wifi_ap_if):
             print("\n")
         else:
             print(".", end="")
-            time.sleep(0.5)
+            time.sleep(1)
+    time.sleep(2)
 
 
 def setup_hotspot(interface):
@@ -130,8 +135,13 @@ def setup_hotspot(interface):
         card = pyw.getcard(interface)
     pyw.down(card)
     Popen(["ip link set " + card.dev + " name " + HOTSPOT_NIC], shell=True)
+    card = pyw.getcard(HOTSPOT_NIC)
     pyw.up(card)
     pyw.inetset(card, '192.168.2.1')
+    Popen(["dhcpd -I 192.168.2.1 /etc/udhcpd-wifi.conf"], shell=True)
+    Popen(["dos2unix -n /boot/apconfig.txt /tmp/apconfig.txt"], shell=True)
+    Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True)
+    print(CColors.OKGREEN + "Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 " + CColors.ENDC)
 
 
 def get_firmware_id():

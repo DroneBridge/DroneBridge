@@ -10,34 +10,13 @@ function tmessage() {
   fi
 }
 
-function tx_function() {
-  if [ "$UNDERVOLT" == "0" ]; then
-    if [ "$VIDEO_BITRATE" == "auto" ]; then
-      echo -n "Measuring max. available bitrate .. "
-      BITRATE_MEASURED=$(/root/wifibroadcast/tx_measure -p 77 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH -t $VIDEO_FRAMETYPE -d $VIDEO_WIFI_BITRATE -y 0 $NICS)
-      BITRATE=$((BITRATE_MEASURED * $BITRATE_PERCENT / 100))
-      BITRATE_KBIT=$((BITRATE / 1000))
-      BITRATE_MEASURED_KBIT=$((BITRATE_MEASURED / 1000))
-      echo "$BITRATE_MEASURED_KBIT kBit/s * $BITRATE_PERCENT% = $BITRATE_KBIT kBit/s video bitrate"
-    else
-      BITRATE=$(($VIDEO_BITRATE * 1000))
-      echo "Using fixed bitrate: $VIDEO_BITRATE kBit"
-    fi
-  else
-    BITRATE=$((1000 * 1000))
-    BITRATE_KBIT=1000
-    BITRATE_MEASURED_KBIT=2000
-    echo "Using reduced bitrate: 1000 kBit due to undervoltage!"
-  fi
-}
-
 ## runs on RX (ground pi)
 function osdrx_function() {
   echo
   # Convert osdconfig from DOS format to UNIX format
   ionice -c 3 nice dos2unix -n /boot/osdconfig.txt /tmp/osdconfig.txt
   echo
-  cd /root/wifibroadcast_osd
+  cd /root/dronebridge/osd
   echo Building OSD:
   ionice -c 3 nice make -j2 || {
     echo
@@ -47,6 +26,7 @@ function osdrx_function() {
     sleep 5
   }
   echo
+  /tmp/osd >>/wbc_tmp/telemetrydowntmp.txt &
 }
 
 function tether_check_function() {
@@ -233,40 +213,6 @@ function hotspot_check_function() {
   done
 }
 
-# function dronebridge_ground_function() {
-#   echo
-#   cd /root/dronebridge
-#   # wait until video is running to make sure NICS are configured and wifibroadcast_rx_status shmem is available
-#   echo
-#   echo -n "Waiting until setup is complete ..."
-#   VIDEORXRUNNING=0
-#   while [ $VIDEORXRUNNING -ne 1 ]; do
-#     VIDEORXRUNNING=$(pidof rx | wc -w)
-#     sleep 1
-#     echo -n "."
-#   done
-
-#   echo
-#   echo "Starting DroneBridge ground station modules..."
-#   nice -n -9 ./start_db_ground.sh &
-# }
-
-# function dronebridge_air_function() {
-#   # wait until tx is running to make sure NICS are configured
-#   echo -n "Waiting until setup is complete ..."
-#   VIDEOTXRUNNING=0
-#   while [ $VIDEOTXRUNNING -ne 1 ]; do
-#     VIDEOTXRUNNING=$(pidof raspivid | wc -w)
-#     sleep 1
-#     echo -n "."
-#   done
-
-#   echo
-#   echo "Starting DroneBridge UAV modules ..."
-#   cd /root/dronebridge
-#   nice -n -9 ./start_db_air.sh &
-# }
-
 #
 # Start of script
 #
@@ -313,16 +259,48 @@ if [ "$CAM" == "0" ]; then # if we are RX ...
   fi
 fi
 
+if [ -e "/tmp/settings.sh" ]; then
+  if [ "$?" == "0" ]; then
+    source /tmp/settings.sh
+  else
+    echo "ERROR: wifibroadcast config file contains syntax error(s)!"
+    sleep 365d
+  fi
+else
+  echo "ERROR: wifibroadcast config file not found!"
+  sleep 365d
+fi
+
+  # set reg domain to DE to allow channel 12 and 13 for hotspot
+  iw reg set DE
+
+  NUM_CARDS=-1
+  NICSWL=$(ls /sys/class/net | nice grep wlan)
+
+  for NIC in $NICSWL; do
+    # set MTU to 2304
+    ifconfig $NIC mtu 2304
+    # re-name wifi interface to MAC address
+    NAME=$(cat /sys/class/net/$NIC/address)
+    ip link set $NIC name ${NAME//:/}
+    let "NUM_CARDS++"
+    #sleep 0.1
+  done
 
 case $TTY in
 /dev/tty1) # video stuff and general stuff like wifi card setup etc.
   printf "\033[12;0H"
   echo
   tmessage "Display: $(tvservice -s | cut -f 3-20 -d " ")"
-  python3 /root/dronebridge/startup/init_wifi.py
+  ifconfig eth0 up
   if [ "$CAM" == "0" ]; then
+    /root/dronebridge/video/legacy/sharedmem_init_rx
+  	python3 /root/dronebridge/startup/init_wifi.py -g
     python3 /root/dronebridge/startup/start_db_modules.py -g
+    ionice -c 1 -n 3 /root/dronebridge/video/legacy/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH wlan0 | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
   else
+    /root/dronebridge/video/legacy/sharedmem_init_tx
+  	python3 /root/dronebridge/startup/init_wifi.py
     python3 /root/dronebridge/startup/start_db_modules.py
   fi
   ;;
