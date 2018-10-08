@@ -14,7 +14,6 @@ GROUND = 'GROUND'
 UAV = 'AIR'
 GND_STRING_TAG = 'DroneBridge GND: '
 UAV_STRING_TAG = 'DroneBridge UAV: '
-# DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "home", "cyber", "Dokumente", "Programming", "gitkrakenrepos", "DroneBridge")
 DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "root", "dronebridge")
 
 
@@ -72,6 +71,10 @@ def start_gnd_modules():
         interface_proxy = interface_control
 
     # ----------- start modules ------------------------
+    print(UAV_STRING_TAG + "Starting ip checker module...")
+    Popen(["python3 " + os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_ip_checker.py')],
+          shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+
     if en_comm == 'Y':
         print(GND_STRING_TAG + "Starting communication module...")
         Popen(["python3 " + os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_comm_ground.py') + " -n "
@@ -79,13 +82,13 @@ def start_gnd_modules():
               shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     print(GND_STRING_TAG + "Starting status module...")
-    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status') + " " + interface_tel
+    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status') + " -n " + interface_tel
            + " -m m -c "+str(communication_id)+" &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
-    # print(GND_STRING_TAG + "Starting proxy & telemetry module...")
-    # Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy') + " -n "+interface_proxy+" -m m -p "
-    #        + str(proxy_port_local_remote)+" -c "+str(communication_id) + " -i "+interface_tel+" -l "
-    #        + str(port_smartphone_ltm)+" &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+    print(GND_STRING_TAG + "Starting proxy & telemetry module...")
+    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy') + " -n "+interface_proxy+" -m m -p "
+           + str(proxy_port_local_remote)+" -c "+str(communication_id) + " -i "+interface_tel+" -l "
+           + str(port_smartphone_ltm)+" &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_control == 'Y':
         print(GND_STRING_TAG + "Starting control module...")
@@ -110,10 +113,10 @@ def start_gnd_modules():
     #           "/root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
     #           "/root/videofifo1 >/dev/null 2>&1", shell=True, stdin=wbc_receive, stdout=None, stderr=None, close_fds=True)
     #     print(GND_STRING_TAG + "Starting video player...")
-        video_pipe = Popen("cat /root/videofifo1", stdin=None, stdout=subprocess.PIPE, stderr=None, close_fds=True,
-                           shell=True)
-        Popen(get_video_player(fps) + " >/dev/null 2>&1 &", shell=True, stdin=video_pipe, stdout=None, stderr=None,
-              close_fds=True)
+    #     video_pipe = Popen("cat /root/videofifo1", stdin=None, stdout=subprocess.PIPE, stderr=None, close_fds=True,
+    #                        shell=True)
+    #     Popen(get_video_player(fps) + " >/dev/null 2>&1 &", shell=True, stdin=video_pipe, stdout=None, stderr=None,
+    #           close_fds=True)
 
 
 def start_uav_modules():
@@ -173,8 +176,8 @@ def start_uav_modules():
     if video_bitrate == 'auto' and en_video == 'Y':
         video_bitrate = int(measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, video_frametype,
                                                     datarate, interface_video))
-        print(UAV_STRING_TAG + "Available bandwidth is " + str(video_bitrate / 100) + " kbit/s")
-        video_bitrate = int(video_channel_util * int(video_bitrate) / 10)
+        print(UAV_STRING_TAG + "Available bandwidth is " + str(video_bitrate / 1000) + " kbit/s")
+        video_bitrate = int(video_channel_util/100 * int(video_bitrate))
         print(CColors.OKGREEN + UAV_STRING_TAG + "Setting video bitrate to " + str(video_bitrate/1000) + " kbit/s"
               + CColors.ENDC)
 
@@ -223,7 +226,7 @@ def start_uav_modules():
               + str(video_blocklength)+": "+str(width)+" x "+str(heigth)+" "+str(fps)+" fps, video bitrate: "
               + str(video_bitrate)+" bit/s, Keyframerate: "+str(keyframerate)+ " frametype: "+str(video_frametype))
         raspivid_task = Popen("raspivid -w "+str(width)+" -h "+str(heigth)+" -fps "+str(fps)+" -b "+str(video_bitrate)
-                              + " -g " + str(keyframerate)+" -t 0 "+extraparams+" -o", stdout=subprocess.PIPE,
+                              + " -g " + str(keyframerate)+" -t 0 "+extraparams+" -o -", stdout=subprocess.PIPE,
                               stdin=None, stderr=None, close_fds=True, shell=True)
         Popen(os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'tx_rawsock') + " -p 0 -b "+str(video_blocks)+" -r "
               + str(video_fecs)+" -f " + str(video_blocklength)+" -t "+str(video_frametype)+" -d "

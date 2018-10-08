@@ -147,10 +147,10 @@ int main(int argc, char *argv[]) {
         printf (RED "DB_STATUS_GROUND: %s: Unable to open status socket" RESET "\n", strerror(errno));
         exit (EXIT_FAILURE);
     }
-    int broadcast=1;
-    if (setsockopt(udp_status_socket, SOL_SOCKET, SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
-        printf(RED "DB_STATUS_GROUND: %s" RESET "\n",strerror(errno));
-    }
+//    int broadcast=1;
+//    if (setsockopt(udp_status_socket, SOL_SOCKET, SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
+//        printf(RED "DB_STATUS_GROUND: %s" RESET "\n",strerror(errno));
+//    }
     if (bind(udp_status_socket, (struct sockaddr *) &udp_status_addr, sizeof (udp_status_addr)) < 0) {
         printf(RED "DB_PROXY_GROUND: Unable to bind to port %i (%s)\n" RESET, app_port_status, strerror(errno));
         exit (EXIT_FAILURE);

@@ -10,6 +10,18 @@ function tmessage() {
   fi
 }
 
+function pause_while() {
+  if [ -f "/tmp/pausewhile" ]; then
+    PAUSE=1
+    while [ $PAUSE -ne 0 ]; do
+      if [ ! -f "/tmp/pausewhile" ]; then
+        PAUSE=0
+      fi
+      sleep 1
+    done
+  fi
+}
+
 ## runs on RX (ground pi)
 function osdrx_function() {
   echo
@@ -277,15 +289,35 @@ fi
   NUM_CARDS=-1
   NICSWL=$(ls /sys/class/net | nice grep wlan)
 
-  for NIC in $NICSWL; do
-    # set MTU to 2304
-    ifconfig $NIC mtu 2304
-    # re-name wifi interface to MAC address
-    NAME=$(cat /sys/class/net/$NIC/address)
-    ip link set $NIC name ${NAME//:/}
-    let "NUM_CARDS++"
-    #sleep 0.1
-  done
+for NIC in $NICSWL; do
+# set MTU to 2304
+ifconfig $NIC mtu 2304
+# re-name wifi interface to MAC address
+NAME=$(cat /sys/class/net/$NIC/address)
+ip link set $NIC name ${NAME//:/}
+let "NUM_CARDS++"
+#sleep 0.1
+done
+
+if vcgencmd get_throttled | nice grep -q -v "0x0"; then
+  TEMP=$(cat /sys/class/thermal/thermal_zone0/temp)
+  TEMP_C=$(($TEMP / 1000))
+  if [ "$TEMP_C" -lt 75 ]; then # it must be under-voltage
+    mount -o remount,ro /boot
+    UNDERVOLT=1
+    echo "1" >/tmp/undervolt
+    BITRATE=$((1000 * 1000))
+    BITRATE_KBIT=1000
+    BITRATE_MEASURED_KBIT=2000
+  # it was either over-temp or both undervolt and over-temp, we set undervolt to 0 anyway, since overtemp can be seen at the temp display on the rx
+  else
+    UNDERVOLT=0
+    echo "0" >/tmp/undervolt
+  fi
+else
+  UNDERVOLT=0
+  echo "0" >/tmp/undervolt
+fi
 
 case $TTY in
 /dev/tty1) # video stuff and general stuff like wifi card setup etc.
@@ -297,7 +329,9 @@ case $TTY in
     /root/dronebridge/video/legacy/sharedmem_init_rx
   	python3 /root/dronebridge/startup/init_wifi.py -g
     python3 /root/dronebridge/startup/start_db_modules.py -g
-    ionice -c 1 -n 3 /root/dronebridge/video/legacy/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH wlan0 | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
+    NICS=$(ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot)
+    ionice -c 1 -n 3 /root/dronebridge/video/legacy/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
+    ionice -c 1 -n 4 nice -n -10 cat /root/videofifo1 | ionice -c 1 -n 4 nice -n -10 /opt/vc/src/hello_pi/hello_video/hello_video.bin.240-befi >/dev/null 2>&1
   else
     /root/dronebridge/video/legacy/sharedmem_init_tx
   	python3 /root/dronebridge/startup/init_wifi.py
@@ -354,7 +388,7 @@ case $TTY in
       HVIDEORXRUNNING=0
       while [ $HVIDEORXRUNNING -ne 1 ]; do
         sleep 0.5
-        HVIDEORXRUNNING=$(pidof $DISPLAY_PROGRAM | wc -w)
+        HVIDEORXRUNNING=$(pidof rx | wc -w)
         echo -n "."
       done
       echo

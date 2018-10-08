@@ -80,7 +80,7 @@ def setup_network_interfaces(SETUP_GND, config):
 
 
 def setup_card(interface_name, frequency, data_rate=2):
-    if interface_name != PI3_WIFI_NIC:
+    if interface_name != PI3_WIFI_NIC and interface_name != HOTSPOT_NIC:
         wifi_card = pyw.getcard(interface_name)
         driver_name = iwhw.ifdriver(interface_name)
         print("Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz")
@@ -135,12 +135,13 @@ def setup_hotspot(interface):
         card = pyw.getcard(interface)
     pyw.down(card)
     Popen(["ip link set " + card.dev + " name " + HOTSPOT_NIC], shell=True)
+    time.sleep(1)
     card = pyw.getcard(HOTSPOT_NIC)
     pyw.up(card)
     pyw.inetset(card, '192.168.2.1')
-    Popen(["dhcpd -I 192.168.2.1 /etc/udhcpd-wifi.conf"], shell=True)
-    Popen(["dos2unix -n /boot/apconfig.txt /tmp/apconfig.txt"], shell=True)
-    Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True)
+    # Popen(["dhcpd -I 192.168.2.1 /etc/udhcpd-wifi.conf"], shell=True)
+    # Popen(["dos2unix -n /boot/apconfig.txt /tmp/apconfig.txt"], shell=True)
+    # Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True)
     print(CColors.OKGREEN + "Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 " + CColors.ENDC)
 
 
