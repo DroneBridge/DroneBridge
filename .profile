@@ -319,6 +319,20 @@ else
   echo "0" >/tmp/undervolt
 fi
 
+if [ "$FPS" == "59.9" ]; then
+  DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.48-mm
+else
+  if [ "$FPS" -eq 30 ]; then
+    DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.30-mm
+  fi
+  if [ "$FPS" -lt 60 ]; then
+    DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.48-mm
+  fi
+  if [ "$FPS" -gt 60 ]; then
+    DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.240-befi
+  fi
+fi
+
 case $TTY in
 /dev/tty1) # video stuff and general stuff like wifi card setup etc.
   printf "\033[12;0H"
@@ -329,9 +343,9 @@ case $TTY in
     /root/dronebridge/video/legacy/sharedmem_init_rx
   	python3 /root/dronebridge/startup/init_wifi.py -g
     python3 /root/dronebridge/startup/start_db_modules.py -g
-    NICS=$(ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot)
-    ionice -c 1 -n 3 /root/dronebridge/video/legacy/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
-    ionice -c 1 -n 4 nice -n -10 cat /root/videofifo1 | ionice -c 1 -n 4 nice -n -10 /opt/vc/src/hello_pi/hello_video/hello_video.bin.240-befi >/dev/null 2>&1
+    # ionice -c 1 -n 4 nice -n -10 cat /root/videofifo1 | ionice -c 1 -n 4 nice -n -10 $DISPLAY_PROGRAM >/dev/null 2>&1 &
+    # NICS=$(ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot)
+    # ionice -c 1 -n 3 /root/dronebridge/video/legacy/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
   else
     /root/dronebridge/video/legacy/sharedmem_init_tx
   	python3 /root/dronebridge/startup/init_wifi.py
