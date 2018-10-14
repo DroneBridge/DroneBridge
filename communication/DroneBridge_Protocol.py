@@ -49,8 +49,6 @@ class DBDir(Enum):
 RADIOTAP_HEADER = b'\x00\x00\x0c\x00\x04\x80\x00\x00\x0c\x00\x18\x00'  # 6Mbit transmission speed set with Ralink chips
 ETH_TYPE = b"\x88\xAB"
 DB_V2_HEADER_LENGTH = 10
-DRIVER_ATHEROS = "atheros"
-DRIVER_RALINK = "ralink"
 UDP_BUFFERSIZE = 2048
 MONITOR_BUFFERSIZE = 2048
 MONITOR_BUFFERSIZE_COMM = 2048

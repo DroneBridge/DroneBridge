@@ -88,3 +88,7 @@ communication/__pycache__/
 control/control_air
 
 control/sumd_test
+
+video/video_gnd
+
+video/video_air

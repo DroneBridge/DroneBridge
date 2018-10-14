@@ -4,8 +4,9 @@
  * Copyright 2007		Andy Green <andy@warmcat.com>
  */
 
-#include "wifibroadcast.h"
+#include <asm/errno.h>
 #include "radiotap.h"
+#include "../common/wbc_lib.h"
 
 /**
  * ieee80211_radiotap_iterator_init - radiotap parser iterator initialization
@@ -40,10 +41,8 @@
  * See Documentation/networking/radiotap-headers.txt
  */
 
-int ieee80211_radiotap_iterator_init(
-    struct ieee80211_radiotap_iterator *iterator,
-    struct ieee80211_radiotap_header *radiotap_header,
-    int max_length)
+int ieee80211_radiotap_iterator_init(struct ieee80211_radiotap_iterator *iterator,
+		struct ieee80211_radiotap_header *radiotap_header, int max_length)
 {
 	/* Linux only supports version 0 radiotap format */
 	if (radiotap_header->it_version)

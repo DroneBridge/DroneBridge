@@ -28,7 +28,7 @@
 
 
 int serial_rc_protocol, i_rc_air, i_sumd_air, i_rc;
-db_rc_values *shm_rc_values = NULL;
+db_rc_values_t *shm_rc_values = NULL;
 uint8_t serial_data_buffer[1024] = {0}; // write the data for the serial port in here!
 
 uint16_t rc_channels[DB_RC_NUM_CHANNELS] = {0}, sumd_multiplier = 8, crc_sumd_air = 0;;

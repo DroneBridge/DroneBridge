@@ -25,6 +25,9 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <memory.h>
+#include <fcntl.h>
+#include <errno.h>
 #include "../common/wbc_lib.h"
 #include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
@@ -98,9 +101,8 @@ int process_command_line_args(int argc, char *argv[]){
                        " to forward to DB_raw. Default port:%i"
                        "\n\t-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
                        "\n\t-o [Y|N] Write telemetry to /root/telemetryfifo1 FIFO (default: Y)"
-                       "\n\t-b bit rate: \n\t\t0 = 2Mbit\n\t\t1 = 6Mbit (default)\n\t\t2 = 11Mbit\n\t\t3 = 12Mbit"
-                       "\n\t\t4 = 18Mbit\n\t\t5 = 24Mbit\n\t\t(bitrate option only supported with "
-                       "Ralink chipsets)"
+                       "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
+                       "supported with Ralink chipsets)"
                         , APP_PORT_PROXY);
                 break;
             default:

@@ -203,9 +203,8 @@ int main(int argc, char *argv[])
                                "\n\t-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
                                "\n\t-r Baud rate of the serial interface -u (MSP/MAVLink) (2400, 4800, 9600, 19200, "
                                "38400, 57600, 115200 (default: %i))"
-                               "\n\t-b bit rate: \n\t\t0 = 2Mbit\n\t\t1 = 6Mbit (default)\n\t\t2 = 9Mbit\n\t\t3 = 12Mbit"
-                               "\n\t\t4 = 18Mbit\n\t\t5 = 24Mbit\n\t\t(bitrate option only supported with "
-                               "Ralink chipsets)", chucksize, baud_rate);
+                               "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
+                               "supported with Ralink chipsets)", chucksize, baud_rate);
                 break;
             default:
                 abort ();

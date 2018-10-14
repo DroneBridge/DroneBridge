@@ -81,9 +81,15 @@ def setup_network_interfaces(SETUP_GND, config):
 
 def setup_card(interface_name, frequency, data_rate=2):
     if interface_name != PI3_WIFI_NIC and interface_name != HOTSPOT_NIC:
+        print("Settings up " + interface_name)
         wifi_card = pyw.getcard(interface_name)
         driver_name = iwhw.ifdriver(interface_name)
-        print("Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz")
+        if is_atheros_card(driver_name):
+            # for all other cards the transmission rate is set via the radiotap header
+            pyw.up(wifi_card)
+            set_bitrate(interface_name, data_rate)
+        print(CColors.OKGREEN + "Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz"
+              + CColors.ENDC)
         pyw.down(wifi_card)
         pyw.modeset(wifi_card, 'monitor')
         if is_realtek_card(driver_name):
@@ -91,12 +97,10 @@ def setup_card(interface_name, frequency, data_rate=2):
             pyw.txset(wifi_card, 30, 'fixed')
         pyw.up(wifi_card)
         pyw.freqset(wifi_card, frequency)
-        if is_atheros_card(driver_name):
-            # for all other cards the transmission rate is set via the radiotap header
-            set_bitrate(interface_name, data_rate)
 
 
 def set_bitrate(interface_name, datarate):
+    print("Setting " + interface_name + " bit rate to " + get_bit_rate(datarate) + " Mbps")
     Popen(['iw dev ' + interface_name + ' set bitrates legacy-2.4 ' + get_bit_rate(datarate)], shell=True)
 
 

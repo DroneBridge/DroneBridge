@@ -23,12 +23,12 @@
 #ifndef CONTROL_STATUS_SHARED_MEMORY_H
 #define CONTROL_STATUS_SHARED_MEMORY_H
 
-wifibroadcast_rx_status_t *wbc_status_memory_open(void);
-wifibroadcast_rx_status_t_rc *wbc_rc_status_memory_open(void);
-wifibroadcast_rx_status_t_sysair *wbc_sysair_status_memory_open(void);
-db_rc_values *db_rc_values_memory_open(void);
-db_rc_overwrite_values *db_rc_overwrite_values_memory_open(void);
-void db_rc_values_memory_init(db_rc_values *rc_values);
-void db_rc_overwrite_values_memory_init(db_rc_overwrite_values *rc_values);
+db_video_rx_t *db_video_rx_memory_open(void);
+db_rc_status_t *db_rc_status_memory_open(void);
+db_uav_status_t *db_uav_status_memory_open(void);
+db_rc_values_t *db_rc_values_memory_open(void);
+db_rc_overwrite_values_t *db_rc_overwrite_values_memory_open(void);
+void db_rc_values_memory_init(db_rc_values_t *rc_values);
+void db_rc_overwrite_values_memory_init(db_rc_overwrite_values_t *rc_values);
 
 #endif //CONTROL_STATUS_SHARED_MEMORY_H

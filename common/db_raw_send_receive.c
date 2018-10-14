@@ -77,36 +77,50 @@ struct data_uni *monitor_databuffer_internal = (struct data_uni *) (monitor_fram
 
 /**
  * Set the transmission bit rate in the radiotap header. Only works with ralink cards.
- * @param bitrate_option 1|2|3|4|5|6
+ * @param bitrate_option Bit rate in Mbps
  */
 void set_bitrate(int bitrate_option) {
     switch (bitrate_option){
-        case 0:
-            radiotap_header_pre[8] = 0x04;
-            break;
         case 1:
-            radiotap_header_pre[8] = 0x0c;
+            radiotap_header_pre[8] = 0x02;
             break;
         case 2:
-            radiotap_header_pre[8] = 0x12;
+            radiotap_header_pre[8] = 0x04;
             break;
-        case 3:
-            radiotap_header_pre[8] = 0x18;
-            break;
-        case 4:
-            radiotap_header_pre[8] = 0x24;
-            break;
-        case 5:
-            radiotap_header_pre[8] = 0x30;
+        case 5: // 5.5
+            radiotap_header_pre[8] = 0x14;
             break;
         case 6:
-            radiotap_header_pre[8] = 0x1b;
+            radiotap_header_pre[8] = 0x0C;
+            break;
+        case 9:
+            radiotap_header_pre[8] = 0x12;
+            break;
+        case 11:
+            radiotap_header_pre[8] = 0x16;
+            break;
+        case 12:
+            radiotap_header_pre[8] = 0x18;
+            break;
+        case 18:
+            radiotap_header_pre[8] = 0x24;
+            break;
+        case 24:
+            radiotap_header_pre[8] = 0x30;
+            break;
+        case 36:
+            radiotap_header_pre[8] = 0x48;
+            break;
+        case 48:
+            radiotap_header_pre[8] = 0x60;
+            break;
+        case 54:
+            radiotap_header_pre[8] = 0x6C;
             break;
         default:
             radiotap_header_pre[8] = 0x0c;
-            fprintf(stderr,"DB_SEND: Wrong bitrate option\n");
+            fprintf(stderr,"DB_SEND: Wrong bitrate option. Setting to 6Mbps\n");
     }
-
 }
 
 /**

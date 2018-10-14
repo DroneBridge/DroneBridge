@@ -107,17 +107,8 @@ def start_gnd_modules():
         wbc_receive = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'rx') + " -p 0 -d 1 -b "+str(video_blocks)
                             + " -r "+str(video_fecs)+" -f " + str(video_blocklength)+" " + interface_video],
                             stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
-    #     Popen("ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
-    #           "/root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee "
-    #           "/root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee "
-    #           "/root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee "
-    #           "/root/videofifo1 >/dev/null 2>&1", shell=True, stdin=wbc_receive, stdout=None, stderr=None, close_fds=True)
-    #     print(GND_STRING_TAG + "Starting video player...")
-    #     with open("/root/videofifo1", "r") as video1_pipe:
-    #         videoplayer = Popen(get_video_player(fps), stdin=video1_pipe, stdout=None, stderr=None)
-    #         videoplayer.wait()
+        print(GND_STRING_TAG + "Starting video player...")
         Popen([get_video_player(fps)], stdin=wbc_receive.stdout, stdout=None, stderr=None, close_fds=True, shell=True)
-
 
 
 def start_uav_modules():

@@ -26,6 +26,7 @@
 
 #define RADIOTAP_LENGTH         13
 #define DB_RAW_V2_HEADER_LENGTH 10
+#define DB_MAX_ADAPTERS 4
 
 #define MSP_DATA_LENTH          34      // size of MSP v1
 #define MSP_V2_DATA_LENGTH      37      // size of MSP v2 frame
@@ -117,12 +118,12 @@ typedef struct {
 
 typedef struct {
 	uint16_t ch[NUM_CHANNELS];
-} __attribute__((packed)) db_rc_values;
+} __attribute__((packed)) db_rc_values_t;
 
 typedef struct {
     struct timespec timestamp;
     uint16_t ch[NUM_CHANNELS];
-} __attribute__((packed)) db_rc_overwrite_values;
+} __attribute__((packed)) db_rc_overwrite_values_t;
 
 typedef struct {
 	uint32_t received_packet_cnt;

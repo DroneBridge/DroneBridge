@@ -99,9 +99,8 @@ int main(int argc, char *argv[]) {
                                "3 = MAVLink v1 (unsupported); 4 = MAVLink v2; 5 = DB-RC (default)\n"
                                "-o [Y|N] enable/disable RC overwrite\n"
                                "-c [communication id] Choose a number from 0-255. Same on groundstation and drone!\n"
-                       "\n\t-b bit rate: \n\t\t0 = 2Mbit (default)\n\t\t1 = 6Mbit\n\t\t2 = 9Mbit\n\t\t3 = 12Mbit"
-                       "\n\t\t4 = 18Mbit\n\t\t5 = 24Mbit\n\t\t(bitrate option only supported with "
-                       "Ralink chipsets)\n");
+                       "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
+                       "supported with Ralink chipsets)");
                 return -1;
             default:
                 abort();

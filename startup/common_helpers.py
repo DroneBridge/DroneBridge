@@ -26,21 +26,34 @@ def read_dronebridge_config():
 def get_bit_rate(datarate_index):
     """
     Convert the data rate index given in the config file to the respective numeric data rate.
-    Eg. datarate_index 1 = 6Mbit
-    :param datarate_index: Index of the data rate: 0=2Mbit, 1=6Mbit, 2=9Mbit, 3=12Mbit, 4=18Mbit, 5=24Mbit, 6=36Mbit
+    Eg. datarate_index 1 = 6Mbps
+    :param datarate_index: data rate in Mbps
     :return: A string specifying the data rate
     """
-    if datarate_index == 0:
-        return '2'
-    elif datarate_index == 1:
-        return '6'
+    if datarate_index == 1:
+        return '1'
     elif datarate_index == 2:
+        return '2'
+    elif datarate_index == 5.5:
+        return '5.5'
+    elif datarate_index == 6:
+        return '6'
+    elif datarate_index == 9:
         return '9'
-    elif datarate_index == 3:
+    elif datarate_index == 11:
+        return '11'
+    elif datarate_index == 12:
         return '12'
-    elif datarate_index == 4:
+    elif datarate_index == 18:
         return '18'
-    elif datarate_index == 5:
+    elif datarate_index == 24:
+        return '24'
+    elif datarate_index == 36:
+        return '24'
+    elif datarate_index == 54:
         return '24'
     else:
         return '6'
+
+# kill video player from shell:
+# ps -ef | nice grep "hello_video.bin.48" | nice grep -v grep | awk '{print $2}' | xargs kill -9

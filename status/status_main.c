@@ -29,6 +29,9 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <errno.h>
+#include <memory.h>
+#include <sys/time.h>
 #include "../common/wbc_lib.h"
 #include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
@@ -40,7 +43,7 @@
 #define UDP_STATUS_BUFF_SIZE 2048
 
 bool volatile keeprunning = true;
-char if_name_telemetry[IFNAMSIZ];
+char if_name_status[IFNAMSIZ];
 char db_mode;
 uint8_t comm_id = DEFAULT_V2_COMMID;
 int c, app_port_status = APP_PORT_STATUS;
@@ -52,7 +55,7 @@ void intHandler(int dummy)
 }
 
 int process_command_line_args(int argc, char *argv[]){
-    strncpy(if_name_telemetry, DEFAULT_DB_IF, IFNAMSIZ);
+    strncpy(if_name_status, DEFAULT_DB_IF, IFNAMSIZ);
     db_mode = DEFAULT_DB_MODE;
     app_port_status = APP_PORT_STATUS;
     opterr = 0;
@@ -61,7 +64,7 @@ int process_command_line_args(int argc, char *argv[]){
         switch (c)
         {
             case 'n':
-                strncpy(if_name_telemetry, optarg, IFNAMSIZ);
+                strncpy(if_name_status, optarg, IFNAMSIZ);
                 break;
             case 'm':
                 db_mode = *optarg;
@@ -111,20 +114,20 @@ int main(int argc, char *argv[]) {
     process_command_line_args(argc, argv);
 
     // open wbc rc shared memory to push rc rssi etc. to wbc OSD
-    wifibroadcast_rx_status_t_rc *wbc_rc_status = wbc_rc_status_memory_open();
+    db_rc_status_t *db_rc_status_t = db_rc_status_memory_open();
     // open db rc shared memory
-    db_rc_values *rc_values = db_rc_values_memory_open();
+    db_rc_values_t *rc_values = db_rc_values_memory_open();
     // open db rc overwrite shared memory
-    db_rc_overwrite_values *rc_overwrite_values = db_rc_overwrite_values_memory_open();
+    db_rc_overwrite_values_t *rc_overwrite_values = db_rc_overwrite_values_memory_open();
     // open wbc rx status shared memory
-    wifibroadcast_rx_status_t *wbc_rx_status = wbc_status_memory_open();
+    db_video_rx_t *db_video_rx = db_video_rx_memory_open();
     // open wbc air sys status shared memory - gets read by OSD
-    wifibroadcast_rx_status_t_sysair *wbc_sys_air_status = wbc_sysair_status_memory_open();
+    db_uav_status_t *db_uav_status = db_uav_status_memory_open();
 
-    int number_cards = wbc_rx_status->wifi_adapter_cnt;
+    int number_cards = db_video_rx->wifi_adapter_cnt;
 
     // set up long range receiving socket
-    int long_range_socket = open_receive_socket(if_name_telemetry, db_mode, comm_id, DB_DIREC_GROUND, DB_PORT_STATUS);
+    int long_range_socket = open_receive_socket(if_name_status, db_mode, comm_id, DB_DIREC_GROUND, DB_PORT_STATUS);
     long_range_socket = set_socket_nonblocking(long_range_socket);
     fd_set fd_socket_set;
     struct timeval socket_timeout;
@@ -147,10 +150,6 @@ int main(int argc, char *argv[]) {
         printf (RED "DB_STATUS_GROUND: %s: Unable to open status socket" RESET "\n", strerror(errno));
         exit (EXIT_FAILURE);
     }
-//    int broadcast=1;
-//    if (setsockopt(udp_status_socket, SOL_SOCKET, SO_BROADCAST, &broadcast,sizeof(broadcast))==-1) {
-//        printf(RED "DB_STATUS_GROUND: %s" RESET "\n",strerror(errno));
-//    }
     if (bind(udp_status_socket, (struct sockaddr *) &udp_status_addr, sizeof (udp_status_addr)) < 0) {
         printf(RED "DB_PROXY_GROUND: Unable to bind to port %i (%s)\n" RESET, app_port_status, strerror(errno));
         exit (EXIT_FAILURE);
@@ -202,11 +201,11 @@ int main(int argc, char *argv[]) {
                     db_sys_status_message.rssi_drone = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH];
                     db_sys_status_message.packetloss_rc = (uint8_t) (
                             (1 - (lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1] / rc_send_rate)) * 100);
-                    wbc_rc_status->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
-                    wbc_rc_status->lost_packet_cnt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1];
-                    wbc_sys_air_status->cpuload = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 2];
-                    wbc_sys_air_status->temp = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 3];
-                    wbc_sys_air_status->undervolt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 4];
+                    db_rc_status_t->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
+                    db_rc_status_t->lost_packet_cnt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1];
+                    db_uav_status->cpuload = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 2];
+                    db_uav_status->temp = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 3];
+                    db_uav_status->undervolt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 4];
                 }
             }
 
@@ -245,15 +244,15 @@ int main(int argc, char *argv[]) {
             // ---------------
             best_dbm = -128;
             for(cardcounter=0; cardcounter<number_cards; ++cardcounter) {
-                if (best_dbm < wbc_rx_status->adapter[cardcounter].current_signal_dbm)
-                    best_dbm = wbc_rx_status->adapter[cardcounter].current_signal_dbm;
+                if (best_dbm < db_video_rx->adapter[cardcounter].current_signal_dbm)
+                    best_dbm = db_video_rx->adapter[cardcounter].current_signal_dbm;
             }
             db_sys_status_message.rssi_ground = best_dbm;
-            db_sys_status_message.damaged_blocks_wbc = wbc_rx_status->damaged_block_cnt;
-            db_sys_status_message.lost_packets_wbc = wbc_rx_status->lost_packet_cnt;
-            db_sys_status_message.kbitrate_wbc = wbc_rx_status-> kbitrate;
-            db_sys_status_message.voltage_status = ((wbc_sys_air_status->undervolt << 1) | get_undervolt());
-            if (wbc_rx_status->tx_restart_cnt > restarts) {
+            db_sys_status_message.damaged_blocks_wbc = db_video_rx->damaged_block_cnt;
+            db_sys_status_message.lost_packets_wbc = db_video_rx->lost_packet_cnt;
+            db_sys_status_message.kbitrate_wbc = db_video_rx-> kbitrate;
+            db_sys_status_message.voltage_status = ((db_uav_status->undervolt << 1) | get_undervolt());
+            if (db_video_rx->tx_restart_cnt > restarts) {
                 restarts++;
                 usleep ((__useconds_t) 1e7);
             }

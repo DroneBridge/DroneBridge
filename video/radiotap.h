@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ieee80211_radiotap.h"
+#include <stdint.h>
+#include <linux/kernel.h>
 
 /* Radiotap header iteration
  *   implemented in net/wireless/radiotap.c
@@ -22,13 +24,21 @@ struct ieee80211_radiotap_iterator {
 	struct ieee80211_radiotap_header *rtheader;
 	int max_length;
 	int this_arg_index;
-	u8 *this_arg;
+	uint8_t *this_arg;
 
 	int arg_index;
-	u8 *arg;
+	uint8_t *arg;
 	__le32 *next_bitmap;
-	u32 bitmap_shifter;
+	uint32_t bitmap_shifter;
 };
+
+typedef struct  {
+    int m_nChannel;
+    int m_nChannelFlags;
+    int m_nRate;
+    int m_nAntenna;
+    int m_nRadiotapFlags;
+} __attribute__((packed)) PENUMBRA_RADIOTAP_DATA;
 
 extern int ieee80211_radiotap_iterator_init(
    struct ieee80211_radiotap_iterator *iterator,

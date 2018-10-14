@@ -60,9 +60,9 @@ def new_settingsresponse_message(loaded_json, origin):
     complete_response['id'] = loaded_json['id']
     if loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_DB.value:
         if 'settings' in loaded_json:
-            complete_response = read_dronebridge_settings(complete_response, origin, True, loaded_json['settings'])
+            complete_response = read_dronebridge_settings(complete_response, True, loaded_json['settings'])
         else:
-            complete_response = read_dronebridge_settings(complete_response, origin, False, None)
+            complete_response = read_dronebridge_settings(complete_response, False, None)
     elif loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
         if 'settings' in loaded_json:
             complete_response = read_wbc_settings(complete_response, True, loaded_json['settings'])
@@ -121,19 +121,15 @@ def change_settings_wbc(loaded_json, origin):
     return True
 
 
-def change_settings_db(loaded_json, origin):
+def change_settings_db(loaded_json):
     try:
-        section = ''
-        if origin == DBCommProt.DB_ORIGIN_GND.value:
-            section = 'Ground'
-        elif origin == DBCommProt.DB_ORIGIN_UAV.value:
-            section = 'Air'
         with open(PATH_DRONEBRIDGE_SETTINGS, 'r+') as file:
             lines = file.readlines()
-            for key in loaded_json['settings'][section]:
-                for index, line in enumerate(lines):
-                    if line.startswith(key + "="):
-                        lines[index] = key + "=" + loaded_json['settings'][section][key] + "\n"
+            for section in loaded_json['settings']:
+                for key in loaded_json['settings'][section]:
+                    for index, line in enumerate(lines):
+                        if line.startswith(key + "="):
+                            lines[index] = key + "=" + loaded_json['settings'][section][key] + "\n"
             file.seek(0, 0)
             for line in lines:
                 file.write(line)
@@ -150,7 +146,7 @@ def change_settings(loaded_json, origin):
     """takes a settings change request - executes it - returns a encoded settings change success message"""
     worked = False
     if loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_DB.value:
-        worked = change_settings_db(loaded_json, origin)
+        worked = change_settings_db(loaded_json)
     elif loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
         worked = change_settings_wbc(loaded_json, origin)
     if worked:
@@ -178,38 +174,29 @@ def change_settings_gopro(loaded_json):
     pass
 
 
-def read_dronebridge_settings(response_header, origin, specific_request, requested_settings):
+def read_dronebridge_settings(response_header, specific_request, requested_settings):
     """
     Read settings from file and create a valid packet
     :param response_header: Everything but the settings part of the message as a dict
-    :param origin: Are we drone|groundstation
     :param specific_request: Is it a general or specific settings request: True|False
+    :param requested_settings: A request json
     :return: The complete json with settings
     """
     config = configparser.ConfigParser()
     config.optionxform = str
-    section = ''  # section in the DroneBridge config file
-    comm_ident = ''  # array descriptor in the settings request
     settings = {}  # settings object that gets sent
-    if origin == DBCommProt.DB_ORIGIN_GND.value:
-        config.read(PATH_DRONEBRIDGE_SETTINGS)
-        section = 'GROUND'
-        comm_ident = 'Ground'
-    elif origin == DBCommProt.DB_ORIGIN_UAV.value:
-        config.read(PATH_DRONEBRIDGE_SETTINGS)
-        section = 'AIR'
-        comm_ident = 'Air'
+    config.read(PATH_DRONEBRIDGE_SETTINGS)
 
     if specific_request:
-        for requested_set in requested_settings[comm_ident]:
-            if requested_set in config[section]:
-                settings[requested_set] = config.get(section, requested_set)
-            elif requested_set in config['COMMON']:
-                settings[requested_set] = config.get('COMMON', requested_set)
+        for section in requested_settings['settings']:
+            for requested_set in requested_settings[section]:
+                if requested_set in config[section]:
+                    settings[section][requested_set] = config.get(section, requested_set)
     else:
-        for key in config[section]:
-            if key not in db_settings_blacklist:
-                settings[key] = config.get(section, key)
+        for section in requested_settings['settings']:
+            for key in config[section]:
+                if key not in db_settings_blacklist:
+                    settings[section][key] = config.get(section, key)
 
     response_header['settings'] = settings
     return response_header
@@ -336,3 +323,4 @@ def comm_crc_correct(extracted_info):
         return True
     print(tag + "Bad CRC!")
     return False
+
