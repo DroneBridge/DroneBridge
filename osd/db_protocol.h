@@ -31,16 +31,12 @@
 #define MSP_DATA_LENTH          34      // size of MSP v1
 #define MSP_V2_DATA_LENGTH      37      // size of MSP v2 frame
 #define DB_RC_DATA_LENGTH		16		// size of DB_RC frame
-#define DATA_UNI_LENGTH         2048	// max frame length for raw protocol
+#define DATA_UNI_LENGTH         2048	// max frame length
 #define ETHER_TYPE              0x88ab
 
 #define DEFAULT_DB_MODE         'm'
 #define DEFAULT_DB_IF           "18a6f716a511"
 #define DEFAULT_V2_COMMID		0x01
-
-#define DB_FRAMETYPE_RTS        1
-#define DB_FRAMETYPE_DATA       2
-#define DB_FRAMETYPE_DEFAULT    DB_FRAMETYPE_RTS
 
 #define NUM_CHANNELS            14      // max number of channels sent over DroneBridge control module (ground)
 #define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge RC protocol
@@ -54,7 +50,7 @@
 #define DB_PORT_RC			0x07
 
 #define DB_DIREC_DRONE      0x01 // packet to/for drone
-#define DB_DIREC_GROUND   	0x03 // packet to/for ground station
+#define DB_DIREC_GROUND   	0x03 // packet to/for groundstation
 
 #define APP_PORT_COMM       1603
 #define APP_PORT_TELEMETRY  1604 // accepts MAVLink and LTM telemetry messages. Non MAVLink telemetry messages get rerouted internally to APP_PORT_PROXY

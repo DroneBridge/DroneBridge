@@ -40,7 +40,7 @@ bool volatile keep_running = true;
 char if_name_telemetry[IFNAMSIZ], if_name_serial[IFNAMSIZ], telem_type[15] = "auto";
 char db_mode;
 char serial_port[] = "/dev/ttyAMA0";
-uint8_t comm_id = DEFAULT_V2_COMMID, tel_seq_number = 0;
+uint8_t comm_id = DEFAULT_V2_COMMID, tel_seq_number = 0, frame_type;
 int c, baud_rate, serial_socket, buffer_two_ltm_messages, bitrate_op;
 uint8_t ltm_frame_buf[MAX_LTM_FRAME_SIZE*2];
 
@@ -227,7 +227,8 @@ int process_command_line_args(int argc, char *argv[]){
     buffer_two_ltm_messages = 1;
     bitrate_op = 1;
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:f:l:m:r:c:b:x:")) != -1)
+    frame_type = DB_FRAMETYPE_DEFAULT;
+    while ((c = getopt (argc, argv, "n:f:l:m:r:c:b:x:t:")) != -1)
     {
         switch (c)
         {
@@ -254,6 +255,9 @@ int process_command_line_args(int argc, char *argv[]){
                 break;
             case 'x':
                 buffer_two_ltm_messages = (int) strtol(optarg, NULL, 10);
+                break;
+            case 't':
+                frame_type = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case '?':
                 printf("usage: telemetry_air [-n DB_INTERFACE] [-f SERIALPORT]\n"
@@ -289,6 +293,7 @@ int process_command_line_args(int argc, char *argv[]){
                        "  -r BAUDRATE        Baudrate for the serial port:\n"
                        "                     [115200|57600|38400|19200|9600|4800|2400]\n"
                        "  -c COMM_ID         Communication ID must be the same on drone and\n"
+                       "  -t FRAMETYPE       <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
                        "                     ground station. A number between 0-255 Example: \"125\"\n"
                        "");
                 break;
@@ -310,7 +315,7 @@ int main(int argc, char *argv[]) {
 
     setup_serial_port();
     db_socket tel_db_socket = open_db_socket(if_name_telemetry, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND,
-            DB_PORT_TELEMETRY);
+            DB_PORT_TELEMETRY, frame_type);
 
     int fixed_telem_type = 1; // 0=LTM, 1=MAVLink/pass through
     int ltm_frame_size = 0;
@@ -319,7 +324,7 @@ int main(int argc, char *argv[]) {
     } else if (strncmp(telem_type, "ltm", 3) == 0){
         fixed_telem_type = 0;
     }
-
+    printf(GRN "DB_TELEMETRY_AIR: started!" RESET "\n");
     while(keep_running)
     {
         if (fixed_telem_type == 0){

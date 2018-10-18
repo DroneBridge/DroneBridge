@@ -129,14 +129,18 @@ void set_bitrate(int bitrate_option) {
  * @param bitrate_option
  * @param frame_type
  * @param send_direction
+ * @param frame_type The type of raw frame being sent: 1=RTS, 2=DATA
  * @return The socket file descriptor in case of a success or -1 if we screwed up
  */
-int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t send_direction, uint8_t new_port) {
+int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t send_direction, uint8_t new_port, uint8_t frame_type) {
     memset(monitor_framebuffer, 0, (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH));
     set_bitrate(bitrate_option);
     memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
     // build custom DroneBridge v2 header
-    memcpy(db_raw_header->fcf_duration, frame_control_pre_rts, 4);
+    if (frame_type == DB_FRAMETYPE_RTS)
+        memcpy(db_raw_header->fcf_duration, frame_control_pre_rts, 4);
+    else
+        memcpy(db_raw_header->fcf_duration, frame_control_pre_data, 4);
     db_raw_header->direction = send_direction;
     db_raw_header->comm_id = comm_id;
     if (setsockopt(socket_send_receive, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
@@ -159,10 +163,11 @@ int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t send_direction,
  * @param bitrate_option Transmission bit rate. Only works with Ralink cards
  * @param send_direction Are the sent packets for the drone or the groundstation
  * @param receive_new_port Port the BPF filter gets set to. Port open for receiving data.
+ * @param frame_type The type of raw frame being sent: 1=RTS, 2=DATA
  * @return the socket file descriptor or -1 if something went wrong
  */
 db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
-                             uint8_t send_direction, uint8_t receive_new_port){
+                             uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type){
     mode = trans_mode;
     db_socket new_socket;
     if (mode == 'w') {
@@ -204,7 +209,7 @@ db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bit
         return new_socket;
         //return conf_ethernet(dest_mac);
     } else {
-        new_socket.db_socket = conf_monitor_v2(comm_id, bitrate_option, send_direction, receive_new_port);
+        new_socket.db_socket = conf_monitor_v2(comm_id, bitrate_option, send_direction, receive_new_port, frame_type);
         new_socket.db_socket_addr = socket_address;
         return new_socket;
     }
@@ -220,10 +225,11 @@ db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bit
  * @param bitrate_option Transmission bit rate. Only works with Ralink cards
  * @param send_direction Are the sent packets for the drone or the groundstation
  * @param receive_new_port Port the BPF filter gets set to. Port open for receiving data.
+ * @param frame_type The type of raw frame being sent: 1=RTS, 2=DATA
  * @return the socket file descriptor or -1 if something went wrong
  */
 int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
-                             uint8_t send_direction, uint8_t receive_new_port){
+                             uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type){
     mode = trans_mode;
 
     if (mode == 'w') {
@@ -264,7 +270,7 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
         return -1;
         //return conf_ethernet(dest_mac);
     } else {
-        return conf_monitor_v2(comm_id, bitrate_option, send_direction, receive_new_port);
+        return conf_monitor_v2(comm_id, bitrate_option, send_direction, receive_new_port, frame_type);
     }
 }
 

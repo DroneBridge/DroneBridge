@@ -26,10 +26,11 @@ def main():
         plugin_name = config.get('About', 'name')
         plugin_version = config.getint('About', 'version')
         plugin_author = config.get('About', 'author')
+        plugin_enabled = config.get('About', 'enabled')
         # plugin_license = config.get('About', 'license')
         # plugin_website = config.get('About', 'website')
         plugin_startup_comm = config.get(command_section, 'startup_comm')
-        if not plugin_startup_comm == "":
+        if not plugin_startup_comm == "" and plugin_enabled == 'Y':
             print("DB_PLUGIN: Starting - " + plugin_name + " v" + str(plugin_version) + " by " + plugin_author)
             Popen([plugin_startup_comm], shell=True)
 

@@ -105,10 +105,10 @@
 #define AHI_INVERT_PITCH 1 // default -1, set to 1 if pitch moves in the wrong direction
 #define AHI_SWAP_ROLL_AND_PITCH true // set to true to swap roll and pitch (Frsky and Smartport only)
 
-#define POSITION
-#define POSITION_POS_X 76
-#define POSITION_POS_Y 6
-#define POSITION_SCALE 0.8
+//#define POSITION
+//#define POSITION_POS_X 76
+//#define POSITION_POS_Y 6
+//#define POSITION_SCALE 0.8
 
 #define SAT
 #define SAT_POS_X 6

@@ -29,6 +29,7 @@ The `settings.ini` contains the following information:
 *   Version of the plugin
 *   Author
 *   License
+*   Info if the plugin shall be started when plugins are enabled on the system (DroneBridgeConf.ini)
 *   Start command to run on ground station
 *   Start command to run on UAV
 
@@ -42,17 +43,21 @@ version=1
 author=seeul8er
 license=Apache License 2.0
 website=github.com/seeul8er/DroneBridge/plugins/example_plugin
+enabled=Y
 
 [ground]
 startup_comm=python3 your_script.py -ground
 [uav]
 startup_comm=python3 your_script.py -uav
 ```
-
+#### Notes
 **Variable types**
+
 All values must be Strings except the version. Version must be an Integer.
 
 The startup_comm is executed via python: `subprocess.Popen(startup_comm, shell='True')`
+
+`enabled` must be `Y` or `N`. Tells the plugin module wheter to start the individual plugin or not.
 
 ### Accessing telemetry stream
 **UAV:** Currently, there is no (fast/simple) way of accessing the telemetry stream on the UAV. You would need to connect to an additional serial port of you FC and get telemetry via that one. Alternatively you can open a raw socket that listens for packets with destination DroneBridge telemetry port (port: 0x02 - or any other port/packet format in case you want different information). You can use the DroneBridge libs to do that (untested). The Linux Kernel and raw sockets allow you to monitor not just the received packets of the wifi adapters, but also all outgoing packets

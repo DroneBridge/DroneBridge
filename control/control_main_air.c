@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
     char sumd_interface[IFNAMSIZ];
     char ifName[IFNAMSIZ];
     char usbIF[IFNAMSIZ];
-    uint8_t comm_id = DEFAULT_V2_COMMID;
+    uint8_t comm_id = DEFAULT_V2_COMMID, frame_type = DB_FRAMETYPE_DEFAULT;
     uint8_t status_seq_number = 0, proxy_seq_number = 0, serial_byte;
     char db_mode = 'm';
 
@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
     strcpy(usbIF, USB_IF);
     strcpy(sumd_interface, USB_IF);
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:u:m:c:a:b:v:l:e:s:r:")) != -1)
+    while ((c = getopt (argc, argv, "n:u:m:c:a:b:v:l:e:s:r:t:")) != -1)
     {
         switch (c)
         {
@@ -182,6 +182,9 @@ int main(int argc, char *argv[])
             case 'r':
                 baud_rate = (int) strtol(optarg, NULL, 10);
                 break;
+            case 't':
+                frame_type = (uint8_t) strtol(optarg, NULL, 10);
+                break;
             case '?':
                 printf("Invalid commandline arguments. Use "
                                "\n\t-n <network_IF> "
@@ -203,6 +206,7 @@ int main(int argc, char *argv[])
                                "\n\t-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
                                "\n\t-r Baud rate of the serial interface -u (MSP/MAVLink) (2400, 4800, 9600, 19200, "
                                "38400, 57600, 115200 (default: %i))"
+                       "\n\t-t <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
                                "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
                                "supported with Ralink chipsets)", chucksize, baud_rate);
                 break;
@@ -216,7 +220,8 @@ int main(int argc, char *argv[])
 // Setting up network interface
 // -------------------------------
     int socket_port_rc = open_receive_socket(ifName, db_mode, comm_id, DB_DIREC_DRONE, DB_PORT_RC);
-    int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND, DB_PORT_CONTROLLER);
+    int socket_port_control = open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND,
+            DB_PORT_CONTROLLER, frame_type);
 
 // -------------------------------
 //    Setting up UART interface for MSP/MAVLink stream

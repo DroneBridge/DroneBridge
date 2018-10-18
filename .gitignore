@@ -92,3 +92,5 @@ control/sumd_test
 video/video_gnd
 
 video/video_air
+
+*.o

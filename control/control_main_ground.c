@@ -38,7 +38,7 @@ int detect_RC(int new_Joy_IF) {
     char interface_joystick[500];
     char path[] = "/dev/input/js";
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
-    printf(YEL "DB_CONTROL_GROUND: Waiting for a RC to be detected on: %s" RESET "\n", interface_joystick);
+    printf(YEL "DB_CONTROL_GND: Waiting for a RC to be detected on: %s" RESET "\n", interface_joystick);
     do {
         usleep(250000);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
     atexit(close_socket_send_receive);
     char ifName[IFNAMSIZ], RC_name[128];
     char calibrate_comm[500];
-    uint8_t comm_id;
+    uint8_t comm_id, frame_type;
     int Joy_IF, c, bitrate_op, rc_protocol;
     char db_mode = 'm'; char allow_rc_overwrite = 'N';
 
@@ -59,10 +59,11 @@ int main(int argc, char *argv[]) {
     rc_protocol = 5;
     bitrate_op = 1;
     comm_id = DEFAULT_V2_COMMID;
+    frame_type = DB_FRAMETYPE_DEFAULT;
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
     strcpy(ifName, DEFAULT_IF);
     opterr = 0;
-    while ((c = getopt(argc, argv, "n:j:m:b:g:v:o:c:")) != -1) {
+    while ((c = getopt(argc, argv, "n:j:m:b:g:v:o:t:c:")) != -1) {
         switch (c) {
             case 'n':
                 strncpy(ifName, optarg, IFNAMSIZ);
@@ -88,6 +89,9 @@ int main(int argc, char *argv[]) {
             case 'c':
                 comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
+            case 't':
+                frame_type = (uint8_t) strtol(optarg, NULL, 10);
+                break;
             case '?':
                 printf("12ch RC via the DB-RC option (-v 5)\n");
                 printf("14ch RC using FC serial protocol (-v 1|2|4)\n");
@@ -99,6 +103,7 @@ int main(int argc, char *argv[]) {
                                "3 = MAVLink v1 (unsupported); 4 = MAVLink v2; 5 = DB-RC (default)\n"
                                "-o [Y|N] enable/disable RC overwrite\n"
                                "-c [communication id] Choose a number from 0-255. Same on groundstation and drone!\n"
+                       "-t <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
                        "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
                        "supported with Ralink chipsets)");
                 return -1;
@@ -107,7 +112,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_CONTROLLER) < 0) {
+    if (open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_CONTROLLER, frame_type) < 0) {
         printf(RED "DB_CONTROL_GROUND: Could not open socket " RESET "\n");
         exit(-1);
     }

@@ -1,7 +1,7 @@
 /*
  *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
  *
- *   parts based on rx_status by Rodizio. Based on wifibroadcast rx by Befinitiv. Licensed under GPL2
+ *   parts based on db_gnd_status by Rodizio. Based on wifibroadcast rx by Befinitiv. Licensed under GPL2
  *   integrated into the DroneBridge extensions by Wolfgang Christl
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -119,12 +119,12 @@ int main(int argc, char *argv[]) {
     db_rc_values_t *rc_values = db_rc_values_memory_open();
     // open db rc overwrite shared memory
     db_rc_overwrite_values_t *rc_overwrite_values = db_rc_overwrite_values_memory_open();
-    // open wbc rx status shared memory
-    db_video_rx_t *db_video_rx = db_video_rx_memory_open();
-    // open wbc air sys status shared memory - gets read by OSD
+    // shm for video/gnd status
+    db_gnd_status_t *db_gnd_status_t = db_gnd_status_memory_open();
+    // all UAV status related data
     db_uav_status_t *db_uav_status = db_uav_status_memory_open();
 
-    int number_cards = db_video_rx->wifi_adapter_cnt;
+    int number_cards = db_gnd_status_t->wifi_adapter_cnt;
 
     // set up long range receiving socket
     int long_range_socket = open_receive_socket(if_name_status, db_mode, comm_id, DB_DIREC_GROUND, DB_PORT_STATUS);
@@ -158,7 +158,7 @@ int main(int argc, char *argv[]) {
     // get IP shared memory ID
     shID = init_shared_memory_ip();
 
-    printf(GRN "DB_STATUS_GROUND: started!" RESET "\n");
+    printf(GRN "DB_STATUS_GND: started!" RESET "\n");
 
     gettimeofday(&timecheck, NULL);
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
@@ -244,15 +244,15 @@ int main(int argc, char *argv[]) {
             // ---------------
             best_dbm = -128;
             for(cardcounter=0; cardcounter<number_cards; ++cardcounter) {
-                if (best_dbm < db_video_rx->adapter[cardcounter].current_signal_dbm)
-                    best_dbm = db_video_rx->adapter[cardcounter].current_signal_dbm;
+                if (best_dbm < db_gnd_status_t->adapter[cardcounter].current_signal_dbm)
+                    best_dbm = db_gnd_status_t->adapter[cardcounter].current_signal_dbm;
             }
             db_sys_status_message.rssi_ground = best_dbm;
-            db_sys_status_message.damaged_blocks_wbc = db_video_rx->damaged_block_cnt;
-            db_sys_status_message.lost_packets_wbc = db_video_rx->lost_packet_cnt;
-            db_sys_status_message.kbitrate_wbc = db_video_rx-> kbitrate;
+            db_sys_status_message.damaged_blocks_wbc = db_gnd_status_t->damaged_block_cnt;
+            db_sys_status_message.lost_packets_wbc = db_gnd_status_t->lost_packet_cnt;
+            db_sys_status_message.kbitrate_wbc = db_gnd_status_t-> kbitrate;
             db_sys_status_message.voltage_status = ((db_uav_status->undervolt << 1) | get_undervolt());
-            if (db_video_rx->tx_restart_cnt > restarts) {
+            if (db_gnd_status_t->tx_restart_cnt > restarts) {
                 restarts++;
                 usleep ((__useconds_t) 1e7);
             }

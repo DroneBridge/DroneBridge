@@ -34,6 +34,7 @@ def start_gnd_modules():
     if config is None:
         exit(-1)
     communication_id = config.getint(COMMON, 'communication_id')
+    cts_protection = config.get(COMMON, 'cts_protection')
     fps = config.getfloat(COMMON, 'fps')
     video_blocks = config.getint(COMMON, 'video_blocks')
     video_fecs = config.getint(COMMON, 'video_fecs')
@@ -69,6 +70,10 @@ def start_gnd_modules():
         interface_video = get_all_monitor_interfaces(True)
         interface_comm = interface_control
         interface_proxy = interface_control
+    if cts_protection == 'Y' and is_atheros_card(get_interface()):
+        frametype = 2  # standard data frames
+    else:
+        frametype = 1  # RTS frames
 
     # ----------- start modules ------------------------
     print(UAV_STRING_TAG + "Starting ip checker module...")
@@ -88,13 +93,15 @@ def start_gnd_modules():
     print(GND_STRING_TAG + "Starting proxy & telemetry module...")
     Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy') + " -n "+interface_proxy+" -m m -p "
            + str(proxy_port_local_remote)+" -c "+str(communication_id) + " -i "+interface_tel+" -l "
-           + str(port_smartphone_ltm)+" &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+           + str(port_smartphone_ltm) + " -f " + str(frametype) + " -b " + str(get_bit_rate(datarate)) + " &"],
+          shell=True, stdin=None, stdout=None,stderr=None, close_fds=True)
 
     if en_control == 'Y':
         print(GND_STRING_TAG + "Starting control module...")
-        Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_ground') + " -n "+interface_control+" -j "
+        Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_ground') + " -n " + interface_control + " -j "
                + str(joy_interface)+" -m m -v "+str(rc_proto) + " -o "+en_rc_overwrite+" -c "
-               + str(communication_id)+" &"], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+               + str(communication_id) + " -t " + str(frametype) + " -b " + str(get_bit_rate(datarate)) + " &"],
+              shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_plugin == 'Y':
         print(GND_STRING_TAG + "Starting plugin module...")
@@ -104,8 +111,12 @@ def start_gnd_modules():
     if en_video == 'Y':
         print(GND_STRING_TAG + "Starting video module... (FEC: "+str(video_blocks)+"/"+str(video_fecs)+"/"+str(video_blocklength)+")")
         # TODO start display program
-        wbc_receive = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'rx') + " -p 0 -d 1 -b "+str(video_blocks)
-                            + " -r "+str(video_fecs)+" -f " + str(video_blocklength)+" " + interface_video],
+        # wbc_receive = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'rx') + " -p 0 -d 1 -b "+str(video_blocks)
+        #                     + " -r "+str(video_fecs)+" -f " + str(video_blocklength)+" " + interface_video],
+        #                     stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
+        wbc_receive = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_gnd') + " -d "+str(video_blocks)
+                            + " -r "+str(video_fecs)+" -f " + str(video_blocklength) + " -c " + str(communication_id)
+                             + " -p N " + interface_video],
                             stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
         print(GND_STRING_TAG + "Starting video player...")
         Popen([get_video_player(fps)], stdin=wbc_receive.stdout, stdout=None, stderr=None, close_fds=True, shell=True)
@@ -161,12 +172,12 @@ def start_uav_modules():
         interface_comm = interface_control
     if is_atheros_card(interface_control):
         chipset_type_cont = 2
-    if cts_protection == 'Y' and is_atheros_card(get_interface()) and interface_selection == 'auto':
-        video_frametype = 1  # standard data frames
+    if cts_protection == 'Y' and is_atheros_card(get_interface()):
+        frametype = 2  # standard data frames
     else:
-        video_frametype = 2  # RTS frames
+        frametype = 1  # RTS frames
     if video_bitrate == 'auto' and en_video == 'Y':
-        video_bitrate = int(measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, video_frametype,
+        video_bitrate = int(measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, frametype,
                                                     datarate, interface_video))
         print(UAV_STRING_TAG + "Available bandwidth is " + str(video_bitrate / 1000) + " kbit/s")
         video_bitrate = int(video_channel_util/100 * int(video_bitrate))
@@ -195,17 +206,17 @@ def start_uav_modules():
     if en_tel == 'Y':
         print(UAV_STRING_TAG + "Starting telemetry module...")
         Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'telemetry', 'telemetry_air') + " -n "+interface_tel+" -f "
-               + serial_int_tel+" -r "+str(baud_tel)+" -m m -c " +
-               str(communication_id) + " -l "+str(tel_proto)+" &"], shell=True, stdin=None, stdout=None, stderr=None,
-              close_fds=True)
+               + serial_int_tel+" -r "+str(baud_tel)+" -t " + str(frametype) + " -m m -c " +
+               str(communication_id) + " -l "+str(tel_proto) + " -b " + str(get_bit_rate(2)) + " &"],
+              shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_control == 'Y':
         print(UAV_STRING_TAG + "Starting control module...")
         Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_air') + " -n " + interface_control + " -u "
                + serial_int_cont + " -m m -c "
-               + str(communication_id) + " -a " + str(chipset_type_cont) + " -v " + str(serial_prot) + " -l "
-               + str(pass_through_packet_size) + " -r " + str(baud_control) + " -e " + enable_sumd_rc + " -s "
-               + serial_int_sumd + " &"],
+               + str(communication_id) + " -a " + str(chipset_type_cont) + " -v " + " -t " + str(frametype)
+               + str(serial_prot) + " -l " + str(pass_through_packet_size) + " -r " + str(baud_control) + " -e "
+               + enable_sumd_rc + " -s " + serial_int_sumd + " -b " + str(get_bit_rate(2)) + " &"],
               shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_plugin == 'Y':
@@ -216,14 +227,18 @@ def start_uav_modules():
     if en_video == 'Y':
         print(UAV_STRING_TAG + "Starting video transmission, FEC "+str(video_blocks)+"/"+str(video_fecs)+"/"
               + str(video_blocklength)+": "+str(width)+" x "+str(heigth)+" "+str(fps)+" fps, video bitrate: "
-              + str(video_bitrate)+" bit/s, Keyframerate: "+str(keyframerate)+ " frametype: "+str(video_frametype))
+              + str(video_bitrate)+" bit/s, Keyframerate: "+str(keyframerate)+ " frametype: "+str(frametype))
         raspivid_task = Popen(["raspivid -w "+str(width)+" -h "+str(heigth)+" -fps "+str(fps)+" -b "+str(video_bitrate)
                               + " -g " + str(keyframerate)+" -t 0 "+extraparams+" -o -"], stdout=subprocess.PIPE,
                               stdin=None, stderr=None, close_fds=True, shell=True)
-        Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'tx_rawsock') + " -p 0 -b "+str(video_blocks)+" -r "
-              + str(video_fecs)+" -f " + str(video_blocklength)+" -t "+str(video_frametype)+" -d "
-              + str(get_bit_rate(datarate))+" -y 0 " + interface_video], stdin=raspivid_task.stdout, stdout=None,
-              stderr=None, close_fds=True, shell=True)
+        Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_air') + " -d "+str(video_blocks)+" -r "
+              + str(video_fecs)+" -f " + str(video_blocklength)+" -t "+str(frametype)+" -b "
+              + str(get_bit_rate(datarate)) + " -c " + str(communication_id) + " " + interface_video],
+              stdin=raspivid_task.stdout, stdout=None, stderr=None, close_fds=True, shell=True)
+        # Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'tx_rawsock') + " -p 0 -b "+str(video_blocks)+" -r "
+        #       + str(video_fecs)+" -f " + str(video_blocklength)+" -t "+str(video_frametype)+" -d "
+        #       + str(get_bit_rate(datarate))+" -y 0 " + interface_video], stdin=raspivid_task.stdout, stdout=None,
+        #       stderr=None, close_fds=True, shell=True)
 
 
 def get_interface():
@@ -257,7 +272,7 @@ def get_all_monitor_interfaces(formated=False):
     if formated:
         formated_str = ""
         for w_int in w_interfaces:
-            formated_str = formated_str + " " + w_int
+            formated_str = formated_str + " -n " + w_int
         return formated_str[1:]
     return w_interfaces
 

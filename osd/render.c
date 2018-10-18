@@ -158,7 +158,7 @@ void render(telemetry_data_t *td, uint8_t cpuload_gnd, uint8_t temp_gnd, uint8_t
 
 
 #ifdef UPLINK_RSSI
-    draw_uplink_signal(td->rx_status_uplink->adapter[0].current_signal_dbm, td->rx_status_uplink->lost_packet_cnt, td->rx_status_rc->adapter[0].current_signal_dbm, td->rx_status_rc->lost_packet_cnt, UPLINK_RSSI_POS_X, UPLINK_RSSI_POS_Y, UPLINK_RSSI_SCALE * GLOBAL_SCALE);
+    draw_uplink_signal(td->rx_status_rc->adapter[0].current_signal_dbm, td->rx_status_rc->lost_packet_cnt, UPLINK_RSSI_POS_X, UPLINK_RSSI_POS_Y, UPLINK_RSSI_SCALE * GLOBAL_SCALE);
 #endif
 
 
@@ -580,27 +580,16 @@ void draw_gpsspeed(int gpsspeed, float pos_x, float pos_y, float scale){
 
 
 
-void draw_uplink_signal(int8_t uplink_signal, int uplink_lostpackets, int8_t rc_signal, int rc_lostpackets, float pos_x, float pos_y, float scale){
+void draw_uplink_signal(int8_t rc_signal, int rc_lostpackets, float pos_x, float pos_y, float scale){
     float text_scale = getWidth(2) * scale;
     VGfloat height_text = TextHeight(myfont, text_scale*0.6)+getHeight(0.3)*scale;
     VGfloat width_value = TextWidth("-00", myfont, text_scale);
     VGfloat width_symbol = TextWidth(" ", osdicons, text_scale*0.7);
 
     StrokeWidth(OUTLINEWIDTH);
-
-    if ((uplink_signal < -125) && (rc_signal < -125)) { // both no signal, display red dashes
-        Fill(255,20,20,getOpacity(COLOR)); // red
-        Stroke(255,20,20,getOpacity(OUTLINECOLOR));
-        sprintf(buffer, "-- ");
-    } else if (rc_signal < -125) { // only r/c no signal, so display uplink signal
-        Fill(COLOR);
-        Stroke(OUTLINECOLOR);
-        sprintf(buffer, "%02d", uplink_signal);
-    } else { // if both have signal, display r/c signal
-        Fill(COLOR);
-        Stroke(OUTLINECOLOR);
-        sprintf(buffer, "%02d", rc_signal);
-    }
+    Fill(COLOR);
+    Stroke(OUTLINECOLOR);
+    sprintf(buffer, "%02d", rc_signal);
 
     TextEnd(getWidth(pos_x), getHeight(pos_y), buffer, myfont, text_scale);
 
@@ -608,10 +597,7 @@ void draw_uplink_signal(int8_t uplink_signal, int uplink_lostpackets, int8_t rc_
     Stroke(OUTLINECOLOR);
 
     Text(getWidth(pos_x), getHeight(pos_y), "dBm", myfont, text_scale*0.6);
-
-    sprintf(buffer, "%d/%d", rc_lostpackets, uplink_lostpackets);
     Text(getWidth(pos_x)-width_value-width_symbol, getHeight(pos_y)-height_text, buffer, myfont, text_scale*0.6);
-
     TextEnd(getWidth(pos_x)-width_value - getWidth(0.3) * scale, getHeight(pos_y), "", osdicons, text_scale * 0.7);
 }
 

@@ -38,7 +38,7 @@
 bool volatile keeprunning = true;
 char if_name_telemetry[IFNAMSIZ], if_name_telem[IFNAMSIZ];
 char db_mode, enable_telemetry_module, write_to_osdfifo;
-uint8_t comm_id = DEFAULT_V2_COMMID;
+uint8_t comm_id = DEFAULT_V2_COMMID, frame_type;
 int c, app_port_proxy, app_port_telem, bitrate_op;
 
 void intHandler(int dummy)
@@ -56,7 +56,8 @@ int process_command_line_args(int argc, char *argv[]){
     app_port_telem = APP_PORT_TELEMETRY;
     opterr = 0;
     bitrate_op = 1;
-    while ((c = getopt (argc, argv, "n:m:c:p:b:t:i:l:o:")) != -1)
+    frame_type = DB_FRAMETYPE_DEFAULT;
+    while ((c = getopt (argc, argv, "n:m:c:p:b:t:i:l:o:f:")) != -1)
     {
         switch (c)
         {
@@ -87,6 +88,9 @@ int process_command_line_args(int argc, char *argv[]){
             case 'o':
                 write_to_osdfifo = *optarg;
                 break;
+            case 'f':
+                frame_type = (uint8_t) strtol(optarg, NULL, 10);
+                break;
             case '?':
                 printf("DroneBridge Proxy module is used to do any UDP <-> DB_CONTROL_AIR routing. UDP IP given by "
                        "IP-checker module. Use"
@@ -101,6 +105,7 @@ int process_command_line_args(int argc, char *argv[]){
                        " to forward to DB_raw. Default port:%i"
                        "\n\t-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
                        "\n\t-o [Y|N] Write telemetry to /root/telemetryfifo1 FIFO (default: Y)"
+                       "\n\t-f <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)"
                        "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
                        "supported with Ralink chipsets)"
                         , APP_PORT_PROXY);
@@ -126,7 +131,8 @@ int main(int argc, char *argv[]) {
     process_command_line_args(argc, argv);
 
     // set up long range receiving socket
-    int lr_socket_proxy = open_socket_send_receive(if_name_telemetry, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_PROXY);
+    int lr_socket_proxy = open_socket_send_receive(if_name_telemetry, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE,
+            DB_PORT_PROXY, frame_type);
     int lr_socket_telem = open_receive_socket(if_name_telem, db_mode, comm_id, DB_DIREC_GROUND, DB_PORT_TELEMETRY);
     int udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
     int fifo_osd = -1;

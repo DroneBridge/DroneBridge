@@ -19,9 +19,9 @@ typedef struct {
 //this sits at the payload of the wifi packet (outside of FEC)
 typedef struct {
     uint32_t sequence_number;
-} __attribute__((packed)) wifi_packet_header_t;
+} __attribute__((packed)) video_packet_header_t;
 
-//this sits at the data payload (which is usually right after the wifi_packet_header_t) (inside of FEC)
+//this sits at the data payload (which is usually right after the video_packet_header_t) (inside of FEC)
 typedef struct {
     uint32_t data_length;
 } __attribute__((packed)) payload_header_t;

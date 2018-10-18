@@ -35,9 +35,9 @@ typedef struct {
 } db_socket;
 
 db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
-                                   uint8_t send_direction, uint8_t receive_new_port);
-int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option, uint8_t direction, 
-                             uint8_t new_port);
+                                   uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type);
+int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
+                             uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type);
 uint8_t update_seq_num(uint8_t *old_seq_num);
 int send_packet(uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num);
 int send_packet_div(db_socket *a_db_socket, uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num);

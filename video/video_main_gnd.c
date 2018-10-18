@@ -24,9 +24,8 @@
 #include <memory.h>
 #include <errno.h>
 #include <signal.h>
+#include <sys/time.h>
 #include "fec.h"
-
-
 #include "video_lib.h"
 #include "radiotap.h"
 #include "../common/shared_memory.h"
@@ -46,11 +45,14 @@ int num_interfaces = 0;
 uint8_t comm_id, num_data_block, num_fec_block;
 uint8_t lr_buffer[DATA_UNI_LENGTH] = {0};
 bool pass_through, keeprunning = true, udp_enabled = true;
-int param_block_buffers = 1;
+size_t param_block_buffers = 1;
 int pack_size = MAX_USER_PACKET_LENGTH;
-db_video_rx_t *rx_status = NULL;
+db_gnd_status_t *db_gnd_status = NULL;
 int max_block_num = -1, udp_socket, shID;
 struct sockaddr_in client_video_addr;
+long long prev_time = 0;
+long long now = 0;
+int bytes_written = 0;
 
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 
@@ -62,6 +64,13 @@ typedef struct {
 
 void int_handler(int dummy){
     keeprunning = false;
+}
+
+long long current_timestamp() {
+    struct timeval te;
+    gettimeofday(&te, NULL); // get current time
+    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
+    return milliseconds;
 }
 
 
@@ -86,9 +95,18 @@ void publish_data(uint8_t *data, size_t message_length, bool fec_decoded){
         if (write(STDOUT_FILENO, data, message_length) < message_length)
             printf(RED "Not all data written to stdout\n" RESET);
     // TODO: setup a TCP server and send to connected clients
+
+    now = current_timestamp();
+    bytes_written = (int) (bytes_written + message_length);
+    if (now - prev_time > 500) {
+        prev_time = current_timestamp();
+        uint32_t kbitrate = (uint32_t) (((bytes_written * 8) / 1024) * 2);
+        db_gnd_status->kbitrate = kbitrate;
+        bytes_written = 0;
+    }
 }
 
-void block_buffer_list_reset(block_buffer_t *block_buffer_list, size_t block_buffer_list_len, int block_buffer_len) {
+void block_buffer_list_reset(block_buffer_t *block_buffer_list, size_t block_buffer_list_len) {
     int i;
     block_buffer_t *rb = block_buffer_list;
 
@@ -108,16 +126,15 @@ void block_buffer_list_reset(block_buffer_t *block_buffer_list, size_t block_buf
     }
 }
 
-void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buffer_t *block_buffer_list)
-{
-    wifi_packet_header_t *wph;
+void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buffer_t *block_buffer_list) {
+    video_packet_header_t *wph;
     int block_num;
     int packet_num;
     int i;
 
-    wph = (wifi_packet_header_t*)data;
-    data += sizeof(wifi_packet_header_t);
-    data_len -= sizeof(wifi_packet_header_t);
+    wph = (video_packet_header_t*)data;
+    data += sizeof(video_packet_header_t);
+    data_len -= sizeof(video_packet_header_t);
 
     block_num = wph->sequence_number / (num_data_block+num_fec_block);//if aram_data_packets_per_block+num_fec_block would be limited to powers of two, this could be replaced by a logical AND operation
 
@@ -126,12 +143,23 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
     int tx_restart = (block_num + 128*param_block_buffers < max_block_num);
     if((block_num > max_block_num || tx_restart) && crc_correct) {
         if(tx_restart) {
-            rx_status->tx_restart_cnt++;
+            db_gnd_status->tx_restart_cnt++;
+            db_gnd_status->received_block_cnt = 0;
+            db_gnd_status->damaged_block_cnt = 0;
+            db_gnd_status->received_packet_cnt = 0;
+            db_gnd_status->lost_packet_cnt = 0;
+            db_gnd_status->kbitrate = 0;
+            int g;
+            for(g=0; g<MAX_PENUMBRA_INTERFACES; ++g) {
+                db_gnd_status->adapter[g].received_packet_cnt = 0;
+                db_gnd_status->adapter[g].wrong_crc_cnt = 0;
+                db_gnd_status->adapter[g].current_signal_dbm = -126;
+                db_gnd_status->adapter[g].signal_good = 0;
+            }
 
-            fprintf(stderr, "TX RESTART: Detected blk %x that lies outside of the current retr block buffer window (max_block_num = %x) (if there was no tx restart, increase window size via -d)\n", block_num, max_block_num);
-
-
-            block_buffer_list_reset(block_buffer_list, param_block_buffers, num_data_block + num_fec_block);
+            fprintf(stderr, "TX RESTART: Detected blk %x that lies outside of the current retr block buffer window "
+                            "(max_block_num = %x) (if there was no tx restart, increase window size via -d)\n", block_num, max_block_num);
+            block_buffer_list_reset(block_buffer_list, param_block_buffers);
         }
 
         //first, find the minimum block num in the buffers list. this will be the block that we replace
@@ -149,7 +177,7 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
         int last_block_num = block_buffer_list[min_block_num_idx].block_num;
 
         if(last_block_num != -1) {
-            rx_status->received_block_cnt++;
+            db_gnd_status->received_block_cnt++;
 
             //we have both pointers to the packet buffers (to get information about crc and vadility) and raw data pointers for fec_decode
             packet_buffer_t *data_pkgs[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
@@ -157,7 +185,7 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
             uint8_t *data_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
             uint8_t *fec_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
             int datas_missing = 0, datas_corrupt = 0, fecs_missing = 0, fecs_corrupt = 0;
-            int di = 0, fi = 0;
+            unsigned int di = 0, fi = 0;
 
             //first, split the received packets into DATA a FEC packets and count the damaged packets
             i = 0;
@@ -196,6 +224,14 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
             unsigned int erased_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
             unsigned int nr_fec_blocks = 0;
 
+            int packets_lost_in_block = 0;
+            if(datas_missing_c + fecs_missing_c > 0) {
+                packets_lost_in_block = (datas_missing_c + fecs_missing_c);
+                db_gnd_status->lost_packet_cnt = db_gnd_status->lost_packet_cnt + packets_lost_in_block;
+            }
+
+            db_gnd_status->received_packet_cnt = db_gnd_status->received_packet_cnt + num_data_block + num_fec_block - packets_lost_in_block;
+
 #if DEBUG
             if(datas_missing_c + datas_corrupt_c > good_fecs_c) {
                 int x;
@@ -227,7 +263,6 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
                 fprintf(stderr, "\n");
             }
 #endif
-
             fi = 0;
             di = 0;
 
@@ -271,15 +306,14 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
                 nr_fec_blocks++;
             }
 
-
             int reconstruction_failed = datas_missing_c + datas_corrupt_c > good_fecs_c;
 
             if(reconstruction_failed) {
                 //we did not have enough FEC packets to repair this block
-                rx_status->damaged_block_cnt++;
+                db_gnd_status->damaged_block_cnt++;
                 fprintf(stderr, "Could not fully reconstruct block %x! Damage rate: %f (%d / %d blocks)\n",
-                        last_block_num, 1.0 * rx_status->damaged_block_cnt / rx_status->received_block_cnt,
-                        rx_status->damaged_block_cnt, rx_status->received_block_cnt);
+                        last_block_num, 1.0 * db_gnd_status->damaged_block_cnt / db_gnd_status->received_block_cnt,
+                        db_gnd_status->damaged_block_cnt, db_gnd_status->received_block_cnt);
                 debug_print("Data mis: %d\tData corr: %d\tFEC mis: %d\tFEC corr: %d\n", datas_missing_c,
                         datas_corrupt_c, fecs_missing_c, fecs_corrupt_c);
             }
@@ -313,7 +347,7 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
 
     //find the buffer into which we have to write this packet
     block_buffer_t *rbb = block_buffer_list;
-    for(i=0; i<param_block_buffers; ++i) {
+    for(i=0; i < param_block_buffers; ++i) {
         if(rbb->block_num == block_num) {
             break;
         }
@@ -345,8 +379,6 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
     size_t message_length = 0;
 
     // receive
-
-
     ssize_t l = recv(interface->selectable_fd, lr_buffer, DATA_UNI_LENGTH, 0); int err = errno;
     if (l > 0){
         radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
@@ -377,7 +409,7 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
                     prd.m_nRadiotapFlags = *rti.this_arg;
                     break;
                 case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
-                    rx_status->adapter[adapter_no].current_signal_dbm = (int8_t)(*rti.this_arg);
+                    db_gnd_status->adapter[adapter_no].current_signal_dbm = (int8_t)(*rti.this_arg);
                     break;
                 default:
                     break;
@@ -386,13 +418,13 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
         int checksum_correct = (prd.m_nRadiotapFlags & 0x40) == 0;
 
         if(!checksum_correct)
-            rx_status->adapter[adapter_no].wrong_crc_cnt++;
-        rx_status->adapter[adapter_no].received_packet_cnt++;
-        if(rx_status->adapter[adapter_no].received_packet_cnt % 1024 == 0) {
-            fprintf(stderr, "Signal (card %d): %ddBm\n", adapter_no, rx_status->adapter[adapter_no].current_signal_dbm);
+            db_gnd_status->adapter[adapter_no].wrong_crc_cnt++;
+        db_gnd_status->adapter[adapter_no].received_packet_cnt++;
+        if(db_gnd_status->adapter[adapter_no].received_packet_cnt % 1024 == 0) {
+            fprintf(stderr, "Signal (card %d): %ddBm\n", adapter_no, db_gnd_status->adapter[adapter_no].current_signal_dbm);
         }
 
-        rx_status->last_update = time(NULL);
+        db_gnd_status->last_update = time(NULL);
         process_payload(payload_buffer, message_length, checksum_correct, block_buffer_list);
     } else {
         printf(RED "DB_VIDEO_GND: Received an error: %s\n" RESET, strerror(err));
@@ -476,9 +508,9 @@ int main(int argc, char *argv[]) {
     }
 
 
-    rx_status = db_video_rx_memory_open();
-    rx_status->wifi_adapter_cnt = (uint32_t) num_interfaces;
-
+    db_gnd_status = db_gnd_status_memory_open();
+    db_gnd_status->wifi_adapter_cnt = (uint32_t) num_interfaces;
+    printf(GRN "DB_VIDEO_GND: started!" RESET "\n");
     while(keeprunning) {
         fd_set readset;
         struct timeval to;
