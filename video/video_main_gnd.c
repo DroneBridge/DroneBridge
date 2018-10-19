@@ -27,11 +27,11 @@
 #include <sys/time.h>
 #include "fec.h"
 #include "video_lib.h"
-#include "radiotap.h"
 #include "../common/shared_memory.h"
 #include "../common/db_raw_receive.h"
 #include "../common/db_get_ip.h"
 #include "../common/ccolors.h"
+#include "../common/radiotap/radiotap_iter.h"
 
 #define MAX_PACKET_LENGTH 4192
 #define MAX_USER_PACKET_LENGTH 1450
@@ -150,7 +150,7 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
             db_gnd_status->lost_packet_cnt = 0;
             db_gnd_status->kbitrate = 0;
             int g;
-            for(g=0; g<MAX_PENUMBRA_INTERFACES; ++g) {
+            for(g=0; g < MAX_PENUMBRA_INTERFACES; ++g) {
                 db_gnd_status->adapter[g].received_packet_cnt = 0;
                 db_gnd_status->adapter[g].wrong_crc_cnt = 0;
                 db_gnd_status->adapter[g].current_signal_dbm = -126;
@@ -373,9 +373,11 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
 
 void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer_list, int adapter_no) {
     struct ieee80211_radiotap_iterator rti;
-    PENUMBRA_RADIOTAP_DATA prd;
+    struct ieee80211_radiotap_vendor_namespaces vns;
     uint8_t payload_buffer[MAX_PACKET_LENGTH];
     int radiotap_length = 0;
+    int checksum_correct = 1;
+    uint8_t current_antenna_indx = 0;
     size_t message_length = 0;
 
     // receive
@@ -389,34 +391,32 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
             // TODO: Implement custom protocol in case of pass_through that tells the receiver about the adapter that it was received on
             publish_data(payload_buffer, message_length, false);
         }
-        if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *)payload_buffer, radiotap_length) < 0)
+        if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *)payload_buffer, radiotap_length, &vns) < 0)
             return;
         while ((ieee80211_radiotap_iterator_next(&rti)) == 0) {
             switch (rti.this_arg_index) {
                 case IEEE80211_RADIOTAP_RATE:
-                    prd.m_nRate = (*rti.this_arg);
-                    break;
-                case IEEE80211_RADIOTAP_CHANNEL:
-                    prd.m_nChannel =
-                            le16_to_cpu(*((u16 *)rti.this_arg));
-                    prd.m_nChannelFlags =
-                            le16_to_cpu(*((u16 *)(rti.this_arg + 2)));
+                    db_gnd_status->adapter[adapter_no].rate = (*rti.this_arg);
                     break;
                 case IEEE80211_RADIOTAP_ANTENNA:
-                    prd.m_nAntenna = (*rti.this_arg) + 1;
+                    current_antenna_indx = (*rti.this_arg);
                     break;
                 case IEEE80211_RADIOTAP_FLAGS:
-                    prd.m_nRadiotapFlags = *rti.this_arg;
+                    checksum_correct = (*rti.this_arg & IEEE80211_RADIOTAP_F_BADFCS) == 0;
                     break;
+                case IEEE80211_RADIOTAP_LOCK_QUALITY:
+                    db_gnd_status->adapter[adapter_no].lock_quality = (*rti.this_arg);
                 case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
-                    db_gnd_status->adapter[adapter_no].current_signal_dbm = (int8_t)(*rti.this_arg);
+                    if (current_antenna_indx == 0) // first occurrence in header will be general RSSI
+                        db_gnd_status->adapter[adapter_no].current_signal_dbm = (int8_t)(*rti.this_arg);
+                    if (current_antenna_indx <= MAX_ANTENNA_CNT)
+                        db_gnd_status->adapter[adapter_no].ant_signal_dbm[current_antenna_indx] = (int8_t)(*rti.this_arg);
                     break;
                 default:
                     break;
             }
         }
-        int checksum_correct = (prd.m_nRadiotapFlags & 0x40) == 0;
-
+        db_gnd_status->adapter[adapter_no].num_antennas = (uint8_t) (current_antenna_indx + 1);
         if(!checksum_correct)
             db_gnd_status->adapter[adapter_no].wrong_crc_cnt++;
         db_gnd_status->adapter[adapter_no].received_packet_cnt++;

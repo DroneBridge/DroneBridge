@@ -77,48 +77,49 @@ struct data_uni *monitor_databuffer_internal = (struct data_uni *) (monitor_fram
 
 /**
  * Set the transmission bit rate in the radiotap header. Only works with ralink cards.
+ * Can be used to change the bitrate before every transmission.
  * @param bitrate_option Bit rate in Mbps
  */
 void set_bitrate(int bitrate_option) {
     switch (bitrate_option){
         case 1:
-            radiotap_header_pre[8] = 0x02;
+            rth->bytes[8] = 0x02;
             break;
         case 2:
-            radiotap_header_pre[8] = 0x04;
+            rth->bytes[8] = 0x04;
             break;
         case 5: // 5.5
-            radiotap_header_pre[8] = 0x14;
+            rth->bytes[8] = 0x14;
             break;
         case 6:
-            radiotap_header_pre[8] = 0x0C;
+            rth->bytes[8] = 0x0C;
             break;
         case 9:
-            radiotap_header_pre[8] = 0x12;
+            rth->bytes[8] = 0x12;
             break;
         case 11:
-            radiotap_header_pre[8] = 0x16;
+            rth->bytes[8] = 0x16;
             break;
         case 12:
-            radiotap_header_pre[8] = 0x18;
+            rth->bytes[8] = 0x18;
             break;
         case 18:
-            radiotap_header_pre[8] = 0x24;
+            rth->bytes[8] = 0x24;
             break;
         case 24:
-            radiotap_header_pre[8] = 0x30;
+            rth->bytes[8] = 0x30;
             break;
         case 36:
-            radiotap_header_pre[8] = 0x48;
+            rth->bytes[8] = 0x48;
             break;
         case 48:
-            radiotap_header_pre[8] = 0x60;
+            rth->bytes[8] = 0x60;
             break;
         case 54:
-            radiotap_header_pre[8] = 0x6C;
+            rth->bytes[8] = 0x6C;
             break;
         default:
-            radiotap_header_pre[8] = 0x0c;
+            rth->bytes[8] = 0x0c;
             fprintf(stderr,"DB_SEND: Wrong bitrate option. Setting to 6Mbps\n");
     }
 }
@@ -134,8 +135,8 @@ void set_bitrate(int bitrate_option) {
  */
 int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t send_direction, uint8_t new_port, uint8_t frame_type) {
     memset(monitor_framebuffer, 0, (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH));
-    set_bitrate(bitrate_option);
     memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
+    set_bitrate(bitrate_option);
     // build custom DroneBridge v2 header
     if (frame_type == DB_FRAMETYPE_RTS)
         memcpy(db_raw_header->fcf_duration, frame_control_pre_rts, 4);

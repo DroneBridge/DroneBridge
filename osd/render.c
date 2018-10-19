@@ -308,7 +308,11 @@ void render(telemetry_data_t *td, uint8_t cpuload_gnd, uint8_t temp_gnd, uint8_t
 
     #ifdef DOWNLINK_RSSI_DETAILED
     for(i=0; i<ac; ++i) {
-        draw_card_signal(td->rx_status->adapter[i].current_signal_dbm, td->rx_status->adapter[i].signal_good, i, ac, td->rx_status->tx_restart_cnt, td->rx_status->adapter[i].received_packet_cnt, td->rx_status->adapter[i].wrong_crc_cnt, td->rx_status->adapter[i].type, td->rx_status->received_packet_cnt, td->rx_status->lost_packet_cnt, DOWNLINK_RSSI_DETAILED_POS_X, DOWNLINK_RSSI_DETAILED_POS_Y, DOWNLINK_RSSI_DETAILED_SCALE * GLOBAL_SCALE);
+        draw_card_signal(td->rx_status->adapter[i].current_signal_dbm, td->rx_status->adapter[i].signal_good, i, ac,
+                td->rx_status->tx_restart_cnt, td->rx_status->adapter[i].received_packet_cnt,
+                td->rx_status->adapter[i].wrong_crc_cnt, td->rx_status->adapter[i].type, td->rx_status->received_packet_cnt,
+                td->rx_status->lost_packet_cnt, DOWNLINK_RSSI_DETAILED_POS_X, DOWNLINK_RSSI_DETAILED_POS_Y,
+                DOWNLINK_RSSI_DETAILED_SCALE * GLOBAL_SCALE, td->rx_status);
     }
     #endif
 #endif
@@ -603,7 +607,8 @@ void draw_uplink_signal(int8_t rc_signal, int rc_lostpackets, float pos_x, float
 
 
 
-void draw_kbitrate(int cts, int kbitrate, uint16_t kbitrate_measured_tx, uint16_t kbitrate_tx, uint32_t fecs_skipped, uint32_t injection_failed, long long injection_time,float pos_x, float pos_y, float scale){
+void draw_kbitrate(int cts, int kbitrate, uint16_t kbitrate_measured_tx, uint16_t kbitrate_tx, uint32_t fecs_skipped,
+                   uint32_t injection_failed, long long injection_time,float pos_x, float pos_y, float scale){
     float text_scale = getWidth(2) * scale;
     VGfloat height_text_small = TextHeight(myfont, text_scale*0.6)+getHeight(0.3)*scale;
     VGfloat width_value = TextWidth("10.0", myfont, text_scale);
@@ -1006,7 +1011,9 @@ void draw_speed_ladder(int speed, float pos_x, float pos_y, float scale){
 
 
 
-void draw_card_signal(int8_t signal, int signal_good, int card, int adapter_cnt, int restart_count, int packets, int wrongcrcs, int type, int totalpackets, int totalpacketslost, float pos_x, float pos_y, float scale){
+void draw_card_signal(int8_t signal, int signal_good, int card, int adapter_cnt, int restart_count, int packets,
+                      int wrongcrcs, int type, int totalpackets, int totalpacketslost, float pos_x, float pos_y, float scale,
+                      db_gnd_status_t *db_gnd_status){
     float text_scale = getWidth(2) * scale;
     VGfloat height_text = TextHeight(myfont, text_scale)+getHeight(0.4)*scale;
     VGfloat width_value = TextWidth("-00", myfont, text_scale);
@@ -1051,12 +1058,22 @@ void draw_card_signal(int8_t signal, int signal_good, int card, int adapter_cnt,
     if (lost < packetslost_last[card]) lost = packetslost_last[card];
     packetslost_last[card] = lost;
     sprintf(buffer, "(%d)", lost);
+
+    // draw RSSI of antennas of respective adapter
+    char ant_rssi_buf[40];
+    for (int i = 0; i < db_gnd_status->adapter[card].num_antennas; ++i) {
+        if (db_gnd_status->adapter[card].ant_signal_dbm[i] < 0){
+            sprintf(ant_rssi_buf, " %ddBm", db_gnd_status->adapter[card].ant_signal_dbm[i]);
+            strcat(buffer, ant_rssi_buf);
+        }
+    }
     Text(getWidth(pos_x)+width_unit+getWidth(0.65)*scale, getHeight(pos_y) - card * height_text, buffer, myfont, text_scale*0.7);
 }
 
 
 
-void draw_total_signal(int8_t signal, int goodblocks, int badblocks, int packets_lost, int packets_received, int lost_per_block, float pos_x, float pos_y, float scale){
+void draw_total_signal(int8_t signal, int goodblocks, int badblocks, int packets_lost, int packets_received,
+                       int lost_per_block, float pos_x, float pos_y, float scale){
     float text_scale = getWidth(2) * scale;
     VGfloat height_text = TextHeight(myfont, text_scale*0.6)+getHeight(0.3)*scale;
     VGfloat width_value = TextWidth("-00", myfont, text_scale);

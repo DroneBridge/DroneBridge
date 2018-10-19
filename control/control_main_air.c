@@ -37,6 +37,7 @@
 #include "../common/msp_serial.h"
 #include "../common/ccolors.h"
 #include "../common/db_utils.h"
+#include "../common/radiotap/radiotap_iter.h"
 
 
 #define ETHER_TYPE	    0x88ab
@@ -126,9 +127,24 @@ uint8_t get_cpu_temp(){
     return (uint8_t) systemp;
 }
 
+int8_t get_rssi(uint8_t *payload_buffer, int radiotap_length){
+    struct ieee80211_radiotap_iterator rti;
+    if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *)payload_buffer, radiotap_length, NULL) < 0)
+        return 0;
+    while ((ieee80211_radiotap_iterator_next(&rti)) == 0) {
+        switch (rti.this_arg_index) {
+            case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+                return (int8_t)(*rti.this_arg);
+            default:
+                break;
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
-    int c, chipset_type = 1, bitrate_op = 1, chucksize = 64;
+    int c, bitrate_op = 1, chucksize = 64;
     int serial_protocol_control = 2, baud_rate = 115200;
     char use_sumd = 'N';
     char sumd_interface[IFNAMSIZ];
@@ -145,7 +161,7 @@ int main(int argc, char *argv[])
     strcpy(usbIF, USB_IF);
     strcpy(sumd_interface, USB_IF);
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:u:m:c:a:b:v:l:e:s:r:t:")) != -1)
+    while ((c = getopt (argc, argv, "n:u:m:c:b:v:l:e:s:r:t:")) != -1)
     {
         switch (c)
         {
@@ -172,9 +188,6 @@ int main(int argc, char *argv[])
                 break;
             case 's':
                 strcpy(sumd_interface, optarg);
-                break;
-            case 'a':
-                chipset_type = (int) strtol(optarg, NULL, 10);
                 break;
             case 'b':
                 bitrate_op = (int) strtol(optarg, NULL, 10);
@@ -203,7 +216,6 @@ int main(int argc, char *argv[])
                                "\n\t-s Specify a serial port for use with SUMD. Ignored if SUMD is deactivated. Must be "
                                "different from one specified with -u"
                                "\n\t-c <communication_id> Choose a number from 0-255. Same on groundstation and drone!"
-                               "\n\t-a chipset type [1|2] <1> for Ralink und <2> for Atheros chipsets"
                                "\n\t-r Baud rate of the serial interface -u (MSP/MAVLink) (2400, 4800, 9600, 19200, "
                                "38400, 57600, 115200 (default: %i))"
                        "\n\t-t <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
@@ -340,11 +352,7 @@ int main(int argc, char *argv[])
                 // --------------------------------
                 length = recv(socket_port_rc, buf, BUF_SIZ, 0);
                 if (length > 0){
-                    if (chipset_type == 1){
-                        rssi = buf[14];
-                    }else{
-                        rssi = buf[30];
-                    }
+                    rssi = get_rssi(buf, buf[2]);
                     memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], (buf[buf[2]+7] | (buf[buf[2]+8] << 8)));
                     command_length = generate_rc_serial_message(commandBuf);
                     if (command_length > 0){
@@ -368,12 +376,8 @@ int main(int argc, char *argv[])
                 length = recv(socket_port_control, buf, BUF_SIZ, 0);
                 if (length > 0)
                 {
-                    if (chipset_type == 1){
-                        rssi = buf[14];
-                    }else{
-                        rssi = buf[30];
-                    }
-                    command_length = buf[buf[2] + 7] | (buf[buf[2] + 8] <<  8); // ready for v2
+                    rssi = get_rssi(buf, buf[2]);
+                    command_length = buf[buf[2] + 7] | (buf[buf[2] + 8] <<  8); // read DB raw command payload length
                     memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], (size_t) command_length);
                     sentbytes = (int) write(socket_control_serial, commandBuf, (size_t) command_length); errsv = errno;
                     tcdrain(socket_control_serial);

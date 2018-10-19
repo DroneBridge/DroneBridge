@@ -34,6 +34,7 @@ typedef struct {
     struct sockaddr_ll db_socket_addr;
 } db_socket;
 
+void set_bitrate(int bitrate_option);
 db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
                                    uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type);
 int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,

@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <time.h>
-#include "db_protocol.h"
+#include "shared_memory.h"
 #include "osdconfig.h"
 
 typedef struct {

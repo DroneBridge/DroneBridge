@@ -31,12 +31,16 @@
 #define MSP_DATA_LENTH          34      // size of MSP v1
 #define MSP_V2_DATA_LENGTH      37      // size of MSP v2 frame
 #define DB_RC_DATA_LENGTH		16		// size of DB_RC frame
-#define DATA_UNI_LENGTH         2048	// max frame length
+#define DATA_UNI_LENGTH         2048	// max frame length for raw protocol
 #define ETHER_TYPE              0x88ab
 
 #define DEFAULT_DB_MODE         'm'
 #define DEFAULT_DB_IF           "18a6f716a511"
 #define DEFAULT_V2_COMMID		0x01
+
+#define DB_FRAMETYPE_RTS        1
+#define DB_FRAMETYPE_DATA       2
+#define DB_FRAMETYPE_DEFAULT    DB_FRAMETYPE_RTS
 
 #define NUM_CHANNELS            14      // max number of channels sent over DroneBridge control module (ground)
 #define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge RC protocol
@@ -50,7 +54,7 @@
 #define DB_PORT_RC			0x07
 
 #define DB_DIREC_DRONE      0x01 // packet to/for drone
-#define DB_DIREC_GROUND   	0x03 // packet to/for groundstation
+#define DB_DIREC_GROUND   	0x03 // packet to/for ground station
 
 #define APP_PORT_COMM       1603
 #define APP_PORT_TELEMETRY  1604 // accepts MAVLink and LTM telemetry messages. Non MAVLink telemetry messages get rerouted internally to APP_PORT_PROXY
@@ -115,73 +119,5 @@ typedef struct {
 	uint8_t message_id; // 2 for RC status; 3 for RC overwrite
 	uint16_t channels[NUM_CHANNELS];
 } __attribute__((packed)) DB_RC_MESSAGE;
-
-typedef struct {
-	uint16_t ch[NUM_CHANNELS];
-} __attribute__((packed)) db_rc_values_t;
-
-typedef struct {
-    struct timespec timestamp;
-    uint16_t ch[NUM_CHANNELS];
-} __attribute__((packed)) db_rc_overwrite_values_t;
-
-typedef struct {
-	uint32_t received_packet_cnt;
-	uint32_t wrong_crc_cnt;
-	int8_t current_signal_dbm;
-	int8_t type; // 0 = Atheros, 1 = Ralink
-	int signal_good;
-	char name[IFNAMSIZ];
-} __attribute__((packed)) db_adapter_status;
-
-typedef struct {
-    time_t last_update; // video stream
-    uint32_t received_block_cnt; // video stream
-    uint32_t damaged_block_cnt; // video stream
-    uint32_t lost_packet_cnt; // video stream
-    uint32_t received_packet_cnt; // video stream
-    uint32_t lost_per_block_cnt; // video stream
-    uint32_t tx_restart_cnt; // video stream
-    uint32_t kbitrate; // video stream
-    uint32_t wifi_adapter_cnt; // video stream
-    db_adapter_status adapter[8];
-} __attribute__((packed)) db_gnd_status_t;
-
-typedef struct {
-    time_t last_update;
-    uint32_t received_block_cnt;
-    uint32_t damaged_block_cnt;
-    uint32_t lost_packet_cnt;
-    uint32_t received_packet_cnt;
-    uint32_t lost_per_block_cnt;
-    uint32_t tx_restart_cnt;
-    uint32_t kbitrate;
-    uint32_t wifi_adapter_cnt;
-    db_adapter_status adapter[8];
-} __attribute__((packed)) db_rc_status_t;
-
-typedef struct {
-	time_t last_update;
-	uint32_t injected_block_cnt;
-	uint32_t skipped_fec_cnt;
-	uint32_t injection_fail_cnt;
-	long long injection_time_block;
-} db_video_tx_status_t;
-
-typedef struct {
-    time_t last_update;
-    uint8_t cpuload;
-    uint8_t temp;
-    uint32_t injected_block_cnt;
-    uint32_t skipped_fec_cnt;
-    uint32_t injection_fail_cnt;
-    long long injection_time_block;
-    uint16_t bitrate_kbit;
-    uint16_t bitrate_measured_kbit;
-    uint8_t cts;
-    uint8_t undervolt; // 1=undervoltage
-    uint32_t wifi_adapter_cnt; // video stream
-    db_adapter_status adapter[8];
-} __attribute__((packed)) db_uav_status_t;
 
 #endif // DB_PROTOCOL_H_INCLUDED

@@ -16,7 +16,12 @@ else()
             db_raw_receive.c
             db_raw_receive.h db_raw_send_receive.c wbc_lib.h db_crc.h shared_memory.c shared_memory.h
             msp_serial.c msp_serial.h db_crc.c ccolors.h db_utils.c db_utils.h
-            mavlink)
+            mavlink
+            radiotap/parse.c
+            radiotap/radiotap.h
+            radiotap/radiotap_iter.h
+            radiotap/platform.h
+            radiotap/radiotap.c)
 
     add_library(db_common STATIC ${LIB_SRCS})
 

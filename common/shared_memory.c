@@ -26,6 +26,7 @@
 #include <errno.h>
 #include "db_protocol.h"
 #include "wbc_lib.h"
+#include "shared_memory.h"
 
 db_gnd_status_t *db_gnd_status_memory_open(void) {
     int fd;

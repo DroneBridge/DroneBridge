@@ -162,7 +162,6 @@ def start_uav_modules():
     pass_through_packet_size = config.getint(UAV, 'pass_through_packet_size')
     enable_sumd_rc = config.get(UAV, 'enable_sumd_rc')
     serial_int_sumd = config.get(UAV, 'serial_int_sumd')
-    chipset_type_cont = 1
 
     # ---------- pre-init ------------------------
     if interface_selection == 'auto':
@@ -170,8 +169,6 @@ def start_uav_modules():
         interface_tel = interface_control
         interface_video = get_all_monitor_interfaces(True)
         interface_comm = interface_control
-    if is_atheros_card(interface_control):
-        chipset_type_cont = 2
     if cts_protection == 'Y' and is_atheros_card(get_interface()):
         frametype = 2  # standard data frames
     else:
@@ -214,7 +211,7 @@ def start_uav_modules():
         print(UAV_STRING_TAG + "Starting control module...")
         Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_air') + " -n " + interface_control + " -u "
                + serial_int_cont + " -m m -c "
-               + str(communication_id) + " -a " + str(chipset_type_cont) + " -v " + " -t " + str(frametype)
+               + str(communication_id) + " -v " + " -t " + str(frametype)
                + str(serial_prot) + " -l " + str(pass_through_packet_size) + " -r " + str(baud_control) + " -e "
                + enable_sumd_rc + " -s " + serial_int_sumd + " -b " + str(get_bit_rate(2)) + " &"],
               shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
