@@ -36,8 +36,10 @@ float distance_between(float lat1, float long1, float lat2, float long2);
 float course_to (float lat1, float long1, float lat2, float long2);
 
 void draw_total_signal(int8_t signal, int goodblocks, int badblocks, int packets_lost, int packets_received, int lost_per_block, float pos_x, float pos_y, float scale);
-void draw_card_signal(int8_t signal, int signal_good, int card, int adapter_cnt, int restart_count, int packets, int wrongcrcs, int type, int totalpackets, int totalpacketslost, float pos_x, float pos_y, float scale);
-void draw_uplink_signal(int8_t uplink_signal, int uplink_lostpackets, int8_t rc_signal, int rc_lostpackets, float pos_x, float pos_y, float scale);
+void draw_card_signal(int8_t signal, int signal_good, int card, int adapter_cnt, int restart_count, int packets,
+                      int wrongcrcs, int type, int totalpackets, int totalpacketslost, float pos_x, float pos_y, float scale,
+                      db_gnd_status_t *db_gnd_status);
+void draw_uplink_signal(int8_t rc_signal, int rc_lostpackets, float pos_x, float pos_y, float scale);
 
 void draw_kbitrate(int cts, int kbitrate, uint16_t kbitrate_measured_tx, uint16_t kbitrate_tx, uint32_t fecs_skipped, uint32_t injection_failed, long long injection_time, float pos_x, float pos_y, float scale);
 void draw_sys(uint8_t cpuload_air, uint8_t temp_air, uint8_t cpuload_gnd, uint8_t temp_gnd, float pos_x, float pos_y, float scale);

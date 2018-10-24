@@ -55,21 +55,21 @@ int initialize_i6S(int new_Joy_IF) {
     char interface_joystick[500];
     char path[] = "/dev/input/js";
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
-    printf("DB_CONTROL_GROUND: Waiting for i6S to be detected on: %s\n", interface_joystick);
+    printf("DB_CONTROL_GND: Waiting for i6S to be detected on: %s\n", interface_joystick);
     do {
         usleep(100000);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
     } while (fd < 0 && keepRunning);
-    printf("DB_CONTROL_GROUND: Opened joystick interface!\n");
-    printf("DB_CONTROL_GROUND: Calibrating...\n");
+    printf("DB_CONTROL_GND: Opened joystick interface!\n");
+    printf("DB_CONTROL_GND: Calibrating...\n");
     int returnval = system(DEFAULT_i6S_CALIBRATION); // i6S always calibrated by hard coded string - adjustrc does not have any effect
 //    char calibration_command[500];
 //    sprintf(calibration_command, "%s %s", "jscal-restore", interface_joystick);
 //    int returnval = system(calibration_command);
     if (returnval == 0) {
-        printf("DB_CONTROL_GROUND: Calibrated i6S\n");
+        printf("DB_CONTROL_GND: Calibrated i6S\n");
     }else{
-        printf("DB_CONTROL_GROUND: Could not calibrate i6S\n");
+        printf("DB_CONTROL_GND: Could not calibrate i6S\n");
     }
     return fd;
 }
@@ -137,7 +137,7 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
     rc.pos_switch1 = 1000;
     rc.pos_switch2 = 1000;
 
-    printf("DB_CONTROL_GROUND: Starting to send commands!\n");
+    printf("DB_CONTROL_GND: Starting to send commands!\n");
     while (keepRunning) //send loop
     {
         nanosleep(&tim, &tim2);
@@ -195,10 +195,10 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         int myerror = errno;
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
-                printf(RED "DB_CONTROL_GROUND: Joystick was unplugged! Retrying... " RESET "\n");
+                printf(RED "DB_CONTROL_GND: Joystick was unplugged! Retrying... " RESET "\n");
                 fd = initialize_i6S(Joy_IF);
             } else {
-                printf(RED "DB_CONTROL_GROUND: Error: %s" RESET " \n", strerror(myerror));
+                printf(RED "DB_CONTROL_GND: Error: %s" RESET " \n", strerror(myerror));
             }
         }
         // SWR - Arm switch

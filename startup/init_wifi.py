@@ -5,6 +5,7 @@ import time
 
 from Chipset import is_atheros_card, is_realtek_card
 from CColors import CColors
+
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
 from subprocess import Popen
@@ -84,23 +85,49 @@ def setup_card(interface_name, frequency, data_rate=2):
         print("Settings up " + interface_name)
         wifi_card = pyw.getcard(interface_name)
         driver_name = iwhw.ifdriver(interface_name)
+        print(CColors.OKGREEN + "Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz" +
+              " bitrate: " + get_bit_rate(data_rate) + " Mbps" + CColors.ENDC)
+        pyw.up(wifi_card)
         if is_atheros_card(driver_name):
             # for all other cards the transmission rate is set via the radiotap header
-            pyw.up(wifi_card)
             set_bitrate(interface_name, data_rate)
-        print(CColors.OKGREEN + "Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz"
-              + CColors.ENDC)
-        pyw.down(wifi_card)
+        if pyw.isup(wifi_card):
+            print("\tdown...")
+            pyw.down(wifi_card)
+        print("\tmonitor...")
         pyw.modeset(wifi_card, 'monitor')
         if is_realtek_card(driver_name):
             # Other cards power settings are set via e.g. 'txpower_atheros 58' or 'txpower_ralink 0' (defaults)
-            pyw.txset(wifi_card, 30, 'fixed')
+            pyw.txset(wifi_card, 'fixed', 3000)
         pyw.up(wifi_card)
+        print("\tfrequency...")
         pyw.freqset(wifi_card, frequency)
+        print("\tMTU...")
+        if is_realtek_card(driver_name):
+            Popen(['ip link set dev ' + interface_name + ' mtu 1500'], shell=True).communicate()
+        else:
+            Popen(['ip link set dev ' + interface_name + ' mtu 2304'], shell=True).communicate()
+        pyw.regset('DE')  # to allow channel 12 and 13 for hotspot
+        rename_interface(interface_name)
+
+
+def rename_interface(orig_interface_name):
+    """
+    Changes the name of the interface to its mac address
+    :param orig_interface_name: The interface that you want to rename
+    :return:
+    """
+    wifi_card = pyw.getcard(orig_interface_name)
+    pyw.down(wifi_card)
+    new_name = pyw.macget(wifi_card).replace(':', '')
+    print("\trename...")
+    Popen(['ip link set ' + orig_interface_name + ' name ' + new_name], shell=True).communicate()
+    wifi_card = pyw.getcard(new_name)
+    pyw.up(wifi_card)
 
 
 def set_bitrate(interface_name, datarate):
-    print("Setting " + interface_name + " bit rate to " + get_bit_rate(datarate) + " Mbps")
+    print("\tbitrate...")
     Popen(['iw dev ' + interface_name + ' set bitrates legacy-2.4 ' + get_bit_rate(datarate)], shell=True)
 
 

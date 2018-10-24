@@ -3,10 +3,12 @@ import os
 import subprocess
 
 import pyric.pyw as pyw
+import pyric.utils.hardware as iwhw
 from subprocess import Popen
+from socket import *
 
 from CColors import CColors
-from Chipset import is_atheros_card
+from Chipset import is_atheros_card, is_realtek_card, is_ralink_card
 from common_helpers import read_dronebridge_config, PI3_WIFI_NIC, HOTSPOT_NIC, get_bit_rate
 
 COMMON = 'COMMON'
@@ -70,10 +72,7 @@ def start_gnd_modules():
         interface_video = get_all_monitor_interfaces(True)
         interface_comm = interface_control
         interface_proxy = interface_control
-    if cts_protection == 'Y' and is_atheros_card(get_interface()):
-        frametype = 2  # standard data frames
-    else:
-        frametype = 1  # RTS frames
+    frametype = determine_frametype(cts_protection, get_interface())  # TODO: scan for WiFi traffic on all interfaces
 
     # ----------- start modules ------------------------
     print(UAV_STRING_TAG + "Starting ip checker module...")
@@ -110,16 +109,15 @@ def start_gnd_modules():
 
     if en_video == 'Y':
         print(GND_STRING_TAG + "Starting video module... (FEC: "+str(video_blocks)+"/"+str(video_fecs)+"/"+str(video_blocklength)+")")
-        # TODO start display program
-        # wbc_receive = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'rx') + " -p 0 -d 1 -b "+str(video_blocks)
+        # db_video_receive = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'rx') + " -p 0 -d 1 -b "+str(video_blocks)
         #                     + " -r "+str(video_fecs)+" -f " + str(video_blocklength)+" " + interface_video],
         #                     stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
-        wbc_receive = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_gnd') + " -d "+str(video_blocks)
+        db_video_receive = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_gnd') + " -d "+str(video_blocks)
                             + " -r "+str(video_fecs)+" -f " + str(video_blocklength) + " -c " + str(communication_id)
                              + " -p N " + interface_video],
                             stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
         print(GND_STRING_TAG + "Starting video player...")
-        Popen([get_video_player(fps)], stdin=wbc_receive.stdout, stdout=None, stderr=None, close_fds=True, shell=True)
+        Popen([get_video_player(fps)], stdin=db_video_receive.stdout, stdout=None, stderr=None, close_fds=True, shell=True)
 
 
 def start_uav_modules():
@@ -169,13 +167,10 @@ def start_uav_modules():
         interface_tel = interface_control
         interface_video = get_all_monitor_interfaces(True)
         interface_comm = interface_control
-    if cts_protection == 'Y' and is_atheros_card(get_interface()):
-        frametype = 2  # standard data frames
-    else:
-        frametype = 1  # RTS frames
+    frametype = determine_frametype(cts_protection, get_interface())  # TODO: scan for WiFi traffic on all interfaces
     if video_bitrate == 'auto' and en_video == 'Y':
         video_bitrate = int(measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, frametype,
-                                                    datarate, interface_video))
+                                                    datarate, get_all_monitor_interfaces(False)))
         print(UAV_STRING_TAG + "Available bandwidth is " + str(video_bitrate / 1000) + " kbit/s")
         video_bitrate = int(video_channel_util/100 * int(video_bitrate))
         print(CColors.OKGREEN + UAV_STRING_TAG + "Setting video bitrate to " + str(video_bitrate/1000) + " kbit/s"
@@ -224,7 +219,8 @@ def start_uav_modules():
     if en_video == 'Y':
         print(UAV_STRING_TAG + "Starting video transmission, FEC "+str(video_blocks)+"/"+str(video_fecs)+"/"
               + str(video_blocklength)+": "+str(width)+" x "+str(heigth)+" "+str(fps)+" fps, video bitrate: "
-              + str(video_bitrate)+" bit/s, Keyframerate: "+str(keyframerate)+ " frametype: "+str(frametype))
+              + str(video_bitrate)+" bit/s, Keyframerate: " + str(keyframerate) + " frametype: "+str(frametype) + " "
+              + get_all_monitor_interfaces(False))
         raspivid_task = Popen(["raspivid -w "+str(width)+" -h "+str(heigth)+" -fps "+str(fps)+" -b "+str(video_bitrate)
                               + " -g " + str(keyframerate)+" -t 0 "+extraparams+" -o -"], stdout=subprocess.PIPE,
                               stdin=None, stderr=None, close_fds=True, shell=True)
@@ -271,7 +267,11 @@ def get_all_monitor_interfaces(formated=False):
         for w_int in w_interfaces:
             formated_str = formated_str + " -n " + w_int
         return formated_str[1:]
-    return w_interfaces
+    else:
+        formated_str = ""
+        for w_int in w_interfaces:
+            formated_str = formated_str + " " + w_int
+        return formated_str[1:]
 
 
 def measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, video_frametype, datarate, interface_video):
@@ -284,15 +284,63 @@ def measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, vid
 
 
 def get_video_player(fps):
-    # mmormota's stutter-free implementation based on RiPis hello_video.bin: "hello_video.bin.30" (for 30fps) or
-    # "hello_video.bin.48" (for 48 and 59.9fps)
-    # befinitiv's hello_video.bin: "hello_video.bin.240" (for any fps, use this for higher than 59.9fps)
+    """
+    mmormota's stutter-free implementation based on RiPis hello_video.bin: "hello_video.bin.30" (for 30fps) or
+    "hello_video.bin.48" (for 48 and 59.9fps)
+    befinitiv's hello_video.bin: "hello_video.bin.240" (for any fps, use this for higher than 59.9fps)
+    :param fps: The video fps that is set in the config
+    :return: The path to the video player binary
+    """
+
     if fps == 30:
         return os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'pi_video_player', 'hello_video.bin.30')
     elif fps <= 60:
         return os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'pi_video_player', 'hello_video.bin.48')
     else:
         return os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'pi_video_player', 'hello_video.bin.240')
+
+
+def exists_wifi_traffic(wifi_interface):
+    """
+    Checks for wifi traffic on a monitor interface
+    :param wifi_interface: The interface to listen for traffic
+    :return: True if there is wifi traffic
+    """
+    raw_socket = socket(AF_PACKET, SOCK_RAW, htons(0x0004))
+    raw_socket.bind((wifi_interface, 0))
+    raw_socket.settimeout(2)  # wait x seconds for traffic
+    try:
+        received_data = raw_socket.recv(2048)
+        if len(received_data) > 0:
+            print("Detected WiFi traffic on channel")
+            return True
+    except timeout:
+        return False
+    return False
+
+
+def determine_frametype(cts_protection, interface_name):
+    """
+    Checks if there is wifi traffic.
+    :param cts_protection: The value from the DroneBridgeConfig
+    :param wifi_int: The interface to listen for traffic
+    @:return 2 for data frames, 1 for RTS frames
+    """
+    print("Determining frametype...")
+    wifi_driver = iwhw.ifdriver(interface_name)
+    if is_ralink_card(wifi_driver):
+        return 1  # RTS injection with rt2800usb broken?!
+    elif is_realtek_card(wifi_driver):
+        return 2  # use data frames (~1Mbps with rtl8814au an RTS)
+    elif cts_protection == 'Y' and is_atheros_card(wifi_driver):
+        return 2  # standard data frames
+    elif cts_protection == 'auto':
+        if is_atheros_card(wifi_driver) and exists_wifi_traffic(interface_name):
+            return 2  # standard data frames
+        else:
+            return 1  # RTS frames
+    else:
+        return 1  # RTS frames
 
 
 def main():

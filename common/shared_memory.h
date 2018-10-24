@@ -17,7 +17,6 @@
  *
  */
 
-#include "wbc_lib.h"
 #include "db_protocol.h"
 
 #ifndef CONTROL_STATUS_SHARED_MEMORY_H

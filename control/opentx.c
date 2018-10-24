@@ -50,20 +50,20 @@ int initialize_opentx(int new_Joy_IF) {
     char interface_joystick[500];
     char path[] = "/dev/input/js";
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
-    printf("DB_CONTROL_GROUND: Waiting for OpenTX RC to be detected on: %s\n", interface_joystick);
+    printf("DB_CONTROL_GND: Waiting for OpenTX RC to be detected on: %s\n", interface_joystick);
     do {
         usleep(100000);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
     } while (fd < 0 && keepRunning);
-    printf("DB_CONTROL_GROUND: Opened joystick interface!\n");
-    printf("DB_CONTROL_GROUND: Calibrating...\n");
+    printf("DB_CONTROL_GND: Opened joystick interface!\n");
+    printf("DB_CONTROL_GND: Calibrating...\n");
     char calibration_command[500];
     sprintf(calibration_command, "%s %s", "jscal-restore", interface_joystick);
     int returnval = system(calibration_command);
     if (returnval == 0) {
-        printf("DB_CONTROL_GROUND: Calibrated OpenTX RC\n");
+        printf("DB_CONTROL_GND: Calibrated OpenTX RC\n");
     }else{
-        printf(RED "DB_CONTROL_GROUND: Could not calibrate OpenTX RC " RESET "\n");
+        printf(RED "DB_CONTROL_GND: Could not calibrate OpenTX RC " RESET "\n");
     }
     return fd;
 }
@@ -89,7 +89,7 @@ int opentx(int Joy_IF, char calibrate_comm[]) {
     int16_t opentx_channels[32] = {0};
 
     int fd = initialize_opentx(Joy_IF);
-    printf("DB_CONTROL_GROUND: DroneBridge OpenTX - starting!\n");
+    printf("DB_CONTROL_GND: DroneBridge OpenTX - starting!\n");
     while (keepRunning) //send loop
     {
         nanosleep(&tim, &tim2);
@@ -106,10 +106,10 @@ int opentx(int Joy_IF, char calibrate_comm[]) {
         int myerror = errno;
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
-                printf(RED "DB_CONTROL_GROUND: Joystick was unplugged! Retrying... " RESET "\n");
+                printf(RED "DB_CONTROL_GND: Joystick was unplugged! Retrying... " RESET "\n");
                 fd = initialize_opentx(Joy_IF);
             } else {
-                printf(RED "DB_CONTROL_GROUND: Error: %s" RESET " \n", strerror(myerror));
+                printf(RED "DB_CONTROL_GND: Error: %s" RESET " \n", strerror(myerror));
             }
         }
         // Channel map must be AETR1234!

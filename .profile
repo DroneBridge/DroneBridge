@@ -283,22 +283,6 @@ else
   sleep 365d
 fi
 
-  # set reg domain to DE to allow channel 12 and 13 for hotspot
-  iw reg set DE
-
-  NUM_CARDS=-1
-  NICSWL=$(ls /sys/class/net | nice grep wlan)
-
-for NIC in $NICSWL; do
-# set MTU to 2304
-ifconfig $NIC mtu 2304
-# re-name wifi interface to MAC address
-NAME=$(cat /sys/class/net/$NIC/address)
-ip link set $NIC name ${NAME//:/}
-let "NUM_CARDS++"
-#sleep 0.1
-done
-
 if vcgencmd get_throttled | nice grep -q -v "0x0"; then
   TEMP=$(cat /sys/class/thermal/thermal_zone0/temp)
   TEMP_C=$(($TEMP / 1000))

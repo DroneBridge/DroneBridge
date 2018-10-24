@@ -255,7 +255,7 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
     memset(&raw_if_idx, 0, sizeof(struct ifreq));
     strncpy(raw_if_idx.ifr_name, ifName, IFNAMSIZ - 1);
     if (ioctl(socket_send_receive, SIOCGIFINDEX, &raw_if_idx) < 0) {
-        perror("DB_SEND: SIOCGIFINDEX");
+        fprintf(stderr, "DB_SEND: SIOCGIFINDEX %s", ifName);
         return -1;
     }
     /* Get the MAC address of the interface to send on */

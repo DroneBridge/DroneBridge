@@ -119,17 +119,18 @@ int main(int argc, char *argv[]) {
     conf_rc(rc_protocol, allow_rc_overwrite);
     open_rc_shm();
 
+    printf(GRN "DB_CONTROL_GND: started!" RESET "\n");
     int sock_fd = detect_RC(Joy_IF);
     if (ioctl(sock_fd, JSIOCGNAME(sizeof(RC_name)), RC_name) < 0)
         strncpy(RC_name, "Unknown", sizeof(RC_name));
     close(sock_fd); // We reopen in the RC specific file. Only opened in here to get the name of the controller
-    printf(GRN "DB_CONTROL_GROUND: Detected \"%s\"" RESET "\n", RC_name);
+    printf(GRN "DB_CONTROL_GND: Detected \"%s\"" RESET "\n", RC_name);
     if (strcmp(i6S_descriptor, RC_name) == 0){
-        printf("DB_CONTROL_GROUND: Choosing i6S-Config\n");
+        printf("DB_CONTROL_GND: Choosing i6S-Config\n");
         strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
         i6S(Joy_IF, calibrate_comm);
     } else {
-        printf("DB_CONTROL_GROUND: Choosing OpenTX-Config\n");
+        printf("DB_CONTROL_GND: Choosing OpenTX-Config\n");
         strcpy(calibrate_comm, DEFAULT_OPENTX_CALIBRATION);
         opentx(Joy_IF, calibrate_comm);
     }

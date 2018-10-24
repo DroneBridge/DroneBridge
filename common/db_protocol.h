@@ -24,6 +24,21 @@
 #ifndef DB_PROTOCOL_H_INCLUDED
 #define DB_PROTOCOL_H_INCLUDED
 
+typedef unsigned int u32;
+typedef unsigned short u16;
+typedef unsigned char u8;
+typedef u32 __le32;
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define	le16_to_cpu(x) (x)
+#define	le32_to_cpu(x) (x)
+#else
+#define	le16_to_cpu(x) ((((x)&0xff)<<8)|(((x)&0xff00)>>8))
+#define	le32_to_cpu(x) \
+((((x)&0xff)<<24)|(((x)&0xff00)<<8)|(((x)&0xff0000)>>8)|(((x)&0xff000000)>>24))
+#endif
+#define	unlikely(x) (x)
+
 #define RADIOTAP_LENGTH         13
 #define DB_RAW_V2_HEADER_LENGTH 10
 #define DB_MAX_ADAPTERS 4
@@ -64,6 +79,7 @@
 #define APP_PORT_VIDEO_FEC  5001 // app accepts raw DroneBridge video stream data, performs FEC on Android device
 
 #define DB_MAVLINK_SYS_ID	69
+#define	MAX_PENUMBRA_INTERFACES 8
 
 
 struct data_uni{

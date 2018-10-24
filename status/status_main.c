@@ -32,7 +32,6 @@
 #include <errno.h>
 #include <memory.h>
 #include <sys/time.h>
-#include "../common/wbc_lib.h"
 #include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"

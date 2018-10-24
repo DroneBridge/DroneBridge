@@ -435,7 +435,7 @@ void process_command_line_args(int argc, char *argv[]){
     num_interfaces = 0;
     num_data_block = 8, num_fec_block = 4, pack_size = 1024;
     int c;
-    while ((c = getopt (argc, argv, "n:c:b:r:f:p:")) != -1) {
+    while ((c = getopt (argc, argv, "n:c:r:f:p:d:")) != -1) {
         switch (c) {
             case 'n':
                 strncpy(adapters[num_interfaces], optarg, IFNAMSIZ);
@@ -480,11 +480,14 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, int_handler);
     setpriority(PRIO_PROCESS, 0, -10);
     monitor_interface_t interfaces[MAX_PENUMBRA_INTERFACES];
-    int num_interfaces = 0;
     int i, max_sd = 0;
     block_buffer_t *block_buffer_list;
 
     process_command_line_args(argc, argv);
+    if (num_interfaces == 0){
+        printf(RED "DB_VIDEO_GND: No interface specified. Aborting" RESET);
+        abort();
+    }
 
     if(pack_size > MAX_USER_PACKET_LENGTH) {
         printf("Packet length is limited to %d bytes (you requested %d bytes)\n", MAX_USER_PACKET_LENGTH, pack_size);

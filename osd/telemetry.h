@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <time.h>
-#include "shared_memory.h"
+#include "../common/shared_memory.h"
 #include "osdconfig.h"
 
 typedef struct {
@@ -75,4 +75,7 @@ typedef struct {
 	db_rc_status_t *rx_status_rc;
 	db_uav_status_t *rx_status_sysair;
 } telemetry_data_t;
+
+void telemetry_init(telemetry_data_t *td);
+
 

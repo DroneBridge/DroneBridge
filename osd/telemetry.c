@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include "telemetry.h"
 #include "osdconfig.h"
-#include "shared_memory.h"
+#include "../common/shared_memory.h"
 
 void telemetry_init(telemetry_data_t *td) {
 	td->validmsgsrx = 0;
@@ -68,12 +68,11 @@ void telemetry_init(telemetry_data_t *td) {
 
 
 #ifdef DOWNLINK_RSSI
-	td->rx_status = telemetry_wbc_status_memory_open();
+	td->rx_status = db_gnd_status_memory_open();
 #endif
 
 #ifdef UPLINK_RSSI
-	td->rx_status_uplink = telemetry_wbc_status_memory_open_uplink();
-	td->rx_status_rc = telemetry_wbc_status_memory_open_rc();
+	td->rx_status_rc = db_rc_status_memory_open();
 #endif
 
 	td->rx_status_sysair = db_uav_status_memory_open();

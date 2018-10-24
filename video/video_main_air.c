@@ -38,7 +38,6 @@
 #include "video_lib.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_send_receive.h"
-#include "../common/wbc_lib.h"
 #include "../common/shared_memory.h"
 #include "../common/ccolors.h"
 
@@ -54,7 +53,7 @@ char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 db_socket raw_sockets[DB_MAX_ADAPTERS];
 
 long long took_last = 0;
-long long took = 0;
+long long took = 0, encoding_time = 0;
 long long injection_time_now = 0;
 long long injection_time_prev = 0;
 
@@ -89,20 +88,18 @@ void int_handler(int dummy){
  */
 int pb_transmit_packet(uint32_t seq_nr, struct data_uni *data_uni_to_ground, const uint8_t *packet_data,
         int packet_length, int num_interfaces, int best_adapter) {
-    int i = 0;
     //add header outside of FEC but inside raw protocol payload buffer
     video_packet_header_t *wph = (video_packet_header_t*)(data_uni_to_ground);
     wph->sequence_number = seq_nr;
 
     //copy data to raw packet payload buffer
-    memcpy(data_uni_to_ground + sizeof(video_packet_header_t), packet_data, (size_t) packet_length);
+    memcpy(&data_uni_to_ground->bytes[sizeof(video_packet_header_t)], packet_data, (size_t) packet_length);
 
     uint16_t pay_length = packet_length + sizeof(video_packet_header_t);
 
     if (best_adapter == 5) {
-        for(i = 0; i < num_interfaces; ++i) {
-            if(send_packet_hp_div(&raw_sockets[i], DB_PORT_VIDEO, pay_length, update_seq_num(&db_vid_seqnum)) < 0)
-                return -1;
+        for(int i = 0; i < num_interfaces; i++) {
+            return send_packet_hp_div(&raw_sockets[i], DB_PORT_VIDEO, pay_length, update_seq_num(&db_vid_seqnum));
         }
     } else {
         return send_packet_hp_div(&raw_sockets[best_adapter], DB_PORT_VIDEO, pay_length, update_seq_num(&db_vid_seqnum));
@@ -126,6 +123,7 @@ void pb_transmit_block(packet_buffer_t *pbl, struct data_uni *data_uni_to_ground
         unsigned int data_packets_per_block, unsigned int fec_packets_per_block, int num_interfaces,
         int param_transmission_mode, db_uav_status_t *db_uav_status) {
     int i;
+    long long prev_time = current_timestamp();
     uint8_t *data_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
     uint8_t fec_pool[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK][DATA_UNI_LENGTH];
     uint8_t *fec_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
@@ -133,19 +131,22 @@ void pb_transmit_block(packet_buffer_t *pbl, struct data_uni *data_uni_to_ground
     for(i=0; i<data_packets_per_block; ++i) data_blocks[i] = pbl[i].data;
 
     if(fec_packets_per_block) {
-        for(i=0; i<fec_packets_per_block; ++i) fec_blocks[i] = fec_pool[i];
+        for(i=0; i<fec_packets_per_block; ++i)
+            fec_blocks[i] = fec_pool[i];
+        // takes about 4ms per frame (6Mbps - 48fps) on Raspberry Pi 3B+ (~270us/1024 byte)
         fec_encode(packet_length, data_blocks, data_packets_per_block, (unsigned char **)fec_blocks, fec_packets_per_block);
     }
-
     int di = 0;
     int fi = 0;
     uint32_t seq_nr_tmp = *seq_nr;
-    long long prev_time = current_timestamp();
+    encoding_time = current_timestamp() - prev_time;
+    prev_time = current_timestamp();
     int counterfec = 0;
 
     while(di < data_packets_per_block || fi < fec_packets_per_block) { //send data and FEC packets interleaved
         int best_adapter = 0;
         if(param_transmission_mode == 1) {
+
             int ac = db_uav_status->wifi_adapter_cnt;
             int best_dbm = -1000;
 
@@ -190,33 +191,32 @@ void pb_transmit_block(packet_buffer_t *pbl, struct data_uni *data_uni_to_ground
 
     took_last = took;
     took = current_timestamp() - prev_time;
+    db_uav_status->injection_time_block = took;
 
-//	if (took > 50) fprintf(stdout,"write took %lldus\n", took);
     if (took > (packet_length * (data_packets_per_block + fec_packets_per_block)) / 1.5 ) { // we simply assume 1us per byte = 1ms per 1024 byte packet (not very exact ...)
-//	    fprintf(stdout,"\nwrite took %lldus skipping FEC packets ...\n", took);
         skipfec=4;
         db_uav_status->skipped_fec_cnt = db_uav_status->skipped_fec_cnt + skipfec;
     }
 
+//    if (took < took_last) { // if we have a lower injection_time than last time, ignore (seeul8er: why?!)
+//        took = took_last;
+//    }
+//    injection_time_now = current_timestamp();
+//    if (injection_time_now - injection_time_prev > 220) {
+//        injection_time_prev = current_timestamp();
+//        db_uav_status->injection_time_block = took;
+//        took=0;
+//        took_last=0;
+//    }
+    *seq_nr += data_packets_per_block + fec_packets_per_block;
+
     if(block_cnt % 50 == 0) {
         fprintf(stdout,"\t\t%d blocks sent, injection time per block %lldus, %d fecs skipped, "
-                       "%d packet injections failed.          \r", block_cnt, db_uav_status->injection_time_block,
-                       db_uav_status->skipped_fec_cnt, db_uav_status->injection_fail_cnt);
+                       "%d packet injections failed, encoding time: %lldus          \r", block_cnt,
+                       db_uav_status->injection_time_block, db_uav_status->skipped_fec_cnt,
+                       db_uav_status->injection_fail_cnt, encoding_time);
         fflush(stdout);
     }
-
-    if (took < took_last) { // if we have a lower injection_time than last time, ignore
-        took = took_last;
-    }
-
-    injection_time_now = current_timestamp();
-    if (injection_time_now - injection_time_prev > 220) {
-        injection_time_prev = current_timestamp();
-        db_uav_status->injection_time_block = took;
-        took=0;
-        took_last=0;
-    }
-    *seq_nr += data_packets_per_block + fec_packets_per_block;
 
     //reset the length back
     for(i=0; i< data_packets_per_block; ++i) pbl[i].len = 0;
@@ -243,7 +243,7 @@ void process_command_line_args(int argc, char *argv[]){
                 num_fec_block = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'f':
-                pack_size = (uint8_t) strtol(optarg, NULL, 10);
+                pack_size = (unsigned int) strtol(optarg, NULL, 10);
                 break;
             case 'b':
                 bitrate_op = (uint8_t) strtol(optarg, NULL, 10);
@@ -275,30 +275,34 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, int_handler);
     setpriority(PRIO_PROCESS, 0, -10);
 
-    char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
     struct data_uni *data_uni_to_ground = (struct data_uni *)(monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
-
     int pcnt = 0;
     input_t input;
     db_uav_status_t *db_uav_status = db_uav_status_memory_open();
+    db_uav_status->injection_fail_cnt = 0; db_uav_status->skipped_fec_cnt = 0, db_uav_status->injected_block_cnt = 0,
+    db_uav_status->injection_time_block = 0, db_uav_status->last_update = 0;
     int param_min_packet_length = 24;
 
     process_command_line_args(argc, argv);
+    if (num_interfaces == 0){
+        printf(RED "DB_VIDEO_GND: No interface specified. Aborting" RESET);
+        abort();
+    }
 
     if(pack_size > DATA_UNI_LENGTH) {
-        fprintf(stderr, "ERROR; Packet length is limited to %d bytes (you requested %d bytes)\n", DATA_UNI_LENGTH, pack_size);
-        return (1);
+        fprintf(stderr, RED "DB_VIDEO_GND; Packet length is limited to %d bytes (you requested %d bytes)\n" RESET, DATA_UNI_LENGTH, pack_size);
+        abort();
     }
 
     if(param_min_packet_length > pack_size) {
-        fprintf(stderr, "ERROR; Minimum packet length is higher than maximum packet length (%d > %d)\n", param_min_packet_length, pack_size);
-        return (1);
+        fprintf(stderr, RED "DB_VIDEO_GND; Minimum packet length is higher than maximum packet length (%d > %d)\n" RESET, param_min_packet_length, pack_size);
+        abort();
     }
 
     if(num_data_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK || num_fec_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK) {
-        fprintf(stderr, "ERROR: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n",
+        fprintf(stderr, RED "DB_VIDEO_GND: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n" RESET,
                 MAX_DATA_OR_FEC_PACKETS_PER_BLOCK, num_data_block, num_fec_block);
-        return (1);
+        abort();
     }
 
     input.fd = STDIN_FILENO;
@@ -344,7 +348,7 @@ int main(int argc, char *argv[]) {
         // check if this packet is finished
         if(pb->len >= param_min_packet_length) {
             payload_header_t *ph = (payload_header_t*)pb->data;
-            // write the length into the packet. this is needed since with fec we cannot use the wifi packet lentgh anymore.
+            // write the length into the packet. this is needed since with fec we cannot use the wifi packet length anymore.
             // We could also set the user payload to a fixed size but this would introduce additional latency since tx would need to wait until that amount of data has been received
             ph->data_length = (uint32_t) (pb->len - sizeof(payload_header_t));
             pcnt++;

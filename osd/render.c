@@ -18,6 +18,7 @@
 // windhose    
 // cog    
 #include <stdint.h>
+#include <sys/time.h>
 #include "render.h"
 #include "telemetry.h"
 #include "osdconfig.h"
@@ -27,7 +28,6 @@
 #define CELL_WARNING_PCT1 (CELL_WARNING1-CELL_MIN)/(CELL_MAX-CELL_MIN)*100
 #define CELL_WARNING_PCT2 (CELL_WARNING2-CELL_MIN)/(CELL_MAX-CELL_MIN)*100
 
-int width, height;
 float scale_factor_font;
 bool setting_home;
 bool home_set;
@@ -1326,7 +1326,7 @@ float distance_between(float lat1, float long1, float lat2, float long2) {
 
 
 
-float course_to (float lat1, float long1, float lat2, float long2) {
+float course_to(float lat1, float long1, float lat2, float long2) {
     //taken from tinygps: https://github.com/mikalhart/TinyGPS/blob/master/TinyGPS.cpp#L321
     // returns course in degrees (North=0, West=270) from position 1 to position 2,
     // both specified as signed decimal-degrees latitude and longitude.
