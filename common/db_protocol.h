@@ -46,12 +46,13 @@ typedef u32 __le32;
 #define MSP_DATA_LENTH          34      // size of MSP v1
 #define MSP_V2_DATA_LENGTH      37      // size of MSP v2 frame
 #define DB_RC_DATA_LENGTH		16		// size of DB_RC frame
-#define DATA_UNI_LENGTH         2048	// max frame length for raw protocol
+#define DATA_UNI_LENGTH         2048	// max payload length for raw protocol
+#define MAX_DB_DATA_LENGTH		(RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH) // max length of a db raw packet
 #define ETHER_TYPE              0x88ab
 
 #define DEFAULT_DB_MODE         'm'
 #define DEFAULT_DB_IF           "18a6f716a511"
-#define DEFAULT_V2_COMMID		0x01
+#define DEFAULT_V2_COMMID		0xc7
 
 #define DB_FRAMETYPE_RTS        1
 #define DB_FRAMETYPE_DATA       2

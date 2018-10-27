@@ -403,7 +403,7 @@ wifibroadcast_rx_status_t *telemetry_wbc_status_memory_open(void) {
     // TODO: Clean up rx_status shared memory handling
 //    if (transmission_mode == 1) {
 //	while(sharedmem == 0) {
-    	    fd = shm_open("/wifibroadcast_rx_status_0", O_RDWR, S_IRUSR | S_IWUSR);
+    	    fd = shm_open("/wifibroadcast_rx_status_0", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         	if(fd < 0) {
     //        	    fprintf(stderr, "Could not open wifibroadcast rx status - retrying ...\n");
         	} else {
@@ -431,7 +431,7 @@ wifibroadcast_tx_status_t *telemetry_wbc_status_memory_open_tx(void) {
 	// TODO: Clean up rx_status shared memory handling
 	while(sharedmem == 0) {
 	    sprintf(buf, "/wifibroadcast_tx_status_%d", param_port);
-    	    fd = shm_open(buf, O_RDWR, S_IRUSR | S_IWUSR);
+    	    fd = shm_open(buf, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         	if(fd < 0) {
             	    fprintf(stderr, "Could not open wifibroadcast tx status - retrying ...\n");
         	} else {

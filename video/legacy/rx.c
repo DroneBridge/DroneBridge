@@ -198,21 +198,21 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
     int tx_restart = (block_num + 128*param_block_buffers < max_block_num);
     if((block_num > max_block_num || tx_restart) && crc_correct) {
         if(tx_restart) {
-	    rx_status->tx_restart_cnt++;
-	    rx_status->received_block_cnt = 0;
-	    rx_status->damaged_block_cnt = 0;
-	    rx_status->received_packet_cnt = 0;
-	    rx_status->lost_packet_cnt = 0;
-	    rx_status->kbitrate = 0;
-	    int g;
-	    for(g=0; g<MAX_PENUMBRA_INTERFACES; ++g) {
-		rx_status->adapter[g].received_packet_cnt = 0;
-		rx_status->adapter[g].wrong_crc_cnt = 0;
-		rx_status->adapter[g].current_signal_dbm = -126;
-		rx_status->adapter[g].signal_good = 0;
-	    }
-//          fprintf(stderr, "TX re-start detected\n");
-            block_buffer_list_reset(block_buffer_list, param_block_buffers, param_data_packets_per_block + param_fec_packets_per_block);
+			rx_status->tx_restart_cnt++;
+			rx_status->received_block_cnt = 0;
+			rx_status->damaged_block_cnt = 0;
+			rx_status->received_packet_cnt = 0;
+			rx_status->lost_packet_cnt = 0;
+			rx_status->kbitrate = 0;
+			int g;
+			for(g=0; g<MAX_PENUMBRA_INTERFACES; ++g) {
+				rx_status->adapter[g].received_packet_cnt = 0;
+				rx_status->adapter[g].wrong_crc_cnt = 0;
+				rx_status->adapter[g].current_signal_dbm = -126;
+				rx_status->adapter[g].signal_good = 0;
+			}
+	//          fprintf(stderr, "TX re-start detected\n");
+				block_buffer_list_reset(block_buffer_list, param_block_buffers, param_data_packets_per_block + param_fec_packets_per_block);
         }
 
         //first, find the minimum block num in the buffers list. this will be the block that we replace
@@ -383,11 +383,11 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
 
         //only overwrite packets where the checksum is not yet correct. otherwise the packets are already received correctly
         if(packet_buffer_list[packet_num].crc_correct == 0) {
-//	    fprintf(stderr, "rx INFO: packet_buffer_list[packet_numer].crc_correct=0");
-	    memcpy(packet_buffer_list[packet_num].data, data, data_len);
-            packet_buffer_list[packet_num].len = data_len;
-            packet_buffer_list[packet_num].valid = 1;
-            packet_buffer_list[packet_num].crc_correct = crc_correct;
+	//	    fprintf(stderr, "rx INFO: packet_buffer_list[packet_numer].crc_correct=0");
+			memcpy(packet_buffer_list[packet_num].data, data, data_len);
+			packet_buffer_list[packet_num].len = data_len;
+			packet_buffer_list[packet_num].valid = 1;
+			packet_buffer_list[packet_num].crc_correct = crc_correct;
         }
     }
 

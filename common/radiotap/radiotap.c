@@ -11,6 +11,7 @@
  * Alternatively, this software may be distributed under the terms of ISC
  * license, see COPYING for more details.
  */
+#include <stdio.h>
 #include "radiotap_iter.h"
 #include "platform.h"
 
@@ -92,17 +93,19 @@ int ieee80211_radiotap_iterator_init(
 	struct ieee80211_radiotap_header *radiotap_header,
 	int max_length, const struct ieee80211_radiotap_vendor_namespaces *vns)
 {
-	/* must at least have the radiotap header */
+    /* must at least have the radiotap header */
 	if (max_length < (int)sizeof(struct ieee80211_radiotap_header))
 		return -EINVAL;
 
 	/* Linux only supports version 0 radiotap format */
 	if (radiotap_header->it_version)
-		return -EINVAL;
+        return -EINVAL;
+
 
 	/* sanity check for allowed length and radiotap length field */
 	if (max_length < get_unaligned_le16(&radiotap_header->it_len))
-		return -EINVAL;
+        return -EINVAL;
+
 
 	iterator->_rtheader = radiotap_header;
 	iterator->_max_length = get_unaligned_le16(&radiotap_header->it_len);
