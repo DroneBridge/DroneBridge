@@ -38,7 +38,7 @@ bool volatile keeprunning = true;
 char if_name_telemetry[IFNAMSIZ], if_name_telem[IFNAMSIZ];
 char db_mode, enable_telemetry_module, write_to_osdfifo;
 uint8_t comm_id = DEFAULT_V2_COMMID, frame_type;
-int c, app_port_proxy, app_port_telem, bitrate_op;
+int c, app_port_proxy, app_port_telem, bitrate_op, prox_adhere_80211;
 
 void intHandler(int dummy)
 {
@@ -55,8 +55,9 @@ int process_command_line_args(int argc, char *argv[]){
     app_port_telem = APP_PORT_TELEMETRY;
     opterr = 0;
     bitrate_op = 1;
+    prox_adhere_80211 = 0;
     frame_type = DB_FRAMETYPE_DEFAULT;
-    while ((c = getopt (argc, argv, "n:m:c:p:b:t:i:l:o:f:")) != -1)
+    while ((c = getopt (argc, argv, "n:m:c:p:b:t:i:l:o:f:a:")) != -1)
     {
         switch (c)
         {
@@ -90,6 +91,8 @@ int process_command_line_args(int argc, char *argv[]){
             case 'f':
                 frame_type = (uint8_t) strtol(optarg, NULL, 10);
                 break;
+            case 'a':
+                prox_adhere_80211 = (int) strtol(optarg, NULL, 10);
             case '?':
                 printf("DroneBridge Proxy module is used to do any UDP <-> DB_CONTROL_AIR routing. UDP IP given by "
                        "IP-checker module. Use"
@@ -107,10 +110,12 @@ int process_command_line_args(int argc, char *argv[]){
                        "\n\t-f <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)"
                        "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
                        "supported with Ralink chipsets)"
+                       "\n\t-a <0|1> to disable/enable. Offsets the payload by some bytes so that it sits outside "
+                       "then 802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!"
                         , APP_PORT_PROXY);
                 break;
             default:
-                abort ();
+                abort();
         }
     }
 }
@@ -171,12 +176,13 @@ int main(int argc, char *argv[]) {
     }
 
     // init variables
-    int radiotap_length = 0, counter = 0;
+    uint16_t radiotap_length = 0;
+    int counter = 0;
     int shID = init_shared_memory_ip();
     fd_set fd_socket_set;
     struct timeval select_timeout;
-    struct data_uni *data_uni_to_drone = (struct data_uni *)
-            (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+
+    struct data_uni *data_uni_to_drone = get_hp_raw_buffer(prox_adhere_80211);
     uint8_t seq_num = 0;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
     uint8_t udp_buffer[DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH];
@@ -227,9 +233,7 @@ int main(int argc, char *argv[]) {
                 // ---------------
                 ssize_t l = recv(lr_socket_proxy, lr_buffer, DATA_UNI_LENGTH, 0); int err = errno;
                 if (l > 0){
-                    radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
-                    message_length = lr_buffer[radiotap_length+7] | (lr_buffer[radiotap_length+8] << 8); // DB_v2
-                    memcpy(udp_buffer, lr_buffer+(radiotap_length + DB_RAW_V2_HEADER_LENGTH), message_length);
+                    message_length = get_db_payload(lr_buffer, l, udp_buffer, &radiotap_length);
                     sendto (udp_socket, udp_buffer, message_length, 0, (struct sockaddr *) &client_proxy_addr,
                             sizeof (client_proxy_addr));
                 } else {
@@ -244,9 +248,7 @@ int main(int argc, char *argv[]) {
                 ssize_t l = recv(lr_socket_telem, lr_buffer, DATA_UNI_LENGTH, 0); int err = errno;
                 //printf("Received %i on lr-tel-socket\n", (int) l);
                 if (l > 0){
-                    radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
-                    message_length = lr_buffer[radiotap_length+7] | (lr_buffer[radiotap_length+8] << 8); // DB_v2
-                    memcpy(udp_buffer, lr_buffer+(radiotap_length + DB_RAW_V2_HEADER_LENGTH), message_length);
+                    message_length = get_db_payload(lr_buffer, l, udp_buffer, &radiotap_length);
                     counter++;
                     if (counter>9){
                         counter = 0;

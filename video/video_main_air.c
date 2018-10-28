@@ -47,9 +47,11 @@
 
 bool keeprunning = true;
 uint8_t comm_id, frame_type, db_vid_seqnum = 0;
-unsigned int num_interfaces = 0, num_data_block = 8, num_fec_block = 4, pack_size = 1024, bitrate_op = 11;
+unsigned int num_interfaces = 0, num_data_block = 8, num_fec_block = 4, pack_size = 1024, bitrate_op = 11, vid_adhere_80211;
+db_uav_status_t *db_uav_status;
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 db_socket raw_sockets[DB_MAX_ADAPTERS];
+struct timespec start_time, end_time;
 
 typedef struct {
     uint32_t seq_nr;
@@ -58,11 +60,9 @@ typedef struct {
     packet_buffer_t *pb_list;
 } input_t;
 
-long long current_timestamp() {
-    struct timeval te;
-    gettimeofday(&te, NULL); // get current time
-    long long useconds = te.tv_sec*1000LL + te.tv_usec;
-    return useconds;
+static int TimeSpecToUSeconds(struct timespec* ts)
+{
+    return (int) (ts->tv_sec + ts->tv_nsec / 1000.0);
 }
 
 void int_handler(int dummy){
@@ -76,27 +76,32 @@ void int_handler(int dummy){
  * @param packet_data Packet payload (FEC block or DATA block + length field)
  * @param data_length payload length
  * @param best_adapter Index of best wifi adapter inside raw_sockets[]
- * @return 0 if transmission success, -1 on fail
  */
-int transmit_packet(uint32_t seq_nr, const uint8_t *packet_data, uint data_length, int best_adapter) {
+void transmit_packet(uint32_t seq_nr, const uint8_t *packet_data, uint data_length, int best_adapter) {
     // create pointer directly to sockets send buffer (use of DB high performance send function)
-    struct data_uni *data_to_ground = (struct data_uni *)(monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+    struct data_uni *data_to_ground = get_hp_raw_buffer(vid_adhere_80211);
     // set video packet to payload field of raw protocol buffer
     db_video_packet_t *db_video_p = (db_video_packet_t *)(data_to_ground->bytes);
     db_video_p->video_packet_header.sequence_number = seq_nr;
+    db_uav_status->injected_packet_cnt++;
 
     //copy data to raw packet payload buffer (into video packet struct)
     memcpy(&db_video_p->video_packet_data, packet_data, (size_t) data_length);
     uint16_t payload_length = sizeof(video_packet_header_t) + data_length;
-
     if (best_adapter == 5) {
         for(int i = 0; i < num_interfaces; i++) {
-            return send_packet_hp_div(&raw_sockets[i], DB_PORT_VIDEO, payload_length, update_seq_num(&db_vid_seqnum));
+            clock_gettime(CLOCK_MONOTONIC, &start_time);
+            if (send_packet_hp_div(&raw_sockets[i], DB_PORT_VIDEO, payload_length, update_seq_num(&db_vid_seqnum)) == -1)
+                db_uav_status->injection_fail_cnt++;
+            clock_gettime(CLOCK_MONOTONIC, &end_time);
         }
     } else {
-        return send_packet_hp_div(&raw_sockets[best_adapter], DB_PORT_VIDEO, payload_length, update_seq_num(&db_vid_seqnum));
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
+        if (send_packet_hp_div(&raw_sockets[best_adapter], DB_PORT_VIDEO, payload_length, update_seq_num(&db_vid_seqnum)) == -1)
+            db_uav_status->injection_fail_cnt++;
+        clock_gettime(CLOCK_MONOTONIC, &end_time);
     }
-    return -1;
+    db_uav_status->injection_time_packet = TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time);
 }
 
 /**
@@ -119,7 +124,10 @@ void transmit_block(packet_buffer_t *pbl, uint32_t *seq_nr, uint fec_packet_size
         for(i=0; i<num_fec_block; ++i) {
             fec_blocks[i] = fec_pool[i];
         }
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
         fec_encode(fec_packet_size, data_blocks, num_data_block, (unsigned char **)fec_blocks, num_fec_block);
+        clock_gettime(CLOCK_MONOTONIC, &end_time);
+        db_uav_status->encoding_time = TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time);
     }
 
     //send data and FEC packets interleaved - that algo needs to match with receiving side
@@ -145,14 +153,14 @@ void transmit_block(packet_buffer_t *pbl, uint32_t *seq_nr, uint fec_packet_size
     for(i=0; i< num_data_block; ++i) {
         pbl[i].len = 0;
     }
-
+    db_uav_status->injected_block_cnt++;
 }
 
 void process_command_line_args(int argc, char *argv[]){
     num_interfaces = 0, comm_id = DEFAULT_V2_COMMID, bitrate_op = 11;
-    num_data_block = 8, num_fec_block = 4, pack_size = 1024, frame_type = 1;
+    num_data_block = 8, num_fec_block = 4, pack_size = 1024, frame_type = 1, vid_adhere_80211 = 0;
     int c;
-    while ((c = getopt (argc, argv, "n:c:d:r:f:b:t:")) != -1) {
+    while ((c = getopt (argc, argv, "n:c:d:r:f:b:t:a:")) != -1) {
         switch (c) {
             case 'n':
                 strncpy(adapters[num_interfaces], optarg, IFNAMSIZ);
@@ -175,6 +183,9 @@ void process_command_line_args(int argc, char *argv[]){
             case 't':
                 frame_type = (uint8_t) strtol(optarg, NULL, 10);
                 break;
+            case 'a':
+                vid_adhere_80211 = (uint) strtol(optarg, NULL, 10);
+                break;
             default:
                 printf("Based of Wifibroadcast by befinitiv, based on packetspammer by Andy Green.  Licensed under GPL2\n"
                        "This tool takes a data stream via the DroneBridge long range video port and outputs it via stdout, "
@@ -190,6 +201,8 @@ void process_command_line_args(int argc, char *argv[]){
                        "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
                        "supported with Ralink chipsets)"
                        "\n\t-t <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)"
+                       "\n\t-a <0|1> disable/enable. Offsets the payload by some bytes so that it sits outside the "
+                       "802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!\n"
                         , 1024, DATA_UNI_LENGTH);
                 abort();
         }
@@ -199,14 +212,15 @@ void process_command_line_args(int argc, char *argv[]){
 int main(int argc, char *argv[]) {
     signal(SIGINT, int_handler);
     setpriority(PRIO_PROCESS, 0, -10);
+    process_command_line_args(argc, argv);
 
     input_t input;
-    db_uav_status_t *db_uav_status = db_uav_status_memory_open();
+    db_uav_status = db_uav_status_memory_open();
     db_uav_status->injection_fail_cnt = 0; db_uav_status->skipped_fec_cnt = 0, db_uav_status->injected_block_cnt = 0,
-    db_uav_status->injection_time_block = 0, db_uav_status->last_update = 0;
+    db_uav_status->injection_time_packet = 0, db_uav_status->wifi_adapter_cnt = num_interfaces;
+    db_uav_status->injected_packet_cnt = 0;
     int param_min_packet_length = 24;
 
-    process_command_line_args(argc, argv);
     if (num_interfaces == 0){
         printf(RED "DB_VIDEO_GND: No interface specified. Aborting" RESET);
         abort();
@@ -246,7 +260,6 @@ int main(int argc, char *argv[]) {
         raw_sockets[k] = open_db_socket(adapters[k], comm_id, 'm', bitrate_op, DB_DIREC_GROUND, DB_PORT_VIDEO, frame_type);
     }
     printf(GRN "DB_VIDEO_AIR: started!" RESET "\n");
-    int bcnt = 0;
     while (keeprunning) {
         // get a packet buffer from list
         packet_buffer_t *pb = input.pb_list + input.curr_pb;
@@ -257,12 +270,11 @@ int main(int argc, char *argv[]) {
         //read the data into packet buffer (inside block)
         ssize_t inl = read(input.fd, pb->data + pb->len, pack_size - pb->len);
         if(inl < 0 || inl > pack_size-pb->len) {
-            perror("reading stdin");
+            perror(RED "DB_VIDEO_AIR: reading stdin" RESET "\n");
             abort();
         }
         if(inl == 0) { // EOF
-            fprintf(stderr, "Warning: Lost connection to stdin. Please make sure that a data source is connected\n");
-            printf("Sent %i bytes\n", bcnt);
+            fprintf(stderr, "\nWarning: Lost connection to stdin. Please make sure that a data source is connected");
             usleep((__useconds_t) 5e5);
             continue;
         }
@@ -277,9 +289,13 @@ int main(int argc, char *argv[]) {
                 // transmit entire block - consisting of packets that get sent interleaved
                 // always transmit/FEC encode packets of length pack_size, even if payload (data_length) is less
                 transmit_block(input.pb_list, &(input.seq_nr), pack_size); // input.pb_list is video_packet_data_t[num_fec + num_data]
-                bcnt+=inl;
-                if (bcnt % 100 == 0)
-                    printf("Sent %i bytes\n", bcnt);
+                if (db_uav_status->injected_block_cnt % 50){
+                    printf("\ttried to inject %i packets, failed %i, injection time/packet %ius, encoding time %ius         \r",
+                           db_uav_status->injected_packet_cnt, db_uav_status->injection_fail_cnt,
+                           db_uav_status->injection_time_packet, db_uav_status->encoding_time);
+                    fflush(stderr);
+                }
+
                 input.curr_pb = 0;
             } else {
                 input.curr_pb++;

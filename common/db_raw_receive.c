@@ -172,6 +172,27 @@ uint8_t count_lost_packets(uint8_t last_seq_num, uint8_t received_seq_num){
 }
 
 /**
+ * Gets the payload from a received packet buffer of a raw socket (DB raw socket)
+ * @param receive_buffer: The buffer filled by the raw socket during recv()
+ * @param receive_length: The length of the received raw packet (return value of recv())
+ * @param payload_buffer: The buffer we write the DroneBridge payload into.
+ * @param message_length: A pointer to the variable where we write the message length into
+ * @param radiotap_length: A pointer to the variable where we write the radiotap header length into
+ */
+uint16_t get_db_payload(uint8_t *receive_buffer, ssize_t receive_length, uint8_t *payload_buffer,
+        uint16_t *radiotap_length){
+
+    *radiotap_length = receive_buffer[2] | (receive_buffer[3] << 8);
+    uint16_t payload_length = receive_buffer[*radiotap_length+7] | (receive_buffer[*radiotap_length+8] << 8); // DB_v2
+    // estimate if the packet was sent with offset payload. 4 FCS bytes may or may not be supplied at end of frame.
+    if ((receive_length - *radiotap_length - DB_RAW_V2_HEADER_LENGTH) <= (payload_length + 4))
+        memcpy(payload_buffer, &receive_buffer[*radiotap_length + DB_RAW_V2_HEADER_LENGTH], payload_length);
+    else
+        memcpy(payload_buffer, &receive_buffer[*radiotap_length + DB_RAW_V2_HEADER_LENGTH + DB_RAW_OFFSET], payload_length);
+    return payload_length;
+}
+
+/**
  * Create a socket, bind it to a network interface and set the BPF filter. All in one function
  * @param newifName The name of the interface we want the socket to bind to
  * @param new_mode The DroneBridge mode we are in (monitor or wifi (unsupported))

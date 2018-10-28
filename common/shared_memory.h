@@ -73,21 +73,14 @@ typedef struct {
 } __attribute__((packed)) db_rc_status_t;
 
 typedef struct {
-    time_t last_update;
-    uint32_t injected_block_cnt;
-    uint32_t skipped_fec_cnt;
-    uint32_t injection_fail_cnt;
-    long long injection_time_block;
-} db_video_tx_status_t;
-
-typedef struct {
-    time_t last_update;
+    int encoding_time; // in microseconds
     uint8_t cpuload;
     uint8_t temp;
     uint32_t injected_block_cnt;
     uint32_t skipped_fec_cnt;
     uint32_t injection_fail_cnt;
-    long long injection_time_block;
+    int injection_time_packet; // in microseconds
+    uint32_t injected_packet_cnt;
     uint16_t bitrate_kbit;
     uint16_t bitrate_measured_kbit;
     uint8_t cts;

@@ -70,7 +70,7 @@ void int_handler(int dummy){
 long long current_timestamp() {
     struct timeval te;
     gettimeofday(&te, NULL); // get current time
-    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
+    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds
     return milliseconds;
 }
 
@@ -98,7 +98,7 @@ void publish_data(uint8_t *data, size_t message_length, bool fec_decoded){
     // TODO: setup a TCP server and send to connected clients
 
     now = current_timestamp();
-    bytes_written = (int) (bytes_written + message_length);
+    bytes_written += message_length;
     if (now - prev_time > 500) {
         prev_time = current_timestamp();
         uint32_t kbitrate = (uint32_t) (((bytes_written * 8) / 1024) * 2);
@@ -134,32 +134,28 @@ void block_buffer_list_reset(block_buffer_t *block_buffer_list, int block_buffer
  * @param crc_correct: Was the FCF of the raw packet OK
  * @param block_buffer_list: An array of block_buffer_t structs
  */
-void process_video_payload(uint8_t *data, size_t data_len, int crc_correct, block_buffer_t *block_buffer_list) {
-    db_video_packet_t *db_video_packet = (db_video_packet_t *) data;
+void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, block_buffer_t *block_buffer_list) {
     int block_num;
     int packet_num;
     int i;
 
+    db_video_packet_t *db_video_packet = (db_video_packet_t *) data;
     //if aram_data_packets_per_block+num_fec_block would be limited to powers of two, this could be replaced by a logical AND operation
-    block_num = db_video_packet->video_packet_header.sequence_number / (num_data_block+num_fec_block);
+    block_num = db_video_packet->video_packet_header.sequence_number / (num_data_block + num_fec_block);
 
     //fprintf(stderr, "seq %i blk %i crc %d len %i\n", db_video_packet->video_packet_header.sequence_number, block_num, crc_correct, (int) data_len);
 
-
     //we have received a block number that exceeds the currently seen ones -> we need to make room for this new block
     //or we have received a block_num that is several times smaller than the current window of buffers -> this indicated that either the window is too small or that the transmitter has been restarted
-    //fprintf(stderr, "%i - %i\n", block_num + 128*param_block_buffers, max_block_num);
     int tx_restart = (block_num + 128*param_block_buffers < max_block_num);
-    //fprintf(stderr, "%i\n", tx_restart);
     // with block_buffer_list length == 1 (d=1) this means we received all packets of a block (we still might miss some)
     if((block_num > max_block_num || tx_restart) && crc_correct) {
         if(tx_restart) {
-            //rx_status->tx_restart_cnt++;
+            db_gnd_status->tx_restart_cnt++;
             fprintf(stderr, "TX RESTART: Detected blk %x that lies outside of the current retr block buffer window (max_block_num = %x) (if there was no tx restart, increase window size via -d)\n", block_num, max_block_num);
 
             block_buffer_list_reset(block_buffer_list, param_block_buffers);
         }
-
         //first, find the minimum block num in the buffers list. this will be the block that we replace
         int min_block_num = INT_MAX;
         int min_block_num_idx = 0;
@@ -270,18 +266,18 @@ void process_video_payload(uint8_t *data, size_t data_len, int crc_correct, bloc
                 nr_fec_blocks++;
             }
 
-
             int reconstruction_failed = datas_missing_c + datas_corrupt_c > good_fecs_c;
 
             if(reconstruction_failed) {
                 //we did not have enough FEC packets to repair this block
-                //rx_status->damaged_block_cnt++;
+                db_gnd_status->damaged_block_cnt++;
                 //fprintf(stderr, "Could not fully reconstruct block %x! Damage rate: %f (%d / %d blocks)\n", last_block_num, 1.0 * rx_status->damaged_block_cnt / rx_status->received_block_cnt, rx_status->damaged_block_cnt, rx_status->received_block_cnt);
                 //debug_print("Data mis: %d\tData corr: %d\tFEC mis: %d\tFEC corr: %d\n", datas_missing_c, datas_corrupt_c, fecs_missing_c, fecs_corrupt_c);
             }
 
 
-            //decode data and write it to STDOUT
+            //decode data and publish it
+
             fec_decode((unsigned int) pack_size, data_blocks, num_data_block, fec_blocks, fec_block_nos, erased_blocks, nr_fec_blocks);
             for(i=0; i<num_data_block; ++i) {
                 video_packet_data_t *vpd_corrected = (video_packet_data_t *)data_blocks[i];
@@ -291,7 +287,8 @@ void process_video_payload(uint8_t *data, size_t data_len, int crc_correct, bloc
                     if(vpd_corrected->data_length > pack_size)
                         vpd_corrected->data_length = (uint32_t) pack_size;
 
-                    publish_data(data_blocks[i] + sizeof(video_packet_header_t), vpd_corrected->data_length, true);
+                    // do not publish the data_length field of video_packet_data_t struct
+                    publish_data(data_blocks[i] + 4, vpd_corrected->data_length - 4, true);
                 }
             }
 
@@ -339,17 +336,16 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
     struct ieee80211_radiotap_iterator rti;
 
     uint8_t payload_buffer[DATA_UNI_LENGTH]; // contains payload of raw protocol (video header + data = db_video_packet)
-    int radiotap_length = 0;
+    uint16_t radiotap_length = 0;
     int checksum_correct = 1;
     uint8_t current_antenna_indx = 0;
-    size_t message_length = 0;
+    uint16_t message_length = 0;
 
     // receive
     ssize_t l = recv(interface->selectable_fd, lr_buffer, MAX_DB_DATA_LENGTH, 0); int err = errno;
     if (l > 0){
-        radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
-        message_length = lr_buffer[radiotap_length+7] | (lr_buffer[radiotap_length+8] << 8); // DB_v2
-        memcpy(payload_buffer, lr_buffer+(radiotap_length + DB_RAW_V2_HEADER_LENGTH), message_length);
+        db_gnd_status->received_packet_cnt++;
+        message_length = get_db_payload(lr_buffer, l, payload_buffer, &radiotap_length);
         if (pass_through){
             // Do not decode using FEC - pure UDP pass through, decoding of FEC must happen on following applications
             // TODO: Implement custom protocol in case of pass_through that tells the receiver about the adapter that it was received on

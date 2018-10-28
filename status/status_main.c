@@ -94,13 +94,15 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
     struct timespec timestamp;
-    int restarts = 0, udp_status_socket, shID, cardcounter = 0, select_return, radiotap_length, max_sd;
+    int restarts = 0, udp_status_socket, shID, cardcounter = 0, select_return, max_sd;
     struct timeval timecheck;
     long start, rightnow, status_message_update_rate = 100; // send status messages every 100ms (10Hz)
     int8_t best_dbm = 0;
     ssize_t l;
+    uint16_t radiotap_length;
     uint8_t counter = 0;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
+    uint8_t message_buff[DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH];
     uint8_t udp_status_buffer[UDP_STATUS_BUFF_SIZE];
 
     DB_RC_MESSAGE db_rc_status_message;
@@ -192,19 +194,17 @@ int main(int argc, char *argv[]) {
                 // ---------------
                 l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0);
                 if (l > 0){
-                    // get payload
-                    radiotap_length = lr_buffer[2] | (lr_buffer[3] << 8);
-                    // message_length = lr_buffer[radiotap_length+19] | (lr_buffer[radiotap_length+20] << 8);
+                    get_db_payload(lr_buffer, l, message_buff, &radiotap_length);
                     // process payload (currently only one type of raw status frame is supported: RC_AIR --> STATUS_GROUND)
                     // must be a uav_rc_status_update_message
-                    db_sys_status_message.rssi_drone = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH];
-                    db_sys_status_message.packetloss_rc = (uint8_t) (
-                            (1 - (lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1] / rc_send_rate)) * 100);
+                    struct uav_rc_status_update_message *rc_status_message = (struct uav_rc_status_update_message*) message_buff;
+                    db_sys_status_message.rssi_drone = rc_status_message->rssi_rc_uav;
+                    db_sys_status_message.packetloss_rc = (uint8_t) ((1 - (rc_status_message->recv_pack_sec / rc_send_rate)) * 100);
                     db_rc_status_t->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
-                    db_rc_status_t->lost_packet_cnt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 1];
-                    db_uav_status->cpuload = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 2];
-                    db_uav_status->temp = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 3];
-                    db_uav_status->undervolt = lr_buffer[radiotap_length + DB_RAW_V2_HEADER_LENGTH + 4];
+                    db_rc_status_t->lost_packet_cnt = db_sys_status_message.packetloss_rc;
+                    db_uav_status->cpuload = rc_status_message->cpu_usage_uav;
+                    db_uav_status->temp = rc_status_message->cpu_temp_uav;
+                    db_uav_status->undervolt = rc_status_message->uav_is_low_V;
                 }
             }
 

@@ -41,7 +41,7 @@ char if_name_telemetry[IFNAMSIZ], if_name_serial[IFNAMSIZ], telem_type[15] = "au
 char db_mode;
 char serial_port[] = "/dev/ttyAMA0";
 uint8_t comm_id = DEFAULT_V2_COMMID, tel_seq_number = 0, frame_type;
-int c, baud_rate, serial_socket, buffer_two_ltm_messages, bitrate_op;
+int c, baud_rate, serial_socket, buffer_two_ltm_messages, bitrate_op, tel_adhere_80211;
 uint8_t ltm_frame_buf[MAX_LTM_FRAME_SIZE*2];
 
 
@@ -227,8 +227,9 @@ int process_command_line_args(int argc, char *argv[]){
     buffer_two_ltm_messages = 1;
     bitrate_op = 1;
     opterr = 0;
+    tel_adhere_80211 = 0;
     frame_type = DB_FRAMETYPE_DEFAULT;
-    while ((c = getopt (argc, argv, "n:f:l:m:r:c:b:x:t:")) != -1)
+    while ((c = getopt (argc, argv, "n:f:l:m:r:c:b:x:t:a:")) != -1)
     {
         switch (c)
         {
@@ -259,11 +260,14 @@ int process_command_line_args(int argc, char *argv[]){
             case 't':
                 frame_type = (uint8_t) strtol(optarg, NULL, 10);
                 break;
+            case 'a':
+                tel_adhere_80211 = (uint8_t) strtol(optarg, NULL, 10);
+                break;
             case '?':
                 printf("usage: telemetry_air [-n DB_INTERFACE] [-f SERIALPORT]\n"
                        "                           [-l TELEMETRY_TYPE] [-m MODE]\n"
                        "                           [-r BAUDRATE] [-c COMM_ID] -x [BUFFER_LTM]\n"
-                       "                           [-b BITRATE]\n"
+                       "                           [-b BITRATE] [-a ADHERE_80211]\n"
                        "\n"
                        "Put this file on your drone. It handles telemetry only.\n"
                        "\n"
@@ -295,7 +299,8 @@ int process_command_line_args(int argc, char *argv[]){
                        "  -c COMM_ID         Communication ID must be the same on drone and\n"
                        "  -t FRAMETYPE       <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
                        "                     ground station. A number between 0-255 Example: \"125\"\n"
-                       "");
+                       "  -a ADHERE_80211    <0|1> to enable/disable. Offsets the payload by some bytes so that it sits outside the\n"
+                       "                     802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!\n");
                 break;
             default:
                 abort ();
@@ -338,7 +343,8 @@ int main(int argc, char *argv[]) {
                                 ltm_frame_size += read_remaining_ltm_frame(ltm_frame_buffer_pos);
                                 if (ltm_frame_buffer_pos>0) {
                                     send_packet_div(&tel_db_socket, ltm_frame_buf, DB_PORT_TELEMETRY,
-                                                    (u_int16_t) ltm_frame_size, update_seq_num(&tel_seq_number));
+                                                    (u_int16_t) ltm_frame_size, update_seq_num(&tel_seq_number),
+                                                    tel_adhere_80211);
                                     //print_buffer(ltm_frame_buf, ltm_frame_size);
                                     ltm_frame_buffer_pos=0;
                                     ltm_frame_size = 0;
@@ -349,7 +355,8 @@ int main(int argc, char *argv[]) {
                                 // Send one LTM message per packet over long range link
                                 ltm_frame_size = read_remaining_ltm_frame(0);
                                 send_packet_div(&tel_db_socket, ltm_frame_buf, DB_PORT_TELEMETRY,
-                                                (u_int16_t) ltm_frame_size, update_seq_num(&tel_seq_number));
+                                                (u_int16_t) ltm_frame_size, update_seq_num(&tel_seq_number),
+                                                tel_adhere_80211);
                                 //print_buffer(ltm_frame_buf, ltm_frame_size);
                             }
                         }
@@ -363,7 +370,7 @@ int main(int argc, char *argv[]) {
             // fully transparent telemetry downstream for non-LTM stream
             read_bytes_from_serial(transparent_chunksize, transparent_buffer);
             send_packet_div(&tel_db_socket, transparent_buffer, DB_PORT_TELEMETRY,
-                            (u_int16_t) transparent_chunksize, update_seq_num(&tel_seq_number));
+                            (u_int16_t) transparent_chunksize, update_seq_num(&tel_seq_number), tel_adhere_80211);
         }
     }
     close(serial_socket);

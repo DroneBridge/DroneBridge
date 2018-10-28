@@ -47,6 +47,7 @@ typedef u32 __le32;
 #define MSP_V2_DATA_LENGTH      37      // size of MSP v2 frame
 #define DB_RC_DATA_LENGTH		16		// size of DB_RC frame
 #define DATA_UNI_LENGTH         2048	// max payload length for raw protocol
+#define DB_RAW_OFFSET			14      // when adhering the 802.11 header the payload is offset to not be overwritten by SQN
 #define MAX_DB_DATA_LENGTH		(RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH) // max length of a db raw packet
 #define ETHER_TYPE              0x88ab
 
@@ -56,6 +57,7 @@ typedef u32 __le32;
 
 #define DB_FRAMETYPE_RTS        1
 #define DB_FRAMETYPE_DATA       2
+#define DB_FRAMETYPE_BEACON     3
 #define DB_FRAMETYPE_DEFAULT    DB_FRAMETYPE_RTS
 
 #define NUM_CHANNELS            14      // max number of channels sent over DroneBridge control module (ground)
@@ -87,10 +89,15 @@ struct data_uni{
 	uint8_t bytes[DATA_UNI_LENGTH];
 };
 // Sent by control module on air side - received by status module on ground station
-// [0] = rssi drone side; [1] = packets_received_per_second; [2] AirPi CPU usage; [3] AirPi CPU temp; [rest] = unused.
 struct uav_rc_status_update_message {
-	int8_t bytes[6];
-};
+    int8_t rssi_rc_uav;
+    uint8_t recv_pack_sec;
+    uint8_t cpu_usage_uav;
+    uint8_t cpu_temp_uav;
+    uint8_t uav_is_low_V;
+    uint8_t empty_unused;
+}__attribute__((packed));
+
 struct radiotap_header {
 	uint8_t bytes[RADIOTAP_LENGTH];
 };

@@ -50,7 +50,7 @@ static volatile int keepRunning = 1;
 uint8_t buf[BUF_SIZ];
 uint8_t mavlink_telemetry_buf[2048] = {0}, mavlink_message_buf[256] = {0};
 uint8_t telemetry_seq_number = 0;
-int mav_tel_message_counter = 0, mav_tel_buf_length = 0;
+int mav_tel_message_counter = 0, mav_tel_buf_length = 0, cont_adhere_80211;
 long double cpu_u_new[4], cpu_u_old[4], loadavg;
 float systemp, millideg;
 
@@ -91,7 +91,7 @@ void send_buffered_mavlink_tel(int length_message, mavlink_message_t *mav_messag
     mav_tel_buf_length += length_message;   // Overall length of buffer
     if (mav_tel_message_counter == 5){
         send_packet(mavlink_telemetry_buf, DB_PORT_TELEMETRY,
-                    (u_int16_t) mav_tel_buf_length, update_seq_num(&telemetry_seq_number));
+                    (u_int16_t) mav_tel_buf_length, update_seq_num(&telemetry_seq_number), cont_adhere_80211);
         mav_tel_message_counter = 0;
         mav_tel_buf_length = 0;
     }
@@ -160,8 +160,9 @@ int main(int argc, char *argv[])
     strncpy(ifName, DEFAULT_IF, IFNAMSIZ);
     strcpy(usbIF, USB_IF);
     strcpy(sumd_interface, USB_IF);
+    cont_adhere_80211 = 0;
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:u:m:c:b:v:l:e:s:r:t:")) != -1)
+    while ((c = getopt (argc, argv, "n:u:m:c:b:v:l:e:s:r:t:a:")) != -1)
     {
         switch (c)
         {
@@ -198,6 +199,8 @@ int main(int argc, char *argv[])
             case 't':
                 frame_type = (uint8_t) strtol(optarg, NULL, 10);
                 break;
+            case 'a':
+                cont_adhere_80211 = (int) strtol(optarg, NULL, 10);
             case '?':
                 printf("Invalid commandline arguments. Use "
                                "\n\t-n <network_IF> "
@@ -220,7 +223,10 @@ int main(int argc, char *argv[])
                                "38400, 57600, 115200 (default: %i))"
                        "\n\t-t <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
                                "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
-                               "supported with Ralink chipsets)", chucksize, baud_rate);
+                               "supported with Ralink chipsets)"
+                               "\n\t-a <0|1> to disable/enable. Offsets the payload by some bytes so that it sits outside "
+                               "then 802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!",
+                               chucksize, baud_rate);
                 break;
             default:
                 abort ();
@@ -323,15 +329,14 @@ int main(int argc, char *argv[])
     struct timeval timecheck;
 
     // create our data pointer directly inside the buffer (monitor_framebuffer) that is sent over the socket
-    struct uav_rc_status_update_message *rc_status_update_data = (struct uav_rc_status_update_message *)
-            (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
-    struct data_uni *data_uni_to_ground = (struct data_uni *)
-            (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
-    memset(data_uni_to_ground->bytes, 0, DATA_UNI_LENGTH);
+    struct data_uni *raw_buffer = get_hp_raw_buffer(cont_adhere_80211);
+    struct uav_rc_status_update_message *rc_status_update_data = (struct uav_rc_status_update_message *) raw_buffer;
+    memset(raw_buffer->bytes, 0, DATA_UNI_LENGTH);
 
     printf("DB_CONTROL_AIR: Ready for data!\n");
     gettimeofday(&timecheck, NULL);
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+    uint16_t radtap_lenght;
     while(keepRunning)
     {
         socket_timeout.tv_sec = 0;
@@ -353,7 +358,7 @@ int main(int argc, char *argv[])
                 length = recv(socket_port_rc, buf, BUF_SIZ, 0);
                 if (length > 0){
                     rssi = get_rssi(buf, buf[2]);
-                    memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], (buf[buf[2]+7] | (buf[buf[2]+8] << 8)));
+                    get_db_payload(buf, length, commandBuf, &radtap_lenght);
                     command_length = generate_rc_serial_message(commandBuf);
                     if (command_length > 0){
                         lost_packet_count += count_lost_packets(last_seq_numer, buf[buf[2]+9]);
@@ -377,8 +382,7 @@ int main(int argc, char *argv[])
                 if (length > 0)
                 {
                     rssi = get_rssi(buf, buf[2]);
-                    command_length = buf[buf[2] + 7] | (buf[buf[2] + 8] <<  8); // read DB raw command payload length
-                    memcpy(commandBuf, &buf[buf[2] + DB_RAW_V2_HEADER_LENGTH], (size_t) command_length);
+                    command_length = get_db_payload(buf, length, commandBuf, &radtap_lenght);
                     sentbytes = (int) write(socket_control_serial, commandBuf, (size_t) command_length); errsv = errno;
                     tcdrain(socket_control_serial);
                     if(sentbytes < command_length)
@@ -406,7 +410,7 @@ int main(int argc, char *argv[])
                                 // if MSP parser returns false stop reading from serial. We are reading shit or started
                                 // reading during the middle of a message
                                 if (mspSerialProcessReceivedData(&db_msp_port, serial_byte)){
-                                    data_uni_to_ground->bytes[(serial_read_bytes-1)] = serial_byte;
+                                    raw_buffer->bytes[(serial_read_bytes-1)] = serial_byte;
                                     if (db_msp_port.c_state == MSP_COMMAND_RECEIVED){
                                         continue_reading = 0; // stop reading from serial port --> got a complete message!
                                         send_packet_hp(DB_PORT_PROXY, (u_int16_t) serial_read_bytes,
@@ -444,7 +448,7 @@ int main(int argc, char *argv[])
                                             send_buffered_mavlink_tel(serial_read_bytes, &mavlink_message);
                                             break;
                                         default:
-                                            mavlink_msg_to_send_buffer(data_uni_to_ground->bytes, &mavlink_message);
+                                            mavlink_msg_to_send_buffer(raw_buffer->bytes, &mavlink_message);
                                             send_packet_hp(DB_PORT_PROXY, (u_int16_t) serial_read_bytes,
                                                            update_seq_num(&proxy_seq_number));
                                             break;
@@ -460,7 +464,7 @@ int main(int argc, char *argv[])
                             serial_read_bytes++;
                             if (serial_read_bytes == chucksize) {
                                 send_packet(transparent_buffer, DB_PORT_TELEMETRY,
-                                            (u_int16_t) chucksize, update_seq_num(&telemetry_seq_number));
+                                            (u_int16_t) chucksize, update_seq_num(&telemetry_seq_number), cont_adhere_80211);
                                 serial_read_bytes = 0;
                             }
                         }
@@ -475,13 +479,13 @@ int main(int argc, char *argv[])
         gettimeofday(&timecheck, NULL);
         rightnow = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
         if ((rightnow-start) >= status_report_update_rate){
-            memset(rc_status_update_data->bytes, 0xff, 6);
-            rc_status_update_data->bytes[0] = rssi;
+            memset(rc_status_update_data, 0xff, 6);
+            rc_status_update_data->rssi_rc_uav = rssi;
             // lost packets/second (it is a estimate)
-            rc_status_update_data->bytes[1] = (int8_t) (lost_packet_count * ((double) 1000 / (rightnow - start)));
-            rc_status_update_data->bytes[2] = get_cpu_usage();
-            rc_status_update_data->bytes[3] = get_cpu_temp();
-            rc_status_update_data->bytes[4] = get_undervolt();
+            rc_status_update_data->recv_pack_sec = (uint8_t) (lost_packet_count * ((double) 1000 / (rightnow - start)));
+            rc_status_update_data->cpu_usage_uav = get_cpu_usage();
+            rc_status_update_data->cpu_temp_uav = get_cpu_temp();
+            rc_status_update_data->uav_is_low_V = get_undervolt();
             send_packet_hp(DB_PORT_STATUS, (u_int16_t) 6, update_seq_num(&status_seq_number));
 
             lost_packet_count = 0;

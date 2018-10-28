@@ -39,7 +39,7 @@ uint8_t mav_packet_buf[MAVLINK_MAX_PACKET_LEN];
 bool en_rc_overwrite = false;
 
 // pointing right into the sockets send buffer for max performance
-struct data_uni *monitor_databuffer = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+struct data_uni *monitor_databuffer;
 
 // could do this with two for-loops but hardcoded is faster and number of aux channels won't change anyways
 void generate_msp(unsigned short *newJoystickData) {
@@ -210,9 +210,10 @@ void generate_db_rc_message(uint16_t channels[NUM_CHANNELS]){
  * @param allow_rc_overwrite Set to 'Y' if you want to allow the overwrite of RC channels via a shm/external app
  * @return
  */
-int conf_rc(int new_rc_protocol, char allow_rc_overwrite){
+int conf_rc(int new_rc_protocol, char allow_rc_overwrite, int adhere_80211){
     rc_protocol = new_rc_protocol;
     en_rc_overwrite = allow_rc_overwrite == 'Y' ? true : false;
+    monitor_databuffer = get_hp_raw_buffer(adhere_80211);
 }
 
 /**

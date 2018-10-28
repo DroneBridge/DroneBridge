@@ -18,62 +18,16 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
 #include <zconf.h>
-#include "db_protocol.h"
 
-
-/**
- * Copied form DroneBridge common lib
- * @return
- */
-void db_rc_values_memory_init(db_rc_values *rc_values) {
-    for(int i = 0; i < NUM_CHANNELS; i++) {
-        rc_values->ch[i] = 1000;
-    }
-}
-
-/**
- * Copied form DroneBridge common lib.
- * Opens the shared memory segment on read only mode.
- * Control module writes RC values in there.
- * @return
- */
-db_rc_values *db_rc_values_memory_open(void) {
-    int fd;
-    for(;;) {
-        fd = shm_open("/db_rc_values", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-        if(fd > 0) {
-            break;
-        }
-        printf("db_rc_values_memory_open: Waiting for init ... %s\n", strerror(errno));
-        usleep((__useconds_t) 1e5);
-    }
-
-    if (ftruncate(fd, sizeof(db_rc_values)) == -1) {
-        perror("db_rc_values_memory_open: ftruncate");
-        exit(1);
-    }
-
-    void *retval = mmap(NULL, sizeof(db_rc_values), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (retval == MAP_FAILED) {
-        perror("db_rc_values_memory_open: mmap");
-        exit(1);
-    }
-    db_rc_values *tretval = (db_rc_values*)retval;
-    db_rc_values_memory_init(tretval);
-    return (db_rc_values*)retval;
-}
+#ifdef USE_PI_INSTALL_PATH
+#include "/root/dronebridge/common/shared_memory.h"
+#else
+#include "../../common/shared_memory.h"
+#endif
 
 int main(int argc, char *argv[]) {
-    db_rc_values *rc_values = db_rc_values_memory_open();
+    db_rc_values_t *rc_values = db_rc_values_memory_open();
     while (1){
         printf("CH1 %i\n", rc_values->ch[0]);
         sleep(1);

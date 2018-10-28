@@ -94,3 +94,7 @@ video/video_gnd
 video/video_air
 
 *.o
+
+plugins/example_read_rc/readrc
+
+plugins/rc_to_gpio_mapper/rc_gpio_map

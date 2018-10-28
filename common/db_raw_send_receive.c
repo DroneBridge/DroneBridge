@@ -39,6 +39,7 @@
 #include "db_protocol.h"
 #include "db_raw_send_receive.h"
 #include "db_raw_receive.h"
+#include "ccolors.h"
 
 uint8_t radiotap_header_pre[] = {
         0x00, 0x00, // <-- radiotap version
@@ -48,17 +49,19 @@ uint8_t radiotap_header_pre[] = {
         0x00,
         0x00, 0x00, 0x00
 };
+
+const uint8_t frame_control_pre_rts[] =
+        {
+                0xb4, 0x00, 0x00, 0x00
+        };
 const uint8_t frame_control_pre_data[] =
         {
                 0x08, 0x00, 0x00, 0x00
         };
+// Not implemented with the BPF filter. Sending possible but DB socket will not receive it
 const uint8_t frame_control_pre_beacon[] =
         {
                 0x80, 0x00, 0x00, 0x00
-        };
-const uint8_t frame_control_pre_rts[] =
-        {
-                0xb4, 0x00, 0x00, 0x00
         };
 
 struct ifreq raw_if_idx;
@@ -66,14 +69,13 @@ struct ifreq raw_if_mac;
 char interfaceName[IFNAMSIZ];
 struct sockaddr_ll socket_address;
 char mode = 'm';
+int db_raw_offset = 0; // offset between payload and DB raw header. Needed when drivers overwrite payload with 802.11 SQN
 int socket_send_receive;
 
 // init packet structure
 uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH] = {0};
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
 struct db_raw_v2_header *db_raw_header = (struct db_raw_v2_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
-struct data_uni *monitor_databuffer_internal = (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH +
-        DB_RAW_V2_HEADER_LENGTH);
 
 /**
  * Set the transmission bit rate in the radiotap header. Only works with ralink cards.
@@ -138,14 +140,23 @@ int conf_monitor_v2(uint8_t comm_id, int bitrate_option, uint8_t send_direction,
     memcpy(rth->bytes, radiotap_header_pre, RADIOTAP_LENGTH);
     set_bitrate(bitrate_option);
     // build custom DroneBridge v2 header
-    if (frame_type == DB_FRAMETYPE_RTS)
-        memcpy(db_raw_header->fcf_duration, frame_control_pre_rts, 4);
-    else
-        memcpy(db_raw_header->fcf_duration, frame_control_pre_data, 4);
+    switch (frame_type){
+        case DB_FRAMETYPE_RTS:
+            memcpy(db_raw_header->fcf_duration, frame_control_pre_rts, 4);
+            break;
+        case DB_FRAMETYPE_BEACON:
+            fprintf(stderr, RED "Warning! Receiving of beacon frames with DB sockets not supported. Test only!" RESET);
+            memcpy(db_raw_header->fcf_duration, frame_control_pre_beacon, 4);
+            break;
+        case DB_FRAMETYPE_DATA:
+        default:
+            memcpy(db_raw_header->fcf_duration, frame_control_pre_data, 4);
+            break;
+    }
     db_raw_header->direction = send_direction;
     db_raw_header->comm_id = comm_id;
     if (setsockopt(socket_send_receive, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
-        printf("DB_SEND: Error binding monitor socket to interface. Closing socket. Please restart.\n");
+        fprintf(stderr, RED "DB_SEND: Error binding monitor socket to interface. Closing socket. Please restart." RESET "\n");
         close(socket_send_receive);
         return -1;
     }
@@ -182,7 +193,7 @@ db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bit
 
     } else {
         if ((socket_send_receive = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
-            perror("DB_SEND: socket"); new_socket.db_socket = -1;
+            perror(RED "DB_SEND: socket" RESET); new_socket.db_socket = -1;
             return new_socket;
         }else{
             printf("DB_SEND: Opened raw socket for monitor mode\n");
@@ -193,19 +204,19 @@ db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bit
     memset(&raw_if_idx, 0, sizeof(struct ifreq));
     strncpy(raw_if_idx.ifr_name, ifName, IFNAMSIZ - 1);
     if (ioctl(socket_send_receive, SIOCGIFINDEX, &raw_if_idx) < 0) {
-        perror("DB_SEND: SIOCGIFINDEX"); new_socket.db_socket = -1;
+        perror(RED "DB_SEND: SIOCGIFINDEX" RESET); new_socket.db_socket = -1;
         return new_socket;
     }
     /* Get the MAC address of the interface to send on */
     memset(&raw_if_mac, 0, sizeof(struct ifreq));
     strncpy(raw_if_mac.ifr_name, ifName, IFNAMSIZ - 1);
     if (ioctl(socket_send_receive, SIOCGIFHWADDR, &raw_if_mac) < 0) {
-        perror("DB_SEND: SIOCGIFHWADDR"); new_socket.db_socket = -1;
+        perror(RED "DB_SEND: SIOCGIFHWADDR" RESET); new_socket.db_socket = -1;
         return new_socket;
     }
     socket_send_receive = bindsocket(socket_send_receive, trans_mode, ifName);
     if (trans_mode == 'w') {
-        printf("DB_SEND: Wifi mode is not yet supported!\n");
+        printf(RED "DB_SEND: Wifi mode is not yet supported!" RESET "\n");
         new_socket.db_socket = -1;
         return new_socket;
         //return conf_ethernet(dest_mac);
@@ -236,7 +247,7 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
     if (mode == 'w') {
         // TODO: ignore for now. I will be UDP in future.
         if ((socket_send_receive = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
-            perror("DB_SEND: socket");
+            perror(RED "DB_SEND: socket" RESET);
             return -1;
         }else{
             printf("DB_SEND: Opened socket for wifi mode\n");
@@ -244,7 +255,7 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
 
     } else {
         if ((socket_send_receive = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
-            perror("DB_SEND: socket");
+            perror(RED "DB_SEND: socket" RESET);
             return -1;
         }else{
             printf("DB_SEND: Opened raw socket for monitor mode\n");
@@ -255,19 +266,19 @@ int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int
     memset(&raw_if_idx, 0, sizeof(struct ifreq));
     strncpy(raw_if_idx.ifr_name, ifName, IFNAMSIZ - 1);
     if (ioctl(socket_send_receive, SIOCGIFINDEX, &raw_if_idx) < 0) {
-        fprintf(stderr, "DB_SEND: SIOCGIFINDEX %s", ifName);
+        fprintf(stderr, RED "DB_SEND: SIOCGIFINDEX %s" RESET, ifName);
         return -1;
     }
     /* Get the MAC address of the interface to send on */
     memset(&raw_if_mac, 0, sizeof(struct ifreq));
     strncpy(raw_if_mac.ifr_name, ifName, IFNAMSIZ - 1);
     if (ioctl(socket_send_receive, SIOCGIFHWADDR, &raw_if_mac) < 0) {
-        perror("DB_SEND: SIOCGIFHWADDR");
+        perror(RED "DB_SEND: SIOCGIFHWADDR" RESET);
         return -1;
     }
     socket_send_receive = bindsocket(socket_send_receive, trans_mode, ifName);
     if (trans_mode == 'w') {
-        printf("DB_SEND: Wifi mode is not yet supported!\n");
+        printf(RED "DB_SEND: Wifi mode is not yet supported!" RESET "\n");
         return -1;
         //return conf_ethernet(dest_mac);
     } else {
@@ -288,24 +299,44 @@ uint8_t update_seq_num(uint8_t *old_seq_num){
 
 /**
  * Overwrites payload set inside monitor_framebuffer with the provided payload.
- * @param payload The payload bytes of the message to be sent. Does use memcpy to write payload into buffer.
- * @param dest_port The DroneBridge destination port of the message (see db_protocol.h)
- * @param payload_length The length of the payload in bytes
- * @param new_seq_num Specify the sequence number of the packet
+ * @param payload: The payload bytes of the message to be sent. Does use memcpy to write payload into buffer.
+ * @param dest_port: The DroneBridge destination port of the message (see db_protocol.h)
+ * @param payload_length: The length of the payload in bytes
+ * @param new_seq_num: Specify the sequence number of the packet
+ * @param adhere_80211_header: Set to 1 to enable. Offsets the payload by some bytes so that it sits outside the
+ *                               802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!
  * @return 0 on success or -1 on failure
  */
-int send_packet(uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num){
+int send_packet(uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num, int adhere_80211_header){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & (uint8_t) 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> (uint8_t) 8) & (uint8_t) 0xFF);
     db_raw_header->port = dest_port;
     db_raw_header->seq_num = new_seq_num;
+    struct data_uni *monitor_databuffer_internal = get_hp_raw_buffer(adhere_80211_header);
     memcpy(monitor_databuffer_internal->bytes, payload, payload_length);
     if (sendto(socket_send_receive, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
-            payload_length), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
-        printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
+            payload_length + db_raw_offset), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
+        printf(RED "DB_SEND: Send failed (monitor): %s" RESET "\n", strerror(errno));
         return -1;
     }
     return 0;
+}
+
+/**
+ * Returns a pointer to the buffer that gets sent when calling send_packet_hp(..) or send_packet_hp_div(...)
+ * @param adhere_to_80211_header: Set to 1 to enable. Offsets the payload by some bytes so that it sits outside the
+ * 802.11 header. This is required since some drivers (Ubuntu Atheros drivers) write a sequence number to the 802.11
+ * header on receive. Without offsetting the payload this sequence number would overwrite 2 bytes of the payload and
+ * corrupt it. The receiver will be able to auto detect the offset. Set this to 1 if you are using a non DB-Rasp Kernel!
+ * This will make the packet longer!
+ * @return: A pointer to the buffer that gets sent when calling send_packet_hp(..) or send_packet_hp_div(...)
+ */
+struct data_uni * get_hp_raw_buffer(int adhere_to_80211_header){
+    if (adhere_to_80211_header){
+        db_raw_offset = DB_RAW_OFFSET;
+        return (struct data_uni *)(monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DB_RAW_OFFSET);
+    } else
+        return (struct data_uni *)(monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
 }
 
 /**
@@ -318,6 +349,7 @@ int send_packet(uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, 
  *           (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
  *     memset(data_uni_to_ground->bytes, 0xff, DATA_UNI_LENGTH); // set some payload
  *
+ * Or simply call get_hp_raw_buffer(0|1)
  * Make sure you update your data every time before sending.
  * @param dest_port The DroneBridge destination port of the message (see db_protocol.h)
  * @param payload_length The length of the payload in bytes
@@ -330,8 +362,8 @@ int send_packet_hp(uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_
     db_raw_header->port = dest_port;
     db_raw_header->seq_num = new_seq_num;
     if (sendto(socket_send_receive, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
-            payload_length), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
-        printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
+            payload_length + db_raw_offset), 0, (struct sockaddr *) &socket_address, sizeof(struct sockaddr_ll)) < 0) {
+        printf(RED "DB_SEND: Send failed (monitor): %s" RESET "\n", strerror(errno));
         return -1;
     }
     return 0;
@@ -341,23 +373,26 @@ int send_packet_hp(uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_
  * This function works the same as send_packet with the difference that it allows for soft. diversity transmission.
  * You can specify a socket (bound to an interface) that should be used to send the packet.
  * Overwrites payload set inside monitor_framebuffer with the provided payload.
- * @param payload The payload bytes of the message to be sent. Does use memcpy to write payload into buffer.
- * @param dest_port The DroneBridge destination port of the message (see db_protocol.h)
- * @param payload_length The length of the payload in bytes
- * @param new_seq_num Specify the sequence number of the packet
- * @return 0 on success or -1 on failure
+ * @param payload: The payload bytes of the message to be sent. Does use memcpy to write payload into buffer.
+ * @param dest_port: The DroneBridge destination port of the message (see db_protocol.h)
+ * @param payload_length: The length of the payload in bytes
+ * @param new_seq_num: Specify the sequence number of the packet
+ * @param adhere_80211_header: Set to 1 to enable. Offsets the payload by some bytes so that it sits outside the
+ *                               802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!
+ * @return: 0 on success or -1 on failure
  */
 int send_packet_div(db_socket *a_db_socket, uint8_t payload[], uint8_t dest_port, u_int16_t payload_length,
-                    uint8_t new_seq_num){
+                    uint8_t new_seq_num, int adhere_80211_header){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & (uint8_t) 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> (uint8_t) 8) & (uint8_t) 0xFF);
     db_raw_header->port = dest_port;
     db_raw_header->seq_num = new_seq_num;
+    struct data_uni *monitor_databuffer_internal = get_hp_raw_buffer(adhere_80211_header);
     memcpy(monitor_databuffer_internal->bytes, payload, payload_length);
     if (sendto(a_db_socket->db_socket, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
-                                                                   payload_length), 0,
+                                                                   payload_length + db_raw_offset), 0,
                (struct sockaddr *) &a_db_socket->db_socket_addr, sizeof(struct sockaddr_ll)) < 0) {
-        printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
+        printf(RED "DB_SEND: Send failed (monitor): %s" RESET "\n", strerror(errno));
         return -1;
     }
     return 0;
@@ -387,9 +422,9 @@ int send_packet_hp_div(db_socket *a_db_socket, uint8_t dest_port, u_int16_t payl
     db_raw_header->port = dest_port;
     db_raw_header->seq_num = new_seq_num;
     if (sendto(a_db_socket->db_socket, monitor_framebuffer,
-               (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + payload_length), 0,
+               (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + payload_length + db_raw_offset), 0,
                (struct sockaddr *) &a_db_socket->db_socket_addr, sizeof(struct sockaddr_ll)) < 0) {
-        printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
+        printf(RED "DB_SEND: Send failed (monitor): %s" RESET "\n", strerror(errno));
         return -1;
     }
     return 0;

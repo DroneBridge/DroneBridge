@@ -51,19 +51,20 @@ int main(int argc, char *argv[]) {
     char ifName[IFNAMSIZ], RC_name[128];
     char calibrate_comm[500];
     uint8_t comm_id, frame_type;
-    int Joy_IF, c, bitrate_op, rc_protocol;
+    int Joy_IF, c, bitrate_op, rc_protocol, adhere_80211;
     char db_mode = 'm'; char allow_rc_overwrite = 'N';
 
     // Command Line processing
     Joy_IF = JOY_INTERFACE;
     rc_protocol = 5;
     bitrate_op = 1;
+    adhere_80211 = 0;
     comm_id = DEFAULT_V2_COMMID;
     frame_type = DB_FRAMETYPE_DEFAULT;
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
     strcpy(ifName, DEFAULT_IF);
     opterr = 0;
-    while ((c = getopt(argc, argv, "n:j:m:b:g:v:o:t:c:")) != -1) {
+    while ((c = getopt(argc, argv, "n:j:m:b:g:v:o:t:c:a:")) != -1) {
         switch (c) {
             case 'n':
                 strncpy(ifName, optarg, IFNAMSIZ);
@@ -92,6 +93,9 @@ int main(int argc, char *argv[]) {
             case 't':
                 frame_type = (uint8_t) strtol(optarg, NULL, 10);
                 break;
+            case 'a':
+                adhere_80211 = (int) strtol(optarg, NULL, 10);
+                break;
             case '?':
                 printf("12ch RC via the DB-RC option (-v 5)\n");
                 printf("14ch RC using FC serial protocol (-v 1|2|4)\n");
@@ -105,7 +109,9 @@ int main(int argc, char *argv[]) {
                                "-c [communication id] Choose a number from 0-255. Same on groundstation and drone!\n"
                        "-t <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
                        "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
-                       "supported with Ralink chipsets)");
+                       "supported with Ralink chipsets)"
+                       "\n\t-a <0|1> to enable/disable. Offsets the payload by some bytes so that it sits outside "
+                       "then 802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!");
                 return -1;
             default:
                 abort();
@@ -116,7 +122,7 @@ int main(int argc, char *argv[]) {
         printf(RED "DB_CONTROL_GROUND: Could not open socket " RESET "\n");
         exit(-1);
     }
-    conf_rc(rc_protocol, allow_rc_overwrite);
+    conf_rc(rc_protocol, allow_rc_overwrite, adhere_80211);
     open_rc_shm();
 
     printf(GRN "DB_CONTROL_GND: started!" RESET "\n");
