@@ -42,6 +42,7 @@
             do { if (DEBUG) fprintf(stderr, fmt, __VA_ARGS__); } while (0)
 
 int num_interfaces = 0;
+int dest_port_video;
 uint8_t comm_id, num_data_block, num_fec_block;
 uint8_t lr_buffer[MAX_DB_DATA_LENGTH] = {0};
 bool pass_through, udp_enabled = true;
@@ -76,13 +77,12 @@ long long current_timestamp() {
 
 
 void init_outputs(){
-    int app_port_video = APP_PORT_VIDEO;
-    if (pass_through) app_port_video = APP_PORT_VIDEO_FEC;
+    if (pass_through) dest_port_video = APP_PORT_VIDEO_FEC;
     if (udp_enabled){
         udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
         client_video_addr.sin_family = AF_INET;
         client_video_addr.sin_addr.s_addr = inet_addr("192.168.2.2");
-        client_video_addr.sin_port = htons(app_port_video);
+        client_video_addr.sin_port = htons(dest_port_video);
     }
 }
 
@@ -392,9 +392,9 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
 
 void process_command_line_args(int argc, char *argv[]){
     num_interfaces = 0, comm_id = DEFAULT_V2_COMMID, pass_through = false, udp_enabled = true;
-    num_data_block = 8, num_fec_block = 4, pack_size = 1024;
+    num_data_block = 8, num_fec_block = 4, pack_size = 1024, dest_port_video = APP_PORT_VIDEO;
     int c;
-    while ((c = getopt (argc, argv, "n:c:r:f:p:d:u:")) != -1) {
+    while ((c = getopt (argc, argv, "n:c:r:f:p:d:u:v:")) != -1) {
         switch (c) {
             case 'n':
                 strncpy(adapters[num_interfaces], optarg, IFNAMSIZ);
@@ -422,6 +422,9 @@ void process_command_line_args(int argc, char *argv[]){
                 else
                     udp_enabled = true;
                 break;
+            case 'v':
+                dest_port_video = (uint8_t) strtol(optarg, NULL, 10);
+                break;
             default:
                 printf("Based of Wifibroadcast by befinitiv, based on packetspammer by Andy Green.  Licensed under GPL2\n"
                        "This tool takes a data stream via the DroneBridge long range video port and outputs it via stdout, "
@@ -435,6 +438,7 @@ void process_command_line_args(int argc, char *argv[]){
                        "\n\t-f Bytes per packet (default %d. max %d). This is also the FEC "
                        "block size. Needs to match with tx."
                        "\n\t <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
+                       "\n\t-v Destination port of video stream when set via UDP (IP checker address) or TCP"
                         , 1024, MAX_USER_PACKET_LENGTH, APP_PORT_VIDEO_FEC);
                 abort();
         }

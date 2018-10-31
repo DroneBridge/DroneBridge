@@ -311,9 +311,11 @@ int main(int argc, char *argv[])
 // ----------------------------------
     int sentbytes = 0, command_length = 0, errsv, select_return, continue_reading, chunck_left = chucksize, serial_read_bytes = 0;
     int8_t rssi = 0;
-    long start, rightnow, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
+    long start; // start time for status report update
+    long start_rc; // start time for measuring the recv RC packets/second
+    long rightnow, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
 
-    uint8_t lost_packet_count = 0, last_seq_numer = 0;
+    uint8_t rc_packets_tmp = 0, rc_packets_cnt = 0;
     mavlink_message_t mavlink_message;
     mavlink_status_t mavlink_status;
     mspPort_t db_msp_port;
@@ -336,6 +338,7 @@ int main(int argc, char *argv[])
     printf("DB_CONTROL_AIR: Ready for data!\n");
     gettimeofday(&timecheck, NULL);
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+    start_rc = start;
     uint16_t radtap_lenght;
     while(keepRunning)
     {
@@ -361,8 +364,7 @@ int main(int argc, char *argv[])
                     get_db_payload(buf, length, commandBuf, &radtap_lenght);
                     command_length = generate_rc_serial_message(commandBuf);
                     if (command_length > 0){
-                        lost_packet_count += count_lost_packets(last_seq_numer, buf[buf[2]+9]);
-                        last_seq_numer = buf[buf[2]+9];
+                        rc_packets_cnt++;
                         sentbytes = (int) write(rc_serial_socket, serial_data_buffer, (size_t) command_length); errsv = errno;
                         tcdrain(rc_serial_socket);
                         if(sentbytes <= 0)
@@ -478,17 +480,21 @@ int main(int argc, char *argv[])
         // --------------------------------
         gettimeofday(&timecheck, NULL);
         rightnow = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
-        if ((rightnow-start) >= status_report_update_rate){
+        if (rightnow - start_rc >= 1000){
+            rc_packets_tmp = rc_packets_cnt; // save received packets/seconds to temp variable
+            rc_packets_cnt = 0;
+            start_rc = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        }
+        if ((rightnow - start) >= status_report_update_rate){
             memset(rc_status_update_data, 0xff, 6);
             rc_status_update_data->rssi_rc_uav = rssi;
             // lost packets/second (it is a estimate)
-            rc_status_update_data->recv_pack_sec = (uint8_t) (lost_packet_count * ((double) 1000 / (rightnow - start)));
+            rc_status_update_data->recv_pack_sec = rc_packets_tmp;
             rc_status_update_data->cpu_usage_uav = get_cpu_usage();
             rc_status_update_data->cpu_temp_uav = get_cpu_temp();
             rc_status_update_data->uav_is_low_V = get_undervolt();
             send_packet_hp(DB_PORT_STATUS, (u_int16_t) 6, update_seq_num(&status_seq_number));
 
-            lost_packet_count = 0;
             gettimeofday(&timecheck, NULL);
             start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
         }

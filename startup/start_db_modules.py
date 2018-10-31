@@ -114,7 +114,7 @@ def start_gnd_modules():
         #                     stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
         db_video_receive = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_gnd') + " -d "+str(video_blocks)
                             + " -r "+str(video_fecs)+" -f " + str(video_blocklength) + " -c " + str(communication_id)
-                             + " -p N " + interface_video],
+                             + " -p N -v " + str(fwd_stream_port) + " " + interface_video],
                             stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
         print(GND_STRING_TAG + "Starting video player...")
         Popen([get_video_player(fps)], stdin=db_video_receive.stdout, stdout=None, stderr=None, close_fds=True, shell=True)
@@ -329,7 +329,7 @@ def determine_frametype(cts_protection, interface_name):
     print("Determining frametype...")
     wifi_driver = iwhw.ifdriver(interface_name)
     if is_ralink_card(wifi_driver):
-        return 1  # RTS injection with rt2800usb broken?!
+        return 1  # TODO: injection with rt2800usb broken? Injects some packets and then stops
     elif is_realtek_card(wifi_driver):
         return 2  # use data frames (~1Mbps with rtl8814au an RTS)
     elif cts_protection == 'Y' and is_atheros_card(wifi_driver):

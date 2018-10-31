@@ -55,18 +55,15 @@ function tether_check_function() {
         collect_errorlog
         sleep 365d
       }
-      # find out smartphone IP to send video stream to
-      PHONE_IP=$(ip route show 0.0.0.0/0 dev usb0 | cut -d\  -f3)
-      echo "Android IP: $PHONE_IP"
 
       #nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$PHONE_IP:$TELEMETRY_UDP_PORT &
       #nice /root/wifibroadcast/rssi_forward $PHONE_IP 5003 &
 
-      if [ "$FORWARD_STREAM" == "rtp" ]; then
-        ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$PHONE_IP >/dev/null 2>&1 &
-      else
-        ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$PHONE_IP:$VIDEO_UDP_PORT &
-      fi
+      #if [ "$FORWARD_STREAM" == "rtp" ]; then
+      #  ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$PHONE_IP >/dev/null 2>&1 &
+      #else
+      #  ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$PHONE_IP:$VIDEO_UDP_PORT &
+      #fi
 
       # kill and pause OSD so we can safeley start wbc_status
       ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
@@ -123,17 +120,6 @@ function hotspot_check_function() {
   # Convert hostap config from DOS format to UNIX format
   ionice -c 3 nice dos2unix -n /boot/apconfig.txt /tmp/apconfig.txt
 
-  if [ "$ETHERNET_HOTSPOT" == "Y" ]; then
-    # setup hotspot on RPI3 internal ethernet chip
-    nice ifconfig eth0 192.168.1.1 up
-    nice udhcpd -I 192.168.1.1 /etc/udhcpd-eth.conf
-  fi
-
-  if [ "$WIFI_HOTSPOT" == "Y" ]; then
-    nice udhcpd -I 192.168.2.1 /etc/udhcpd-wifi.conf
-    nice -n 5 hostapd -B -d /tmp/apconfig.txt
-  fi
-
   while true; do
     # pause loop while saving is in progress
     pause_while
@@ -144,11 +130,11 @@ function hotspot_check_function() {
         echo "Ethernet device detected. IP: $IP"
         #nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
         #nice /root/wifibroadcast/rssi_forward $IP 5003 &
-        if [ "$FORWARD_STREAM" == "rtp" ]; then
-          ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP >/dev/null 2>&1 &
-        else
-          ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$IP:$VIDEO_UDP_PORT &
-        fi
+        #if [ "$FORWARD_STREAM" == "rtp" ]; then
+        #  ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP >/dev/null 2>&1 &
+        #else
+        #  ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$IP:$VIDEO_UDP_PORT &
+        #fi
       fi
     fi
     if [ "$WIFI_HOTSPOT" == "Y" ]; then
@@ -157,11 +143,11 @@ function hotspot_check_function() {
         echo "Wifi device detected. IP: $IP"
         # nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
         #nice /root/wifibroadcast/rssi_forward $IP 5003 &
-        if [ "$FORWARD_STREAM" == "rtp" ]; then
-          ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP >/dev/null 2>&1 &
-        else
-          ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$IP:$VIDEO_UDP_PORT &
-        fi
+        #if [ "$FORWARD_STREAM" == "rtp" ]; then
+        #  ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP >/dev/null 2>&1 &
+        #else
+        #  ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$IP:$VIDEO_UDP_PORT &
+        #fi
       fi
     fi
     if [ "$IP" != "0" ]; then
@@ -271,15 +257,8 @@ if [ "$CAM" == "0" ]; then # if we are RX ...
   fi
 fi
 
-if [ -e "/tmp/settings.sh" ]; then
-  if [ "$?" == "0" ]; then
-    source /tmp/settings.sh
-  else
-    echo "ERROR: wifibroadcast config file contains syntax error(s)!"
-    sleep 365d
-  fi
-else
-  echo "ERROR: wifibroadcast config file not found!"
+if [ ! -e "/boot/wifibroadcast-1.txt" ]; then
+  echo "ERROR: EZ-WifiBroadcast config file not found!"
   sleep 365d
 fi
 
@@ -288,33 +267,13 @@ if vcgencmd get_throttled | nice grep -q -v "0x0"; then
   TEMP_C=$(($TEMP / 1000))
   if [ "$TEMP_C" -lt 75 ]; then # it must be under-voltage
     mount -o remount,ro /boot
-    UNDERVOLT=1
     echo "1" >/tmp/undervolt
-    BITRATE=$((1000 * 1000))
-    BITRATE_KBIT=1000
-    BITRATE_MEASURED_KBIT=2000
   # it was either over-temp or both undervolt and over-temp, we set undervolt to 0 anyway, since overtemp can be seen at the temp display on the rx
   else
-    UNDERVOLT=0
     echo "0" >/tmp/undervolt
   fi
 else
-  UNDERVOLT=0
   echo "0" >/tmp/undervolt
-fi
-
-if [ "$FPS" == "59.9" ]; then
-  DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.48-mm
-else
-  if [ "$FPS" -eq 30 ]; then
-    DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.30-mm
-  fi
-  if [ "$FPS" -lt 60 ]; then
-    DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.48-mm
-  fi
-  if [ "$FPS" -gt 60 ]; then
-    DISPLAY_PROGRAM=/opt/vc/src/hello_pi/hello_video/hello_video.bin.240-befi
-  fi
 fi
 
 case $TTY in
@@ -325,14 +284,14 @@ case $TTY in
   ifconfig eth0 up
   if [ "$CAM" == "0" ]; then
     /root/dronebridge/video/legacy/sharedmem_init_rx
-  	python3 /root/dronebridge/startup/init_wifi.py -g
+    python3 /root/dronebridge/startup/init_wifi.py -g
     python3 /root/dronebridge/startup/start_db_modules.py -g
     # ionice -c 1 -n 4 nice -n -10 cat /root/videofifo1 | ionice -c 1 -n 4 nice -n -10 $DISPLAY_PROGRAM >/dev/null 2>&1 &
     # NICS=$(ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot)
     # ionice -c 1 -n 3 /root/dronebridge/video/legacy/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
   else
     /root/dronebridge/video/legacy/sharedmem_init_tx
-  	python3 /root/dronebridge/startup/init_wifi.py
+    python3 /root/dronebridge/startup/init_wifi.py
     python3 /root/dronebridge/startup/start_db_modules.py
   fi
   ;;
@@ -411,61 +370,8 @@ case $TTY in
   sleep 365d
   ;;
 /dev/tty11) # tty for dhcp and login
-  echo "================== eth0 DHCP client (tty11) ==========================="
+  echo "================== (tty11) ==========================="
   # sleep until everything else is loaded (atheros cards and usb flakyness ...)
-  sleep 6
-  if [ "$CAM" == "0" ]; then
-    EZHOSTNAME="dronebridge-g"
-  else
-    EZHOSTNAME="dronebridge-a"
-  fi
-  # only configure ethernet network interface via DHCP if ethernet hotspot is disabled
-  if [ "$ETHERNET_HOTSPOT" == "N" ]; then
-    # disabled loop, as usual, everything is flaky on the Pi, gives kernel stall messages ...
-    nice ifconfig eth0 up
-    sleep 2
-    if cat /sys/class/net/eth0/carrier | nice grep -q 1; then
-      echo "Ethernet connection detected"
-      if nice pump -i eth0 --no-ntp -h $EZHOSTNAME; then
-        ETHCLIENTIP=$(ifconfig eth0 | grep "inet addr" | cut -d ':' -f 2 | cut -d ' ' -f 1)
-        # kill and pause OSD so we can safeley start wbc_status
-        ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-        killall wbc_status >/dev/null 2>&1
-        nice /root/wifibroadcast_status/wbc_status "Ethernet connected. IP: $ETHCLIENTIP" 7 55 0
-        pause_while # make sure we don't restart osd while in pause state
-        OSDRUNNING=$(pidof /tmp/osd | wc -w)
-        if [ $OSDRUNNING -ge 1 ]; then
-          echo "OSD already running!"
-        else
-          killall wbc_status >/dev/null 2>&1
-          if [ "$CAM" == "0" ]; then # only (re-)start OSD if we are RX
-            /tmp/osd >>/wbc_tmp/telemetrydowntmp.txt &
-          fi
-        fi
-      else
-        ps -ef | nice grep "pump -i eth0" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-        nice ifconfig eth0 down
-        echo "DHCP failed"
-        ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-        killall wbc_status >/dev/null 2>&1
-        nice /root/wifibroadcast_status/wbc_status "ERROR: Could not acquire IP via DHCP!" 7 55 0
-        pause_while # make sure we don't restart osd while in pause state
-        OSDRUNNING=$(pidof /tmp/osd | wc -w)
-        if [ $OSDRUNNING -ge 1 ]; then
-          echo "OSD already running!"
-        else
-          killall wbc_status >/dev/null 2>&1
-          if [ "$CAM" == "0" ]; then # only (re-)start OSD if we are RX
-            /tmp/osd >>/wbc_tmp/telemetrydowntmp.txt &
-          fi
-        fi
-      fi
-    else
-      echo "No ethernet connection detected"
-    fi
-  else
-    echo "Ethernet Hotspot enabled, doing nothing"
-  fi
   sleep 365d
   ;;
 /dev/tty12) # tty for local interactive login

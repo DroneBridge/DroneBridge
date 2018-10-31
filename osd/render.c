@@ -158,12 +158,13 @@ void render(telemetry_data_t *td, uint8_t cpuload_gnd, uint8_t temp_gnd, uint8_t
 
 
 #ifdef UPLINK_RSSI
-    draw_uplink_signal(td->rx_status_rc->adapter[0].current_signal_dbm, td->rx_status_rc->lost_packet_cnt, UPLINK_RSSI_POS_X, UPLINK_RSSI_POS_Y, UPLINK_RSSI_SCALE * GLOBAL_SCALE);
+    draw_rc_signal(td->rx_status_rc->adapter[0].current_signal_dbm, td->rx_status_rc->received_packet_cnt,
+            UPLINK_RSSI_POS_X, UPLINK_RSSI_POS_Y, UPLINK_RSSI_SCALE * GLOBAL_SCALE);
 #endif
 
 
 #ifdef KBITRATE
-    draw_kbitrate(td->rx_status_sysair->cts, td->rx_status->kbitrate, td->rx_status_sysair->bitrate_measured_kbit, td->rx_status_sysair->bitrate_kbit, td->rx_status_sysair->skipped_fec_cnt, td->rx_status_sysair->injection_fail_cnt,td->rx_status_sysair->injection_time_block,KBITRATE_POS_X, KBITRATE_POS_Y, KBITRATE_SCALE * GLOBAL_SCALE);
+    draw_kbitrate(td->rx_status_sysair->cts, td->rx_status->kbitrate, td->rx_status_sysair->bitrate_measured_kbit, td->rx_status_sysair->bitrate_kbit, td->rx_status_sysair->skipped_fec_cnt, td->rx_status_sysair->injection_fail_cnt,td->rx_status_sysair->injection_time_packet,KBITRATE_POS_X, KBITRATE_POS_Y, KBITRATE_SCALE * GLOBAL_SCALE);
 #endif
 
 
@@ -584,7 +585,7 @@ void draw_gpsspeed(int gpsspeed, float pos_x, float pos_y, float scale){
 
 
 
-void draw_uplink_signal(int8_t rc_signal, int rc_lostpackets, float pos_x, float pos_y, float scale){
+void draw_rc_signal(int8_t rc_signal, int rc_pack_per_sec, float pos_x, float pos_y, float scale){
     float text_scale = getWidth(2) * scale;
     VGfloat height_text = TextHeight(myfont, text_scale*0.6)+getHeight(0.3)*scale;
     VGfloat width_value = TextWidth("-00", myfont, text_scale);
@@ -601,6 +602,8 @@ void draw_uplink_signal(int8_t rc_signal, int rc_lostpackets, float pos_x, float
     Stroke(OUTLINECOLOR);
 
     Text(getWidth(pos_x), getHeight(pos_y), "dBm", myfont, text_scale*0.6);
+    sprintf(buffer, "%d", rc_pack_per_sec);
+
     Text(getWidth(pos_x)-width_value-width_symbol, getHeight(pos_y)-height_text, buffer, myfont, text_scale*0.6);
     TextEnd(getWidth(pos_x)-width_value - getWidth(0.3) * scale, getHeight(pos_y), "", osdicons, text_scale * 0.7);
 }
@@ -608,7 +611,7 @@ void draw_uplink_signal(int8_t rc_signal, int rc_lostpackets, float pos_x, float
 
 
 void draw_kbitrate(int cts, int kbitrate, uint16_t kbitrate_measured_tx, uint16_t kbitrate_tx, uint32_t fecs_skipped,
-                   uint32_t injection_failed, long long injection_time,float pos_x, float pos_y, float scale){
+                   uint32_t injection_failed, int injection_time_packet,float pos_x, float pos_y, float scale){
     float text_scale = getWidth(2) * scale;
     VGfloat height_text_small = TextHeight(myfont, text_scale*0.6)+getHeight(0.3)*scale;
     VGfloat width_value = TextWidth("10.0", myfont, text_scale);
@@ -618,7 +621,7 @@ void draw_kbitrate(int cts, int kbitrate, uint16_t kbitrate_measured_tx, uint16_
     float mbit = (float)kbitrate / 1000;
     float mbit_measured = (float)kbitrate_measured_tx / 1000;
     float mbit_tx = (float)kbitrate_tx / 1000;
-    float ms = (float)injection_time / 1000;
+    float ms = (float)injection_time_packet / 1000;
 
     if (cts == 0) {
         sprintf(buffer, "%.1f (%.1f)", mbit_tx, mbit_measured);

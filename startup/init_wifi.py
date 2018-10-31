@@ -8,7 +8,7 @@ from CColors import CColors
 
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
-from subprocess import Popen
+from subprocess import Popen, DEVNULL
 
 from common_helpers import read_dronebridge_config, get_bit_rate, HOTSPOT_NIC, PI3_WIFI_NIC
 
@@ -41,6 +41,10 @@ def main():
     setup_network_interfaces(SETUP_GND, config)  # blocks until interface becomes available
     if SETUP_GND and config.get(GROUND, 'wifi_ap') == 'Y':
         setup_hotspot(config.get(GROUND, 'wifi_ap_if'))
+    if SETUP_GND and config.get(GROUND, 'eth_hotspot') == 'Y':
+        setup_eth_hotspot()
+    elif SETUP_GND:
+        setup_eth_dhcp()
 
 
 def setup_network_interfaces(SETUP_GND, config):
@@ -170,10 +174,23 @@ def setup_hotspot(interface):
     card = pyw.getcard(HOTSPOT_NIC)
     pyw.up(card)
     pyw.inetset(card, '192.168.2.1')
-    # Popen(["dhcpd -I 192.168.2.1 /etc/udhcpd-wifi.conf"], shell=True)
-    # Popen(["dos2unix -n /boot/apconfig.txt /tmp/apconfig.txt"], shell=True)
-    # Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True)
+    Popen(["udhcpd -I 192.168.2.1 /etc/udhcpd-wifi.conf"], shell=True, close_fds=True, stdout=DEVNULL)
+    Popen(["dos2unix -n /boot/apconfig.txt /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
+    Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
     print(CColors.OKGREEN + "Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 " + CColors.ENDC)
+
+
+def setup_eth_hotspot():
+    print("Setting up ethernet hotspot")
+    Popen(["ifconfig eth0 192.168.1.1 up"], shell=True)
+    Popen(["udhcpd -I 192.168.1.1 /etc/udhcpd-eth.conf"], shell=True, close_fds=True, stdout=DEVNULL)
+
+
+def setup_eth_dhcp():
+    print("Setting up DHCP for ethernet")
+    Popen(["ifconfig eth0 up"], shell=True)
+    Popen(["pump -i eth0 --no-ntp -h DroneBridgeGND"], shell=True, close_fds=True, stdout=DEVNULL)
+    Popen(["ifconfig eth0 up"], shell=True)
 
 
 def get_firmware_id():

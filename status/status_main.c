@@ -85,9 +85,10 @@ int process_command_line_args(int argc, char *argv[]){
                         , APP_PORT_STATUS);
                 break;
             default:
-                abort ();
+                abort();
         }
     }
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -109,7 +110,7 @@ int main(int argc, char *argv[]) {
     db_rc_status_message.ident[0] = '$'; db_rc_status_message.ident[1] = 'D'; db_rc_status_message.message_id = 2;
     DB_SYSTEM_STATUS_MESSAGE db_sys_status_message;
     db_sys_status_message.ident[0] = '$'; db_sys_status_message.ident[1] = 'D'; db_sys_status_message.message_id = 1;
-    db_sys_status_message.mode = 'm'; db_sys_status_message.packetloss_rc = 0; db_sys_status_message.rssi_drone = 0;
+    db_sys_status_message.mode = 'm'; db_sys_status_message.recv_pack_sec = 0; db_sys_status_message.rssi_drone = 0;
     db_sys_status_message.voltage_status = 0;
 
     process_command_line_args(argc, argv);
@@ -199,9 +200,9 @@ int main(int argc, char *argv[]) {
                     // must be a uav_rc_status_update_message
                     struct uav_rc_status_update_message *rc_status_message = (struct uav_rc_status_update_message*) message_buff;
                     db_sys_status_message.rssi_drone = rc_status_message->rssi_rc_uav;
-                    db_sys_status_message.packetloss_rc = (uint8_t) ((1 - (rc_status_message->recv_pack_sec / rc_send_rate)) * 100);
+                    db_sys_status_message.recv_pack_sec = rc_status_message->recv_pack_sec;
                     db_rc_status_t->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
-                    db_rc_status_t->lost_packet_cnt = db_sys_status_message.packetloss_rc;
+                    db_rc_status_t->received_packet_cnt = db_sys_status_message.recv_pack_sec;
                     db_uav_status->cpuload = rc_status_message->cpu_usage_uav;
                     db_uav_status->temp = rc_status_message->cpu_temp_uav;
                     db_uav_status->undervolt = rc_status_message->uav_is_low_V;

@@ -129,7 +129,7 @@ typedef struct {
 	uint8_t ident[2];
 	uint8_t message_id;
 	uint8_t mode;
-	uint8_t packetloss_rc; // [%]
+	uint8_t recv_pack_sec; // [%]
     int8_t rssi_drone;
 	int8_t rssi_ground;
 	uint32_t damaged_blocks_wbc;
