@@ -11,7 +11,7 @@ Visit **["Not just another drone project"](http://wolfgangchristl.de/not-just-an
 
 **[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.5)**
 
-**[DroneBridge for Android 1.2.4](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/Ec38kmt91ilNvYx6xnFwwQgBb9UDGDCGt6L34zZZ9YeMlw)**
+**[DroneBridge for Android 1.2.4](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EQbZxsMUfNlAjZPnomlmrWoBNFWIhT7CH0ta5qYIaH849A?e=oo7H0d)** (Updated: 24.12.2018)
 
 **[Get started](https://github.com/seeul8er/DroneBridge/wiki/Setup-Guide)**
 
