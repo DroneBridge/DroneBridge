@@ -17,7 +17,6 @@ COMMON = 'COMMON'
 GROUND = 'GROUND'
 UAV = 'AIR'
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description='Sets up the entire DroneBridge system including wireless adapters')
     parser.add_argument('-g', action='store_true', dest='gnd', default=False,
@@ -53,13 +52,21 @@ def setup_network_interfaces(SETUP_GND, config):
     section = UAV
     list_man_nics = [None] * 4
     list_man_freqs = [None] * 4
+    wifi_ap_blacklist = []
+
     if SETUP_GND:
         section = GROUND
         list_man_nics[2] = config.get(GROUND, 'nic_3')
         list_man_freqs[2] = config.getint(GROUND, 'frq_3')
         list_man_nics[3] = config.get(GROUND, 'nic_4')
         list_man_freqs[3] = config.getint(GROUND, 'frq_4')
-    wifi_ap_if = config.get(GROUND, 'wifi_ap_if')
+        wifi_ap_blacklist.append(config.get(GROUND, 'wifi_ap_if'))
+        wifi_ap_blacklist.append(HOTSPOT_NIC)
+        wifi_ap_blacklist.append(PI3_WIFI_NIC)
+
+    if config.has_option(COMMON, 'blacklist_ap')
+        wifi_ap_blacklist.append(config.get(COMMON, 'blacklist_ap'))
+
     datarate = config.getint(section, 'datarate')
     freq_ovr = config.get(section, 'freq_ovr')
     list_man_nics[0] = config.get(section, 'nic_1')
@@ -69,10 +76,11 @@ def setup_network_interfaces(SETUP_GND, config):
 
     print("Waiting for network adapters to become ready")
     # SET THE PARAMETERS
-    waitfor_network_adapters(wifi_ap_if)
+    waitfor_network_adapters(wifi_ap_blacklist)
     winterfaces = pyw.winterfaces()
+
     for winterface_name in winterfaces:
-        if winterface_name is not HOTSPOT_NIC:  # Leave ap-if alone
+        if winterface_name not in wifi_ap_blacklist:  # Leave ap-if alone
             if freq_ovr == 'N':
                 # Set one frequency for each adapter
                 setup_card(winterface_name, freq, datarate)
@@ -85,34 +93,33 @@ def setup_network_interfaces(SETUP_GND, config):
 
 
 def setup_card(interface_name, frequency, data_rate=2):
-    if interface_name != PI3_WIFI_NIC and interface_name != HOTSPOT_NIC:
-        print("Settings up " + interface_name)
-        wifi_card = pyw.getcard(interface_name)
-        driver_name = iwhw.ifdriver(interface_name)
-        print(CColors.OKGREEN + "Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz" +
-              " bitrate: " + get_bit_rate(data_rate) + " Mbps" + CColors.ENDC)
-        pyw.up(wifi_card)
-        if is_atheros_card(driver_name):
-            # for all other cards the transmission rate is set via the radiotap header
-            set_bitrate(interface_name, data_rate)
-        if pyw.isup(wifi_card):
-            print("\tdown...")
-            pyw.down(wifi_card)
-        print("\tmonitor...")
-        pyw.modeset(wifi_card, 'monitor')
-        if is_realtek_card(driver_name):
-            # Other cards power settings are set via e.g. 'txpower_atheros 58' or 'txpower_ralink 0' (defaults)
-            pyw.txset(wifi_card, 'fixed', 3000)
-        pyw.up(wifi_card)
-        print("\tfrequency...")
-        pyw.freqset(wifi_card, frequency)
-        print("\tMTU...")
-        if is_realtek_card(driver_name):
-            Popen(['ip link set dev ' + interface_name + ' mtu 1500'], shell=True).communicate()
-        else:
-            Popen(['ip link set dev ' + interface_name + ' mtu 2304'], shell=True).communicate()
-        pyw.regset('DE')  # to allow channel 12 and 13 for hotspot
-        rename_interface(interface_name)
+    print("Settings up " + interface_name)
+    wifi_card = pyw.getcard(interface_name)
+    driver_name = iwhw.ifdriver(interface_name)
+    print(CColors.OKGREEN + "Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz" +
+            " bitrate: " + get_bit_rate(data_rate) + " Mbps" + CColors.ENDC)
+    pyw.up(wifi_card)
+    if is_atheros_card(driver_name):
+        # for all other cards the transmission rate is set via the radiotap header
+        set_bitrate(interface_name, data_rate)
+    if pyw.isup(wifi_card):
+        print("\tdown...")
+        pyw.down(wifi_card)
+    print("\tmonitor...")
+    pyw.modeset(wifi_card, 'monitor')
+    if is_realtek_card(driver_name):
+        # Other cards power settings are set via e.g. 'txpower_atheros 58' or 'txpower_ralink 0' (defaults)
+        pyw.txset(wifi_card, 'fixed', 3000)
+    pyw.up(wifi_card)
+    print("\tfrequency...")
+    pyw.freqset(wifi_card, frequency)
+    print("\tMTU...")
+    if is_realtek_card(driver_name):
+        Popen(['ip link set dev ' + interface_name + ' mtu 1500'], shell=True).communicate()
+    else:
+        Popen(['ip link set dev ' + interface_name + ' mtu 2304'], shell=True).communicate()
+    pyw.regset('DE')  # to allow channel 12 and 13 for hotspot
+    rename_interface(interface_name)
 
 
 def rename_interface(orig_interface_name):
@@ -135,7 +142,7 @@ def set_bitrate(interface_name, datarate):
     Popen(['iw dev ' + interface_name + ' set bitrates legacy-2.4 ' + get_bit_rate(datarate)], shell=True)
 
 
-def waitfor_network_adapters(wifi_ap_if):
+def waitfor_network_adapters(wifi_ap_blacklist=None):
     """
     Wait for at least one network adapter to be detected by the OS. Adapters that will be used for the Wifi AP will be
     ignored
@@ -146,14 +153,14 @@ def waitfor_network_adapters(wifi_ap_if):
     print("Waiting for wifi adapters to be detected ", end="")
     while keep_waiting:
         winterfaces = pyw.winterfaces()
-        try:
-            winterfaces.remove(PI3_WIFI_NIC)
-        except ValueError:
-            pass
-        try:
-            winterfaces.remove(wifi_ap_if)
-        except ValueError:
-            pass
+
+        # Remove AP and internal interfaces for GND as well as blacklisted interfaces
+        for wifi_if in wifi_ap_blacklist:
+            try:
+                winterfaces.remove(wifi_if)
+            except ValueError:
+                pass
+
         if len(winterfaces) > 0:
             keep_waiting = False
             print("\n")
