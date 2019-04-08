@@ -6,7 +6,6 @@ PATH_CONFIG_FILE = os.path.join(os.sep, "boot", "DroneBridgeConfig.ini")
 PI3_WIFI_NIC = 'intwifi0'
 HOTSPOT_NIC = 'wifihotspot0'
 
-
 def read_dronebridge_config():
     """
     Reads the DroneBridge config file
