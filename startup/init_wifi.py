@@ -64,7 +64,7 @@ def setup_network_interfaces(SETUP_GND, config):
         wifi_ap_blacklist.append(HOTSPOT_NIC)
         wifi_ap_blacklist.append(PI3_WIFI_NIC)
 
-    if config.has_option(COMMON, 'blacklist_ap')
+    if config.has_option(COMMON, 'blacklist_ap'):
         wifi_ap_blacklist.append(config.get(COMMON, 'blacklist_ap'))
 
     datarate = config.getint(section, 'datarate')

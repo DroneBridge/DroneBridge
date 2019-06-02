@@ -384,10 +384,6 @@ class DBProtocol:
         print(response)
         return response
 
-    def _send_hello(self):
-        """Send this in wifi mode to let the drone know about IP of groundstation"""
-        self.comm_sock.sendto("tx_hello_packet".encode(), (self.ip_rx, self.udp_port_rx))
-
     def _sendto_tx_wifi(self, data_bytes):
         """Sends LTM and other stuff to groundstation/smartphone in wifi mode"""
         while True:

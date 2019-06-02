@@ -43,7 +43,7 @@
 #define ETHER_TYPE	    0x88ab
 #define DEFAULT_IF      "wlx000ee8dcaa2c"
 #define USB_IF          "/dev/ttyACM0"
-#define BUF_SIZ		                512 // should be enought?!
+#define BUF_SIZ		                512 // should be enough?!
 #define COMMAND_BUF_SIZE            1024
 
 static volatile int keepRunning = 1;
@@ -90,7 +90,7 @@ void send_buffered_mavlink_tel(int length_message, mavlink_message_t *mav_messag
     memcpy(&mavlink_telemetry_buf[mav_tel_buf_length], mavlink_message_buf, (size_t) length_message);
     mav_tel_buf_length += length_message;   // Overall length of buffer
     if (mav_tel_message_counter == 5){
-        send_packet(mavlink_telemetry_buf, DB_PORT_TELEMETRY,
+        send_packet(mavlink_telemetry_buf, DB_PORT_PROXY,
                     (u_int16_t) mav_tel_buf_length, update_seq_num(&telemetry_seq_number), cont_adhere_80211);
         mav_tel_message_counter = 0;
         mav_tel_buf_length = 0;
@@ -335,7 +335,7 @@ int main(int argc, char *argv[])
     struct uav_rc_status_update_message *rc_status_update_data = (struct uav_rc_status_update_message *) raw_buffer;
     memset(raw_buffer->bytes, 0, DATA_UNI_LENGTH);
 
-    printf("DB_CONTROL_AIR: Ready for data!\n");
+    printf(GRN "DB_CONTROL_AIR: Ready for data!"RESET"\n");
     gettimeofday(&timecheck, NULL);
     start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
     start_rc = start;
@@ -465,7 +465,7 @@ int main(int argc, char *argv[])
                             transparent_buffer[serial_read_bytes] = serial_byte;
                             serial_read_bytes++;
                             if (serial_read_bytes == chucksize) {
-                                send_packet(transparent_buffer, DB_PORT_TELEMETRY,
+                                send_packet(transparent_buffer, DB_PORT_PROXY,
                                             (u_int16_t) chucksize, update_seq_num(&telemetry_seq_number), cont_adhere_80211);
                                 serial_read_bytes = 0;
                             }

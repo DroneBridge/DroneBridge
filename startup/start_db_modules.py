@@ -30,7 +30,6 @@ def parse_arguments():
 def start_gnd_modules():
     """
     Reads the settings from the config file. Performs some checks and starts the DroneBridge modules on the ground station.
-    :return:
     """
     config = read_dronebridge_config()
     if config is None:
@@ -123,7 +122,6 @@ def start_gnd_modules():
 def start_uav_modules():
     """
     Reads the settings from the config file. Performs some checks and starts the DroneBridge modules on the UAV.
-    :return:
     """
     config = read_dronebridge_config()
     if config is None:
@@ -195,12 +193,12 @@ def start_uav_modules():
                interface_comm + " -m m -c " + str(communication_id) + " &"],
               shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
-    if en_tel == 'Y':
-        print(UAV_STRING_TAG + "Starting telemetry module...")
-        Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'telemetry', 'telemetry_air') + " -n "+interface_tel+" -f "
-               + serial_int_tel+" -r "+str(baud_tel)+" -t " + str(frametype) + " -m m -c " +
-               str(communication_id) + " -l "+str(tel_proto) + " -b " + str(get_bit_rate(2)) + " &"],
-              shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+    # if en_tel == 'Y':
+    #     print(UAV_STRING_TAG + "Starting telemetry module...")
+    #     Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'telemetry', 'telemetry_air') + " -n "+interface_tel+" -f "
+    #            + serial_int_tel+" -r "+str(baud_tel)+" -t " + str(frametype) + " -m m -c " +
+    #            str(communication_id) + " -l "+str(tel_proto) + " -b " + str(get_bit_rate(2)) + " &"],
+    #           shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_control == 'Y':
         print(UAV_STRING_TAG + "Starting control module...")
@@ -237,6 +235,7 @@ def start_uav_modules():
 def get_interface():
     """
     Find a possibly working wifi interface that can be used by a DroneBridge module
+
     :return: Name of an interface set to monitor mode
     """
     interface_names = pyw.winterfaces()
@@ -252,7 +251,8 @@ def get_interface():
 def get_all_monitor_interfaces(formated=False):
     """
     Find all possibly working wifi interfaces that can be used by a DroneBridge modules
-    :param formated Formated to be used as input for WBC video module
+
+    :param formated: Formated to be used as input for WBC video module
     :return: List of names of interfaces set to monitor mode
     """
     w_interfaces = []
@@ -288,6 +288,7 @@ def get_video_player(fps):
     mmormota's stutter-free implementation based on RiPis hello_video.bin: "hello_video.bin.30" (for 30fps) or
     "hello_video.bin.48" (for 48 and 59.9fps)
     befinitiv's hello_video.bin: "hello_video.bin.240" (for any fps, use this for higher than 59.9fps)
+
     :param fps: The video fps that is set in the config
     :return: The path to the video player binary
     """
@@ -303,6 +304,7 @@ def get_video_player(fps):
 def exists_wifi_traffic(wifi_interface):
     """
     Checks for wifi traffic on a monitor interface
+
     :param wifi_interface: The interface to listen for traffic
     :return: True if there is wifi traffic
     """
@@ -322,9 +324,10 @@ def exists_wifi_traffic(wifi_interface):
 def determine_frametype(cts_protection, interface_name):
     """
     Checks if there is wifi traffic.
+
     :param cts_protection: The value from the DroneBridgeConfig
     :param wifi_int: The interface to listen for traffic
-    @:return 2 for data frames, 1 for RTS frames
+    :return 2 for data frames, 1 for RTS frames
     """
     print("Determining frametype...")
     wifi_driver = iwhw.ifdriver(interface_name)

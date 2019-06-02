@@ -38,30 +38,26 @@
 #include "../common/shared_memory.h"
 #include "../common/ccolors.h"
 #include "../common/db_utils.h"
+#include "../common/tcp_server.h"
 
-#define UDP_STATUS_BUFF_SIZE 2048
+#define TCP_STATUS_BUFF_SIZE 2048
 
 bool volatile keeprunning = true;
 char if_name_status[IFNAMSIZ];
 char db_mode;
 uint8_t comm_id = DEFAULT_V2_COMMID;
-int c, app_port_status = APP_PORT_STATUS;
-float rc_send_rate = 60; // [packets/s]
 
-void intHandler(int dummy)
-{
+void intHandler(int dummy) {
     keeprunning = false;
 }
 
-int process_command_line_args(int argc, char *argv[]){
+int process_command_line_args(int argc, char *argv[]) {
     strncpy(if_name_status, DEFAULT_DB_IF, IFNAMSIZ);
     db_mode = DEFAULT_DB_MODE;
-    app_port_status = APP_PORT_STATUS;
     opterr = 0;
-    while ((c = getopt (argc, argv, "n:m:c:p:")) != -1)
-    {
-        switch (c)
-        {
+    int c;
+    while ((c = getopt(argc, argv, "n:m:c:")) != -1) {
+        switch (c) {
             case 'n':
                 strncpy(if_name_status, optarg, IFNAMSIZ);
                 break;
@@ -71,18 +67,12 @@ int process_command_line_args(int argc, char *argv[]){
             case 'c':
                 comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
-            case 'p':
-                app_port_status = (int) strtol(optarg, NULL, 10);
-                break;
             case '?':
                 printf("This tool sends extra information about the video stream and RC via UDP to IP given by "
-                               "IP-checker module. Use"
-                               "\n\t-n <network_IF> "
-                               "\n\t-m [w|m] default is <m>"
-                               "\n\t-p Specify a UDP port to which we send the status information. IP comes from IP "
-                               "checker module. Default:%i"
-                               "\n\t-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
-                        , APP_PORT_STATUS);
+                       "IP-checker module. Use"
+                       "\n\t-n <network_IF> "
+                       "\n\t-m [w|m] default is <m>"
+                       "\n\t-c <communication id> Choose a number from 0-255. Same on ground station and drone!");
                 break;
             default:
                 abort();
@@ -95,22 +85,30 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
     struct timespec timestamp;
-    int restarts = 0, udp_status_socket, shID, cardcounter = 0, select_return, max_sd;
+    int restarts = 0, cardcounter = 0, select_return, max_sd, max_clients = 10, tcp_clients[max_clients], new_tcp_client;
     struct timeval timecheck;
     long start, rightnow, status_message_update_rate = 100; // send status messages every 100ms (10Hz)
     int8_t best_dbm = 0;
     ssize_t l;
     uint16_t radiotap_length;
-    uint8_t counter = 0;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
-    uint8_t message_buff[DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH];
-    uint8_t udp_status_buffer[UDP_STATUS_BUFF_SIZE];
+    uint8_t message_buff[DATA_UNI_LENGTH - DB_RAW_V2_HEADER_LENGTH];
+    uint8_t tcp_message_buff[TCP_STATUS_BUFF_SIZE];
+    for (int i = 0; i < max_clients; i++) {
+        tcp_clients[i] = 0;
+    }
 
     DB_RC_MESSAGE db_rc_status_message;
-    db_rc_status_message.ident[0] = '$'; db_rc_status_message.ident[1] = 'D'; db_rc_status_message.message_id = 2;
+    db_rc_status_message.ident[0] = '$';
+    db_rc_status_message.ident[1] = 'D';
+    db_rc_status_message.message_id = 2;
     DB_SYSTEM_STATUS_MESSAGE db_sys_status_message;
-    db_sys_status_message.ident[0] = '$'; db_sys_status_message.ident[1] = 'D'; db_sys_status_message.message_id = 1;
-    db_sys_status_message.mode = 'm'; db_sys_status_message.recv_pack_sec = 0; db_sys_status_message.rssi_drone = 0;
+    db_sys_status_message.ident[0] = '$';
+    db_sys_status_message.ident[1] = 'D';
+    db_sys_status_message.message_id = 1;
+    db_sys_status_message.mode = 'm';
+    db_sys_status_message.recv_pack_sec = 0;
+    db_sys_status_message.rssi_drone = 0;
     db_sys_status_message.voltage_status = 0;
 
     process_command_line_args(argc, argv);
@@ -135,70 +133,45 @@ int main(int argc, char *argv[]) {
     struct timeval socket_timeout;
     socket_timeout.tv_sec = 0;
     socket_timeout.tv_usec = 100000; // 10Hz
-
-    // set up UDP status socket & dest. address for status messages (remoteServAddr)
-    struct sockaddr_in remoteServAddr, udp_status_addr, client_status_addr;
-    socklen_t client_status_addr_len = sizeof(client_status_addr);
-    remoteServAddr.sin_family = AF_INET;
-    remoteServAddr.sin_addr.s_addr = inet_addr("192.168.2.2");
-    remoteServAddr.sin_port = htons(app_port_status);
-    udp_status_addr.sin_family = AF_INET;
-    udp_status_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    udp_status_addr.sin_port = htons(app_port_status);
-    udp_status_socket = socket (AF_INET, SOCK_DGRAM, 0);
-    const int y = 1;
-    setsockopt(udp_status_socket, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int));
-    if (udp_status_socket < 0) {
-        printf (RED "DB_STATUS_GROUND: %s: Unable to open status socket" RESET "\n", strerror(errno));
-        exit (EXIT_FAILURE);
-    }
-    if (bind(udp_status_socket, (struct sockaddr *) &udp_status_addr, sizeof (udp_status_addr)) < 0) {
-        printf(RED "DB_PROXY_GROUND: Unable to bind to port %i (%s)\n" RESET, app_port_status, strerror(errno));
-        exit (EXIT_FAILURE);
-    }
-
-    // get IP shared memory ID
-    shID = init_shared_memory_ip();
+    // Setup TCP server for GCS communication
+    struct tcp_server_info status_tcp_server_info = create_tcp_server_socket(APP_PORT_STATUS);
+    int tcp_addrlen = sizeof(status_tcp_server_info.servaddr);
 
     printf(GRN "DB_STATUS_GND: started!" RESET "\n");
-
     gettimeofday(&timecheck, NULL);
-    start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
-    while(keeprunning) {
+    start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
+    while (keeprunning) {
         socket_timeout.tv_sec = 0;
         socket_timeout.tv_usec = 100000; // 10Hz
         FD_ZERO (&fd_socket_set);
         FD_SET (long_range_socket, &fd_socket_set);
-        FD_SET (udp_status_socket, &fd_socket_set);
+        FD_SET (status_tcp_server_info.sock_fd, &fd_socket_set);
         max_sd = long_range_socket;
-        if (udp_status_socket > max_sd)
-        {
-            max_sd = udp_status_socket;
-        }
-        select_return = select (max_sd+1, &fd_socket_set, NULL, NULL, &socket_timeout);
-        // ---------------
-        // Get IP from IP Checker shared memory segment 10th time
-        // ---------------
-        counter++;
-        if (counter>9){
-            counter = 0;
-            remoteServAddr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
+        if (status_tcp_server_info.sock_fd > max_sd)
+            max_sd = status_tcp_server_info.sock_fd;
+        //add child sockets (tcp connection sockets) to set
+        for (int i = 0; i < max_clients; i++) {
+            int tcp_client_sd = tcp_clients[i];
+            if (tcp_client_sd > 0)
+                FD_SET(tcp_client_sd, &fd_socket_set);
+            if (tcp_client_sd > max_sd)
+                max_sd = tcp_client_sd;
         }
 
-        if(select_return == -1)
-        {
+        select_return = select(max_sd + 1, &fd_socket_set, NULL, NULL, &socket_timeout);
+        if (select_return == -1) {
             perror("DB_STATUS_GROUND: select() returned error: ");
-        }else if (select_return > 0){
-            if (FD_ISSET(long_range_socket, &fd_socket_set)){
+        } else if (select_return > 0) {
+            if (FD_ISSET(long_range_socket, &fd_socket_set)) {
                 // ---------------
                 // status message from long range link (UAV)
                 // ---------------
                 l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0);
-                if (l > 0){
+                if (l > 0) {
                     get_db_payload(lr_buffer, l, message_buff, &radiotap_length);
                     // process payload (currently only one type of raw status frame is supported: RC_AIR --> STATUS_GROUND)
                     // must be a uav_rc_status_update_message
-                    struct uav_rc_status_update_message *rc_status_message = (struct uav_rc_status_update_message*) message_buff;
+                    struct uav_rc_status_update_message *rc_status_message = (struct uav_rc_status_update_message *) message_buff;
                     db_sys_status_message.rssi_drone = rc_status_message->rssi_rc_uav;
                     db_sys_status_message.recv_pack_sec = rc_status_message->recv_pack_sec;
                     db_rc_status_t->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
@@ -208,28 +181,50 @@ int main(int argc, char *argv[]) {
                     db_uav_status->undervolt = rc_status_message->uav_is_low_V;
                 }
             }
-
-            if (FD_ISSET(udp_status_socket, &fd_socket_set)){
-                // ---------------
-                // status message from ground control station (app)
-                // ---------------
-                l = recvfrom(udp_status_socket, udp_status_buffer, UDP_STATUS_BUFF_SIZE, 0,
-                             (struct sockaddr *)&client_status_addr, &client_status_addr_len);
-                int err = errno;
-                if (l > 0){
-                    switch (udp_status_buffer[2]) {
-                        case 0x03:
-                            // DB RC overwrite message
-                            memcpy(rc_overwrite_values->ch, &udp_status_buffer[3], (size_t) 2*NUM_CHANNELS);
-                            clock_gettime(CLOCK_MONOTONIC_COARSE, &timestamp);
-                            rc_overwrite_values->timestamp = timestamp;
-                            break;
-                        default:
-                            printf(RED "Unknown status message received from GCS" RESET "\n");
-                            break;
+            // handle incoming tcp connection requests on master TCP socket
+            if (FD_ISSET(status_tcp_server_info.sock_fd, &fd_socket_set)) {
+                if ((new_tcp_client = accept(status_tcp_server_info.sock_fd,
+                                             (struct sockaddr *) &status_tcp_server_info.servaddr,
+                                             (socklen_t *) &tcp_addrlen)) < 0) {
+                    perror("DB_STATUS_GND: Accepting new tcp connection failed");
+                }
+                printf("DB_STATUS_GND: New connection (%s:%d)\n", inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
+                       ntohs(status_tcp_server_info.servaddr.sin_port));
+                //add new socket to array of sockets
+                for (int i = 0; i < max_clients; i++) {
+                    if (tcp_clients[i] == 0) {   // if position is empty
+                        tcp_clients[i] = new_tcp_client;
+                        break;
                     }
-                } else {
-                    printf(RED "DB_STATUS_GROUND: UDP socket received an error: %s" RESET "\n", strerror(err));
+                }
+            }
+            // handle messages from connected TCP clients
+            for (int i = 0; i < max_clients; i++) {
+                int current_client_sock = tcp_clients[i];
+                if (FD_ISSET(current_client_sock, &fd_socket_set)) {
+                    if (read(current_client_sock, tcp_message_buff, TCP_STATUS_BUFF_SIZE) == 0) {
+                        //Somebody disconnected , get his details and print
+                        getpeername(current_client_sock, (struct sockaddr *) &status_tcp_server_info.servaddr,
+                                    (socklen_t *) &tcp_addrlen);
+                        printf("DB_STATUS_GND: Client disconnected (%s:%d)\n",
+                               inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
+                               ntohs(status_tcp_server_info.servaddr.sin_port));
+                        close(current_client_sock);
+                        tcp_clients[i] = 0;
+                    } else {
+                        // client sent us some information. Process it...
+                        switch (tcp_message_buff[2]) {
+                            case 0x03:
+                                // DB RC overwrite message. Set overwrite values in shared memory
+                                memcpy(rc_overwrite_values->ch, &tcp_message_buff[3], (size_t) 2 * NUM_CHANNELS);
+                                clock_gettime(CLOCK_MONOTONIC_COARSE, &timestamp);
+                                rc_overwrite_values->timestamp = timestamp;
+                                break;
+                            default:
+                                printf(RED "Unknown status message received from GCS" RESET "\n");
+                                break;
+                        }
+                    }
                 }
             }
         }
@@ -237,40 +232,44 @@ int main(int argc, char *argv[]) {
         // status messages for the ground control station (app)
         // sent at 10Hz independently of whether data was received from UAV or not
         gettimeofday(&timecheck, NULL);
-        rightnow = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
-        if ((rightnow-start) >= status_message_update_rate){
+        rightnow = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
+        if ((rightnow - start) >= status_message_update_rate) {
             // ---------------
             // DB system-status message
             // ---------------
             best_dbm = -128;
-            for(cardcounter=0; cardcounter<number_cards; ++cardcounter) {
+            for (cardcounter = 0; cardcounter < number_cards; ++cardcounter) {
                 if (best_dbm < db_gnd_status_t->adapter[cardcounter].current_signal_dbm)
                     best_dbm = db_gnd_status_t->adapter[cardcounter].current_signal_dbm;
             }
             db_sys_status_message.rssi_ground = best_dbm;
             db_sys_status_message.damaged_blocks_wbc = db_gnd_status_t->damaged_block_cnt;
             db_sys_status_message.lost_packets_wbc = db_gnd_status_t->lost_packet_cnt;
-            db_sys_status_message.kbitrate_wbc = db_gnd_status_t-> kbitrate;
+            db_sys_status_message.kbitrate_wbc = db_gnd_status_t->kbitrate;
             db_sys_status_message.voltage_status = ((db_uav_status->undervolt << 1) | get_undervolt());
             if (db_gnd_status_t->tx_restart_cnt > restarts) {
                 restarts++;
-                usleep ((__useconds_t) 1e7);
+                usleep((__useconds_t) 1e7);
             }
-            sendto (udp_status_socket, &db_sys_status_message, sizeof(DB_SYSTEM_STATUS_MESSAGE), 0, (struct sockaddr *) &remoteServAddr,
-                    sizeof (remoteServAddr));
-
             // ---------------
-            // DB RC-status message
+            // send DB system status message
             // ---------------
-            memcpy(db_rc_status_message.channels, rc_values->ch, 2*NUM_CHANNELS);
-            sendto (udp_status_socket, &db_rc_status_message, sizeof(DB_RC_MESSAGE), 0, (struct sockaddr *) &remoteServAddr,
-                    sizeof (remoteServAddr));
+            send_to_all_tcp_clients(tcp_clients, (uint8_t *) &db_sys_status_message, sizeof(DB_SYSTEM_STATUS_MESSAGE));
+            // ---------------
+            // send DB RC-status message
+            // ---------------
+            memcpy(db_rc_status_message.channels, rc_values->ch, 2 * NUM_CHANNELS);
+            send_to_all_tcp_clients(tcp_clients, (uint8_t *) &db_rc_status_message, sizeof(DB_RC_MESSAGE));
 
             gettimeofday(&timecheck, NULL);
-            start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+            start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
         }
     }
-    close(udp_status_socket);
+    for (int i = 0; i < max_clients; i++) {
+        if (tcp_clients[i] > 0)
+            close(tcp_clients[i]);
+    }
+    close(status_tcp_server_info.sock_fd);
     close(long_range_socket);
     return 0;
 }
