@@ -107,7 +107,6 @@ class DBProtocol:
             except Exception as e:
                 print(
                     self.tag + str(e) + ": Drone is not ready or has wrong IP address of groundstation. Sending hello")
-                self._send_hello()
                 return False
         else:
             try:
@@ -121,27 +120,6 @@ class DBProtocol:
                 return False
             except Exception as e:
                 print(self.tag + str(e) + ": Error receiving data form drone (monitor mode)")
-                return False
-
-    def receive_telemetryfromdrone(self):
-        """Receive telemetry message from drone on groundstation and return the payload."""
-        if self.mode == 'wifi':
-            try:
-                data, addr = self.comm_sock.recvfrom(UDP_BUFFERSIZE)
-                return data
-            except Exception as e:
-                print(
-                    self.tag + str(e) + ": Drone is not ready or has wrong IP address of groundstation. Sending hello")
-                self._send_hello()
-                return False
-        else:
-            try:
-                while True:
-                    data = self.parse_packet(bytearray(self.comm_sock.recv(MONITOR_BUFFERSIZE)))
-                    if data != False:
-                        return data
-            except Exception as e:
-                print(self.tag + str(e) + ": Error receiving telemetry form drone (monitor mode)")
                 return False
 
     def receive_process_datafromgroundstation(self):

@@ -18,9 +18,7 @@
 
 import argparse
 from subprocess import Popen
-from DroneBridge_Protocol import DBProtocol, DBPort, DBDir
-from db_comm_helper import find_mac
-
+from legacy.DroneBridge_Protocol import DBProtocol, DBPort, DBDir
 
 UDP_Port_TX = 1604  # Port for communication with TX (Groundstation)
 IP_TX = "192.168.3.2"   # Target IP address (IP address of the Groundstation - not important and gets overridden anyways)

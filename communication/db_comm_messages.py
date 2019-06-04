@@ -15,7 +15,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #
-
+import base64
 import json
 import configparser
 import binascii
@@ -25,8 +25,8 @@ import RPi.GPIO as gp
 from subprocess import call
 import evdev
 
-
 from DBCommProt import DBCommProt
+from DroneBridge import DBDir, DBPort
 
 tag = 'DB_COMM_MESSAGE: '
 PATH_DRONEBRIDGE_SETTINGS = "/boot/DroneBridgeConfig.ini"
@@ -45,11 +45,58 @@ db_settings_blacklist = ["ip_drone", "interface_selection", "interface_control",
                          "interface_comm", "joy_cal"]
 
 
-def new_settingsresponse_message(loaded_json, origin):
+def process_db_comm_protocol(loaded_json: json, comm_direction: DBDir) -> bytes:
+    """
+    Execute the command given in the DroneBridge communication packet
+
+    :param loaded_json: The message to process
+    :param comm_direction: The direction of the local program instance in which it is sending
+    :return: correct response message
+    """
+    message = ""
+    if loaded_json['type'] == DBCommProt.DB_TYPE_SETTINGS_REQUEST.value:
+        if comm_direction == DBDir.DB_TO_UAV:
+            message = new_settingsresponse_message(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
+        else:
+            message = new_settingsresponse_message(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+    elif loaded_json['type'] == DBCommProt.DB_TYPE_SETTINGS_CHANGE.value:
+        if comm_direction == DBDir.DB_TO_UAV:
+            message = change_settings(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
+        else:
+            message = change_settings(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+    elif loaded_json['type'] == DBCommProt.DB_TYPE_SYS_IDENT_REQUEST.value:
+        if comm_direction == DBDir.DB_TO_UAV:
+            message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
+        else:
+            message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+    elif loaded_json['type'] == DBCommProt.DB_TYPE_PING_REQUEST.value:
+        if comm_direction == DBDir.DB_TO_UAV:
+            message = new_ping_response_message(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
+        else:
+            message = new_ping_response_message(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+    elif loaded_json['type'] == DBCommProt.DB_TYPE_CAMSELECT.value:
+        change_cam_selection(loaded_json['cam'])
+        message = new_ack_message(DBCommProt.DB_ORIGIN_UAV.value, loaded_json['id'])
+    elif loaded_json['type'] == DBCommProt.DB_TYPE_ADJUSTRC.value:
+        normalize_jscal_axis(loaded_json['device'])
+        message = new_ack_message(DBCommProt.DB_ORIGIN_GND.value, loaded_json['id'])
+    else:
+        if comm_direction == DBDir.DB_TO_UAV:
+            message = new_error_response_message('unsupported message type', DBCommProt.DB_ORIGIN_GND.value,
+                                                 loaded_json['id'])
+        else:
+            message = new_error_response_message('unsupported message type', DBCommProt.DB_ORIGIN_UAV.value,
+                                                 loaded_json['id'])
+        print("DB_COMM_PROTO: Unknown message type")
+    return message
+
+
+def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
     """
     takes in a request - executes search for settings and creates a response as bytes
+
     :param loaded_json:
-    :param origin: is this a response of drone or groundstation
+    :param origin: is this a response of drone or ground station
     :return: a complete response packet as bytes
     """
     complete_response = {}
@@ -64,64 +111,45 @@ def new_settingsresponse_message(loaded_json, origin):
         else:
             complete_response = read_dronebridge_settings(complete_response, False, None)
     elif loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
-        if 'settings' in loaded_json:
-            complete_response = read_wbc_settings(complete_response, True, loaded_json['settings'])
-        else:
-            complete_response = read_wbc_settings(complete_response, False, None)
+        print("ERROR: WBC settings read unsupported!")
+        return new_error_response_message("WBC settings read unsupported", origin, loaded_json['id'])
     response = json.dumps(complete_response)
     crc32 = binascii.crc32(str.encode(response))
     return response.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-def new_settingschangesuccess_message(origin, new_id):
+def new_settingschangesuccess_message(origin: int, new_id: int) -> bytes:
     """returns a settings change success message"""
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SETTINGS_SUCCESS.value, 'origin': origin, 'id': new_id})
+    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SETTINGS_SUCCESS.value, 'origin': origin,
+                          'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-def new_ack_message(origin, new_id):
+def new_ack_message(origin: int, new_id: int) -> bytes:
     """returns a ACK message"""
     command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_ACK.value, 'origin': origin, 'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-def new_ping_response_message(loaded_json, origin):
+def new_ping_response_message(loaded_json: json, origin: int) -> bytes:
     """returns a ping response message"""
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_PING_RESPONSE.value, 'origin': origin, 'id': loaded_json['id']})
+    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_PING_RESPONSE.value, 'origin': origin,
+                          'id': loaded_json['id']})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-def new_error_response_message(error_message, origin, new_id):
+def new_error_response_message(error_message: str, origin: int, new_id: int) -> bytes:
     """returns a error response message"""
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_ERROR.value, 'message': error_message, 'origin': origin, 'id': new_id})
+    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_ERROR.value, 'message': error_message,
+                          'origin': origin, 'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-def change_settings_wbc(loaded_json, origin):
-    try:
-        with open(PATH_WBC_SETTINGS, 'r+') as file:
-            lines = file.readlines()
-            for key in loaded_json['settings']:
-                for index, line in enumerate(lines):
-                    if line.startswith(key + "="):
-                        lines[index] = key + "=" + loaded_json['settings'][key] + "\n"
-            file.seek(0, 0)
-            for line in lines:
-                file.write(line)
-            file.truncate()
-            file.flush()
-            os.fsync(file.fileno())
-    except Exception as ex:
-        print("Error writing wbc settings: " + str(ex))
-        return False
-    return True
-
-
-def change_settings_db(loaded_json):
+def change_settings_db(loaded_json: json) -> bool:
     try:
         with open(PATH_DRONEBRIDGE_SETTINGS, 'r+') as file:
             lines = file.readlines()
@@ -137,46 +165,43 @@ def change_settings_db(loaded_json):
             file.flush()
             os.fsync(file.fileno())
     except Exception as ex:
-        print("Error writing db settings: " + str(ex))
+        print(f"Error writing DroneBridge settings: {ex}")
         return False
     return True
 
 
-def change_settings(loaded_json, origin):
+def change_settings(loaded_json: json, origin: int) -> bytes:
     """takes a settings change request - executes it - returns a encoded settings change success message"""
     worked = False
     if loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_DB.value:
         worked = change_settings_db(loaded_json)
     elif loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
-        worked = change_settings_wbc(loaded_json, origin)
+        print("Error: WBC settings change not supported")
+        worked = False
     if worked:
         return new_settingschangesuccess_message(origin, loaded_json['id'])
     else:
-        return new_error_response_message('could not change settings', origin, loaded_json['id'])
+        return new_error_response_message('Could not change settings', origin, loaded_json['id'])
 
 
-def get_firmware_id():
+def get_firmware_id() -> int:
     version_num = 0
     with open(PATH_DB_VERSION, 'r') as version_file:
         version_num = int(version_file.readline())
     return version_num
 
 
-def create_sys_ident_response(loaded_json, origin):
+def create_sys_ident_response(loaded_json: int, origin: int) -> bytes:
     command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SYS_IDENT_RESPONSE.value, 'origin': origin,
                           'HID': 0, 'FID': get_firmware_id(), 'id': loaded_json['id']})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-def change_settings_gopro(loaded_json):
-    # TODO change GoPro settings
-    pass
-
-
-def read_dronebridge_settings(response_header, specific_request, requested_settings):
+def read_dronebridge_settings(response_header: dict, specific_request: bool, requested_settings: json) -> json:
     """
     Read settings from file and create a valid packet
+
     :param response_header: Everything but the settings part of the message as a dict
     :param specific_request: Is it a general or specific settings request: True|False
     :param requested_settings: A request json
@@ -197,34 +222,6 @@ def read_dronebridge_settings(response_header, specific_request, requested_setti
             for key in config[section]:
                 if key not in db_settings_blacklist:
                     settings[section][key] = config.get(section, key)
-
-    response_header['settings'] = settings
-    return response_header
-
-
-def read_wbc_settings(response_header, specific_request, requested_settings):
-    """
-    Read settings from file and create a valid packet
-    :param response_header: Everything but the settings part of the message as a dict
-    :param specific_request: Is it a general or specific settings request: True|False
-    :return: The complete json with settings
-    """
-    virtual_section = 'root'
-    settings = {}
-    config = configparser.ConfigParser()
-    config.optionxform = str
-    with open(PATH_WBC_SETTINGS, 'r') as lines:
-        lines = chain(('[' + virtual_section + ']',), lines)
-        config.read_file(lines)
-
-    if specific_request:
-        for requested_set in requested_settings['wbc']:
-            if requested_set in config[virtual_section]:
-                settings[requested_set] = config.get(virtual_section, requested_set)
-    else:
-        for key in config[virtual_section]:
-            if key not in wbc_settings_blacklist:
-                settings[key] = config.get(virtual_section, key)
 
     response_header['settings'] = settings
     return response_header
@@ -274,8 +271,10 @@ def normalize_jscal_axis(device="/dev/input/js0"):
     """
     Reads the raw min and max values that the RC-HID will send to the ground station and calculates the calibration
     parameters to that the full range is used with no dead zone. The calibration is stored via "jscal-store".
-    NOTE: This function does not calibrate the joystick! The user needs to calibrate the RC itself. This function just
-     tells the system to not use any dead zone and makes sure the full range of the output is being used
+
+    .. note:: This function does not calibrate the joystick! The user needs to calibrate the RC itself. This function just
+        tells the system to not use any dead zone and makes sure the full range of the output is being used
+
     :param device: The device descriptor
     :return:
     """
@@ -288,8 +287,8 @@ def normalize_jscal_axis(device="/dev/input/js0"):
             absInfo = dev_capabilitys_list[i][1]
             minimum = absInfo[1]  # minimum value the RC will send for the first axis - raw value!
             maximum = absInfo[2]  # maximum value the RC will send for the first axis - raw value!
-            center_value = int((minimum + maximum)/2)
-            correction_coeff_min = int(536854528/(maximum - center_value))
+            center_value = int((minimum + maximum) / 2)
+            correction_coeff_min = int(536854528 / (maximum - center_value))
             correction_coeff_max = int(536854528 / (maximum - center_value))
             calibration_string = calibration_string + ",1,0," + str(center_value) + "," + str(center_value) + "," \
                                  + str(correction_coeff_min) + "," + str(correction_coeff_max)
@@ -307,20 +306,35 @@ def remove_first_line(filepath):
         f2.writelines(data[1:])
 
 
-def comm_message_extract_info(message):
+def parse_comm_message(raw_data_encoded: bytes) -> None or json:
+    extracted_info = comm_message_extract_info(raw_data_encoded)  # returns json bytes [0] and crc bytes [1]
+    try:
+        loaded_json = json.loads(extracted_info[0].decode())
+        if not comm_crc_correct(extracted_info):  # Check CRC
+            print("Communication message: invalid CRC")
+            return None
+        return loaded_json
+    except UnicodeDecodeError:
+        print("Invalid command: Could not decode json message")
+        return None
+    except ValueError:
+        print("ValueError on decoding json")
+        return None
+
+
+def comm_message_extract_info(message: bytes) -> list:
     alist = message.rsplit(b'}', 1)
     alist[0] = alist[0] + b'}'
     return alist
 
 
-def comm_crc_correct(extracted_info):
+def comm_crc_correct(extracted_info: list) -> bool:
     """
     Checks the CRC32 of the message contained in extracted_info[1]
+
     :param extracted_info: extracted_info[0] is the message as json, extracted_info[1] are the four crc bytes
     :return: True if message has valid CRC32
     """
     if binascii.crc32(extracted_info[0]).to_bytes(4, byteorder='little', signed=False) == extracted_info[1]:
         return True
-    print(tag + "Bad CRC!")
     return False
-

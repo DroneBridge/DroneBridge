@@ -40,29 +40,29 @@ class BpfInstruction(ctypes.Structure):
     ]
 
 
-def attach_filter(sock, byte_comm_id, byte_direction, byte_port):
+def attach_filter(sock, byte_comm_id: bytes, byte_direction: bytes, byte_port: bytes):
     """Build a BPF filter for DroneBridge raw protocol v2"""
     # first byte of dst_mac must be 0x01, we overwrite it here to be sure
-    u32_port = int.from_bytes(b'\x00\x00\x00'+byte_port, byteorder='big', signed=False)
+    u32_port = int.from_bytes(b'\x00\x00\x00' + byte_port, byteorder='big', signed=False)
     u32_direction_comm = int.from_bytes(b'\x00\x00' + byte_direction + byte_comm_id, byteorder='big', signed=False)
     BPFFILTER = [
-                    [0x30,  0,  0, 0x00000003],
-                    [0x64,  0,  0, 0x00000008],
-                    [0x07,  0,  0, 0000000000],
-                    [0x30,  0,  0, 0x00000002],
-                    [0x4c,  0,  0, 0000000000],
-                    [0x02,  0,  0, 0000000000],
-                    [0x07,  0,  0, 0000000000],
-                    [0x48,  0,  0, 0000000000],
-                    [0x45,  1,  0, 0x0000b400],  # allow rts frames
-                    [0x45,  0,  5, 0x00000800],  # allow data frames
-                    [0x48,  0,  0, 0x00000004],
-                    [0x15,  0,  3, u32_direction_comm],  # <direction><comm id>
-                    [0x50,  0,  0, 0x00000006],
-                    [0x15,  0,  1, u32_port],  # <port>
-                    [0x06,  0,  0, 0x00002000],
-                    [0x06,  0,  0, 0000000000],
-            ]
+        [0x30, 0, 0, 0x00000003],
+        [0x64, 0, 0, 0x00000008],
+        [0x07, 0, 0, 0000000000],
+        [0x30, 0, 0, 0x00000002],
+        [0x4c, 0, 0, 0000000000],
+        [0x02, 0, 0, 0000000000],
+        [0x07, 0, 0, 0000000000],
+        [0x48, 0, 0, 0000000000],
+        [0x45, 1, 0, 0x0000b400],  # allow rts frames
+        [0x45, 0, 5, 0x00000800],  # allow data frames
+        [0x48, 0, 0, 0x00000004],
+        [0x15, 0, 3, u32_direction_comm],  # <direction><comm id>
+        [0x50, 0, 0, 0x00000006],
+        [0x15, 0, 1, u32_port],  # <port>
+        [0x06, 0, 0, 0x00002000],
+        [0x06, 0, 0, 0000000000],
+    ]
 
     insns = (BpfInstruction * len(BPFFILTER))()
     for i, (code, jt, jf, k) in enumerate(BPFFILTER):
