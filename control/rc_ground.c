@@ -23,23 +23,24 @@
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_crc.h"
 #include "../common/shared_memory.h"
-#include "../common/db_protocol.h"
 #include "../common/mavlink/c_library_v2/common/mavlink.h"
 
 
 int rc_protocol;
 uint8_t crc_mspv2, crc8, rc_seq_number = 0;
 crc_t crc_rc;
-int i_crc, i_rc;
+int i_crc, i_rc, num_interfaces = 0;
 unsigned int rc_crc_tbl_idx, mspv2_tbl_idx;
 db_rc_values_t *shm_rc_values = NULL;
 db_rc_overwrite_values_t *shm_rc_overwrite = NULL;
 struct timespec timestamp;
-uint8_t mav_packet_buf[MAVLINK_MAX_PACKET_LEN];
 bool en_rc_overwrite = false;
 
 // pointing right into the sockets send buffer for max performance
 struct data_uni *monitor_databuffer;
+
+// DroneBridge raw interfaces. One per adapter
+db_socket raw_interfaces_rc[DB_MAX_ADAPTERS] = {0};
 
 // could do this with two for-loops but hardcoded is faster and number of aux channels won't change anyways
 void generate_msp(unsigned short *newJoystickData) {
@@ -52,7 +53,7 @@ void generate_msp(unsigned short *newJoystickData) {
     monitor_databuffer->bytes[5] = (uint8_t) (newJoystickData[0] & 0xFF);
     monitor_databuffer->bytes[6] = (uint8_t) ((newJoystickData[0] >> 8) & 0xFF);
     //Pitch
-    monitor_databuffer->bytes[7] = (uint8_t) ( newJoystickData[1] & 0xFF);
+    monitor_databuffer->bytes[7] = (uint8_t) (newJoystickData[1] & 0xFF);
     monitor_databuffer->bytes[8] = (uint8_t) ((newJoystickData[1] >> 8) & 0xFF);
     //Throttle
     monitor_databuffer->bytes[9] = (uint8_t) (newJoystickData[2] & 0xFF);
@@ -111,7 +112,7 @@ void generate_mspv2(unsigned short *newJoystickData) {
     monitor_databuffer->bytes[8] = (uint8_t) (newJoystickData[0] & 0xFF);
     monitor_databuffer->bytes[9] = (uint8_t) ((newJoystickData[0] >> 8) & 0xFF);
     //Pitch
-    monitor_databuffer->bytes[10] = (uint8_t) ( newJoystickData[1] & 0xFF);
+    monitor_databuffer->bytes[10] = (uint8_t) (newJoystickData[1] & 0xFF);
     monitor_databuffer->bytes[11] = (uint8_t) ((newJoystickData[1] >> 8) & 0xFF);
     //Throttle
     monitor_databuffer->bytes[12] = (uint8_t) (newJoystickData[2] & 0xFF);
@@ -162,18 +163,18 @@ void generate_mspv2(unsigned short *newJoystickData) {
 uint16_t generate_mavlinkv2_rc_overwrite(unsigned short jdat[NUM_CHANNELS]) {
     mavlink_message_t message;
     mavlink_msg_rc_channels_override_pack(DB_MAVLINK_SYS_ID, 1, &message, 0, 0, jdat[0], jdat[1],
-                                                               jdat[2], jdat[3], jdat[4], jdat[5], jdat[6], jdat[7],
-                                                               jdat[8], jdat[9], jdat[10], jdat[11], jdat[12], jdat[13],
-                                                               0, 0, 0, 0);
+                                          jdat[2], jdat[3], jdat[4], jdat[5], jdat[6], jdat[7],
+                                          jdat[8], jdat[9], jdat[10], jdat[11], jdat[12], jdat[13],
+                                          0, 0, 0, 0);
     return mavlink_msg_to_send_buffer(monitor_databuffer->bytes, &message);
 }
 
-void generate_db_rc_message(uint16_t channels[NUM_CHANNELS]){
+void generate_db_rc_message(uint16_t channels[NUM_CHANNELS]) {
     // Security check. Cap values. Poorly calibrated joysticks might lead to unwanted behavior!
-    for (i_crc = 0; i_crc < DB_RC_NUM_CHANNELS; i_crc++){
-        if (channels[i_crc] < 1000){
+    for (i_crc = 0; i_crc < DB_RC_NUM_CHANNELS; i_crc++) {
+        if (channels[i_crc] < 1000) {
             channels[i_crc] = 1000;
-        } else if (channels[i_crc] > 2000){
+        } else if (channels[i_crc] > 2000) {
             channels[i_crc] = 2000;
         }
         channels[i_crc] -= 1000;
@@ -205,21 +206,27 @@ void generate_db_rc_message(uint16_t channels[NUM_CHANNELS]){
 }
 
 /**
- * Sets the desired RC protocol.
+ * Sets the desired RC protocol. Opens DroneBridge raw protocol sockets for transmission
  * @param new_rc_protocol 1:MSPv1, 2:MSPv2, 3:MAVLink v1, 4:MAVLink v2, 5:DB-RC
  * @param allow_rc_overwrite Set to 'Y' if you want to allow the overwrite of RC channels via a shm/external app
  * @return
  */
-int conf_rc(int new_rc_protocol, char allow_rc_overwrite, int adhere_80211){
+int conf_rc(char adapters[DB_MAX_ADAPTERS][IFNAMSIZ], int num_inf_rc, int comm_id, int db_mode, int bitrate_op,
+            int frame_type, int new_rc_protocol, char allow_rc_overwrite, int adhere_80211) {
     rc_protocol = new_rc_protocol;
     en_rc_overwrite = allow_rc_overwrite == 'Y' ? true : false;
     monitor_databuffer = get_hp_raw_buffer(adhere_80211);
+    for (int i = 0; i < num_inf_rc; i++) {
+        raw_interfaces_rc[i] = open_db_socket(adapters[i], comm_id, db_mode, bitrate_op, DB_DIREC_DRONE,
+                                              DB_PORT_CONTROLLER, frame_type);
+    }
+    num_interfaces = num_inf_rc;
 }
 
 /**
  * Init shared memory: RC values before sending & RC overwrite shm
  */
-void open_rc_shm(){
+void open_rc_shm() {
     shm_rc_values = db_rc_values_memory_open();
     shm_rc_overwrite = db_rc_overwrite_values_memory_open();
 }
@@ -231,34 +238,45 @@ void open_rc_shm(){
  * @return
  */
 int send_rc_packet(uint16_t channel_data[]) {
-    if (en_rc_overwrite){
+    if (en_rc_overwrite) {
         clock_gettime(CLOCK_MONOTONIC_COARSE, &timestamp);
         // check if shm was updated min. 100ms ago
-        if (((timestamp.tv_sec - shm_rc_overwrite->timestamp.tv_sec) * (long)1e9 + (timestamp.tv_nsec -
-                                                                                   shm_rc_overwrite->timestamp.tv_nsec))
-                                                                                   <= 100000000L){
-            for(i_rc = 0; i_rc < NUM_CHANNELS; i_rc++) {
+        if (((timestamp.tv_sec - shm_rc_overwrite->timestamp.tv_sec) * (long) 1e9 + (timestamp.tv_nsec -
+                                                                                     shm_rc_overwrite->timestamp.tv_nsec))
+            <= 100000000L) {
+            for (i_rc = 0; i_rc < NUM_CHANNELS; i_rc++) {
                 if (shm_rc_overwrite->ch > 0)
                     channel_data[i_rc] = shm_rc_overwrite->ch[i_rc];
             }
         }
     }
     // Update shared memory so status module or other apps can read RC channel values
-    for(i_rc = 0; i_rc < NUM_CHANNELS; i_rc++) {
+    for (i_rc = 0; i_rc < NUM_CHANNELS; i_rc++) {
         shm_rc_values->ch[i_rc] = channel_data[i_rc];
     }
 
-    if (rc_protocol == 1){
+    if (rc_protocol == 1) {
         generate_msp(channel_data);
-        send_packet_hp(DB_PORT_CONTROLLER, MSP_DATA_LENTH, update_seq_num(&rc_seq_number));
-    }else if (rc_protocol == 2){
+        for (int i = 0; i < num_interfaces; i++) {
+            send_packet_hp_div(&raw_interfaces_rc[i], DB_PORT_CONTROLLER, MSP_DATA_LENTH,
+                               update_seq_num(&rc_seq_number));
+        }
+    } else if (rc_protocol == 2) {
         generate_mspv2(channel_data);
-        send_packet_hp(DB_PORT_CONTROLLER, MSP_V2_DATA_LENGTH, update_seq_num(&rc_seq_number));
-    }else if (rc_protocol == 4){
-        send_packet_hp(DB_PORT_RC, generate_mavlinkv2_rc_overwrite(channel_data), update_seq_num(&rc_seq_number));
-    } else if (rc_protocol == 5){
+        for (int i = 0; i < num_interfaces; i++) {
+            send_packet_hp_div(&raw_interfaces_rc[i], DB_PORT_CONTROLLER, MSP_V2_DATA_LENGTH,
+                               update_seq_num(&rc_seq_number));
+        }
+    } else if (rc_protocol == 4) {
+        for (int i = 0; i < num_interfaces; i++) {
+            send_packet_hp_div(&raw_interfaces_rc[i], DB_PORT_CONTROLLER, generate_mavlinkv2_rc_overwrite(channel_data),
+                               update_seq_num(&rc_seq_number));
+        }
+    } else if (rc_protocol == 5) {
         generate_db_rc_message(channel_data);
-        send_packet_hp(DB_PORT_RC, DB_RC_DATA_LENGTH, update_seq_num(&rc_seq_number));
+        for (int i = 0; i < num_interfaces; i++) {
+            send_packet_hp_div(&raw_interfaces_rc[i], DB_PORT_RC, DB_RC_DATA_LENGTH, update_seq_num(&rc_seq_number));
+        }
     }
     return 0;
 }

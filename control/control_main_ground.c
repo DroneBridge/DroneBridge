@@ -48,11 +48,14 @@ int detect_RC(int new_Joy_IF) {
 
 int main(int argc, char *argv[]) {
     atexit(close_socket_send_receive);
-    char ifName[IFNAMSIZ], RC_name[128];
+    char RC_name[128];
     char calibrate_comm[500];
     uint8_t comm_id, frame_type;
     int Joy_IF, c, bitrate_op, rc_protocol, adhere_80211;
-    char db_mode = 'm'; char allow_rc_overwrite = 'N';
+    char db_mode = 'm';
+    char allow_rc_overwrite = 'N';
+    int num_inf_rc = 0;
+    char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 
     // Command Line processing
     Joy_IF = JOY_INTERFACE;
@@ -62,12 +65,14 @@ int main(int argc, char *argv[]) {
     comm_id = DEFAULT_V2_COMMID;
     frame_type = DB_FRAMETYPE_DEFAULT;
     strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
-    strcpy(ifName, DEFAULT_IF);
     opterr = 0;
     while ((c = getopt(argc, argv, "n:j:m:b:g:v:o:t:c:a:")) != -1) {
         switch (c) {
             case 'n':
-                strncpy(ifName, optarg, IFNAMSIZ);
+                if (num_inf_rc < DB_MAX_ADAPTERS) {
+                    strncpy(adapters[num_inf_rc], optarg, IFNAMSIZ);
+                    num_inf_rc++;
+                }
                 break;
             case 'j':
                 Joy_IF = (int) strtol(optarg, NULL, 10);
@@ -100,13 +105,13 @@ int main(int argc, char *argv[]) {
                 printf("12ch RC via the DB-RC option (-v 5)\n");
                 printf("14ch RC using FC serial protocol (-v 1|2|4)\n");
                 printf("Use following commandline arguments.\n");
-                printf("-n network interface for long range \n"
-                               "-j number of joystick interface of RC \n"
-                               "-m mode: [w|m] for wifi or monitor\n"
-                               "-v Protocol [1|2|4|5]: 1 = MSPv1 [Betaflight/Cleanflight]; 2 = MSPv2 [iNAV]; "
-                               "3 = MAVLink v1 (unsupported); 4 = MAVLink v2; 5 = DB-RC (default)\n"
-                               "-o [Y|N] enable/disable RC overwrite\n"
-                               "-c [communication id] Choose a number from 0-255. Same on groundstation and drone!\n"
+                printf("-n network interface(s) for long range \n"
+                       "-j number of joystick interface of RC \n"
+                       "-m mode: [w|m] for wifi or monitor\n"
+                       "-v Protocol [1|2|4|5]: 1 = MSPv1 [Betaflight/Cleanflight]; 2 = MSPv2 [iNAV]; "
+                       "3 = MAVLink v1 (unsupported); 4 = MAVLink v2; 5 = DB-RC (default)\n"
+                       "-o [Y|N] enable/disable RC overwrite\n"
+                       "-c [communication id] Choose a number from 0-255. Same on groundstation and drone!\n"
                        "-t <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
                        "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
                        "supported with Ralink chipsets)"
@@ -117,12 +122,9 @@ int main(int argc, char *argv[]) {
                 abort();
         }
     }
+    conf_rc(adapters, num_inf_rc, comm_id, db_mode, bitrate_op, frame_type, rc_protocol, allow_rc_overwrite,
+            adhere_80211);
 
-    if (open_socket_send_receive(ifName, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_CONTROLLER, frame_type) < 0) {
-        printf(RED "DB_CONTROL_GROUND: Could not open socket " RESET "\n");
-        exit(-1);
-    }
-    conf_rc(rc_protocol, allow_rc_overwrite, adhere_80211);
     open_rc_shm();
 
     printf(GRN "DB_CONTROL_GND: started!" RESET "\n");
@@ -131,7 +133,7 @@ int main(int argc, char *argv[]) {
         strncpy(RC_name, "Unknown", sizeof(RC_name));
     close(sock_fd); // We reopen in the RC specific file. Only opened in here to get the name of the controller
     printf(GRN "DB_CONTROL_GND: Detected \"%s\"" RESET "\n", RC_name);
-    if (strcmp(i6S_descriptor, RC_name) == 0){
+    if (strcmp(i6S_descriptor, RC_name) == 0) {
         printf("DB_CONTROL_GND: Choosing i6S-Config\n");
         strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
         i6S(Joy_IF, calibrate_comm);

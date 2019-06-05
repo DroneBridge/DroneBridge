@@ -228,6 +228,7 @@ db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bit
 }
 
 /**
+ * ---- DEPRECATED ----
  * ONLY OPEN ONE INSTANCE OF THIS SOCKET!
  *
  * Opens and configures a socket for sending and receiving DroneBridge raw protocol frames.

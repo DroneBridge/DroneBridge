@@ -64,7 +64,7 @@ typedef u32 __le32;
 #define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge RC protocol
 
 #define DB_PORT_CONTROLLER  0x01
-// #define DB_PORT_TELEMETRY   0x02
+#define DB_PORT_TELEMETRY   0x02  // deprecated. Use proxy port for bidirectional telemetry
 #define DB_PORT_VIDEO       0x03
 #define DB_PORT_COMM		0x04
 #define DB_PORT_STATUS		0x05

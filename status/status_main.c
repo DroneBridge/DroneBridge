@@ -39,27 +39,31 @@
 #include "../common/ccolors.h"
 #include "../common/db_utils.h"
 #include "../common/tcp_server.h"
+#include "../common/db_raw_send_receive.h"
 
 #define TCP_STATUS_BUFF_SIZE 2048
 
 bool volatile keeprunning = true;
-char if_name_status[IFNAMSIZ];
+int num_inf_status = 0;
 char db_mode;
 uint8_t comm_id = DEFAULT_V2_COMMID;
+char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 
 void intHandler(int dummy) {
     keeprunning = false;
 }
 
 int process_command_line_args(int argc, char *argv[]) {
-    strncpy(if_name_status, DEFAULT_DB_IF, IFNAMSIZ);
     db_mode = DEFAULT_DB_MODE;
     opterr = 0;
     int c;
     while ((c = getopt(argc, argv, "n:m:c:")) != -1) {
         switch (c) {
             case 'n':
-                strncpy(if_name_status, optarg, IFNAMSIZ);
+                if (num_inf_status < DB_MAX_ADAPTERS) {
+                    strncpy(adapters[num_inf_status], optarg, IFNAMSIZ);
+                    num_inf_status++;
+                }
                 break;
             case 'm':
                 db_mode = *optarg;
@@ -70,7 +74,7 @@ int process_command_line_args(int argc, char *argv[]) {
             case '?':
                 printf("This tool sends extra information about the video stream and RC via UDP to IP given by "
                        "IP-checker module. Use"
-                       "\n\t-n <network_IF> "
+                       "\n\t-n Name of network interface"
                        "\n\t-m [w|m] default is <m>"
                        "\n\t-c <communication id> Choose a number from 0-255. Same on ground station and drone!");
                 break;
@@ -85,11 +89,13 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
     struct timespec timestamp;
-    int restarts = 0, cardcounter = 0, select_return, max_sd, max_clients = 10, tcp_clients[max_clients], new_tcp_client;
+    int restarts = 0, cardcounter = 0, select_return, max_sd, max_clients = 10, tcp_clients[max_clients],
+    new_tcp_client, prev_seq_num_status = 0;
     struct timeval timecheck;
     long start, rightnow, status_message_update_rate = 100; // send status messages every 100ms (10Hz)
     int8_t best_dbm = 0;
     ssize_t l;
+    uint8_t seq_num_status = 0;
     uint16_t radiotap_length;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
     uint8_t message_buff[DATA_UNI_LENGTH - DB_RAW_V2_HEADER_LENGTH];
@@ -127,8 +133,14 @@ int main(int argc, char *argv[]) {
     int number_cards = db_gnd_status_t->wifi_adapter_cnt;
 
     // set up long range receiving socket
-    int long_range_socket = open_receive_socket(if_name_status, db_mode, comm_id, DB_DIREC_GROUND, DB_PORT_STATUS);
-    long_range_socket = set_socket_nonblocking(long_range_socket);
+    db_socket raw_interfaces_status[DB_MAX_ADAPTERS] = {0};
+    for (int i = 0; i < num_inf_status; i++) {
+        raw_interfaces_status[i] = open_db_socket(adapters[i], comm_id, db_mode, 6, DB_DIREC_DRONE, DB_PORT_STATUS,
+                DB_FRAMETYPE_DEFAULT);
+        raw_interfaces_status[i].db_socket = set_socket_nonblocking(raw_interfaces_status[i].db_socket);
+
+    }
+
     fd_set fd_socket_set;
     struct timeval socket_timeout;
     socket_timeout.tv_sec = 0;
@@ -143,12 +155,14 @@ int main(int argc, char *argv[]) {
     while (keeprunning) {
         socket_timeout.tv_sec = 0;
         socket_timeout.tv_usec = 100000; // 10Hz
-        FD_ZERO (&fd_socket_set);
-        FD_SET (long_range_socket, &fd_socket_set);
-        FD_SET (status_tcp_server_info.sock_fd, &fd_socket_set);
-        max_sd = long_range_socket;
-        if (status_tcp_server_info.sock_fd > max_sd)
-            max_sd = status_tcp_server_info.sock_fd;
+        FD_ZERO(&fd_socket_set);
+        FD_SET(status_tcp_server_info.sock_fd, &fd_socket_set);
+        max_sd = status_tcp_server_info.sock_fd;
+        for (int i = 0; i < num_inf_status; i++) {
+            FD_SET(raw_interfaces_status[i].db_socket, &fd_socket_set);
+            if (raw_interfaces_status[i].db_socket > max_sd)
+                max_sd = raw_interfaces_status[i].db_socket;
+        }
         //add child sockets (tcp connection sockets) to set
         for (int i = 0; i < max_clients; i++) {
             int tcp_client_sd = tcp_clients[i];
@@ -162,25 +176,31 @@ int main(int argc, char *argv[]) {
         if (select_return == -1) {
             perror("DB_STATUS_GROUND: select() returned error: ");
         } else if (select_return > 0) {
-            if (FD_ISSET(long_range_socket, &fd_socket_set)) {
-                // ---------------
-                // status message from long range link (UAV)
-                // ---------------
-                l = recv(long_range_socket, lr_buffer, DATA_UNI_LENGTH, 0);
-                if (l > 0) {
-                    get_db_payload(lr_buffer, l, message_buff, &radiotap_length);
-                    // process payload (currently only one type of raw status frame is supported: RC_AIR --> STATUS_GROUND)
-                    // must be a uav_rc_status_update_message
-                    struct uav_rc_status_update_message *rc_status_message = (struct uav_rc_status_update_message *) message_buff;
-                    db_sys_status_message.rssi_drone = rc_status_message->rssi_rc_uav;
-                    db_sys_status_message.recv_pack_sec = rc_status_message->recv_pack_sec;
-                    db_rc_status_t->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
-                    db_rc_status_t->received_packet_cnt = db_sys_status_message.recv_pack_sec;
-                    db_uav_status->cpuload = rc_status_message->cpu_usage_uav;
-                    db_uav_status->temp = rc_status_message->cpu_temp_uav;
-                    db_uav_status->undervolt = rc_status_message->uav_is_low_V;
+            for (int i = 0; i < num_inf_status; ++i) {
+                if (FD_ISSET(raw_interfaces_status[i].db_socket, &fd_socket_set)) {
+                    // ---------------
+                    // status message from long range link (UAV)
+                    // ---------------
+                    l = recv(raw_interfaces_status[i].db_socket, lr_buffer, DATA_UNI_LENGTH, 0);
+                    if (l > 0) {
+                        get_db_payload(lr_buffer, l, message_buff, &seq_num_status, &radiotap_length);
+                        if (prev_seq_num_status != seq_num_status) {
+                            prev_seq_num_status = seq_num_status;
+                            // process payload (currently only one type of raw status frame is supported: RC_AIR --> STATUS_GROUND)
+                            // must be a uav_rc_status_update_message
+                            struct uav_rc_status_update_message *rc_status_message = (struct uav_rc_status_update_message *) message_buff;
+                            db_sys_status_message.rssi_drone = rc_status_message->rssi_rc_uav;
+                            db_sys_status_message.recv_pack_sec = rc_status_message->recv_pack_sec;
+                            db_rc_status_t->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;
+                            db_rc_status_t->received_packet_cnt = db_sys_status_message.recv_pack_sec;
+                            db_uav_status->cpuload = rc_status_message->cpu_usage_uav;
+                            db_uav_status->temp = rc_status_message->cpu_temp_uav;
+                            db_uav_status->undervolt = rc_status_message->uav_is_low_V;
+                        }
+                    }
                 }
             }
+
             // handle incoming tcp connection requests on master TCP socket
             if (FD_ISSET(status_tcp_server_info.sock_fd, &fd_socket_set)) {
                 if ((new_tcp_client = accept(status_tcp_server_info.sock_fd,
@@ -270,6 +290,9 @@ int main(int argc, char *argv[]) {
             close(tcp_clients[i]);
     }
     close(status_tcp_server_info.sock_fd);
-    close(long_range_socket);
+    for (int i = 0; i < DB_MAX_ADAPTERS; i++) {
+        if (raw_interfaces_status[i].db_socket > 0)
+            close(raw_interfaces_status[i].db_socket);
+    }
     return 0;
 }

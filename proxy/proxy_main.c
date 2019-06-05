@@ -38,32 +38,31 @@
 #define TCP_BUFFER_SIZE (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH)
 
 bool volatile keeprunning = true;
-char if_name_telemetry[IFNAMSIZ], if_name_telem[IFNAMSIZ];
 char db_mode, write_to_osdfifo;
 uint8_t comm_id = DEFAULT_V2_COMMID, frame_type;
-int bitrate_op, prox_adhere_80211;
+int bitrate_op, prox_adhere_80211, num_interfaces;
+char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 
-void intHandler(int dummy)
-{
+void intHandler(int dummy) {
     keeprunning = false;
 }
 
-int process_command_line_args(int argc, char *argv[]){
-    strncpy(if_name_telemetry, DEFAULT_DB_IF, IFNAMSIZ);
-    strncpy(if_name_telem, DEFAULT_DB_IF, IFNAMSIZ);
+int process_command_line_args(int argc, char *argv[]) {
     db_mode = DEFAULT_DB_MODE;
     write_to_osdfifo = 'Y';
     opterr = 0;
+    num_interfaces = 0;
     bitrate_op = 1;
     prox_adhere_80211 = 0;
     frame_type = DB_FRAMETYPE_DEFAULT;
     int c;
-    while ((c = getopt (argc, argv, "n:m:c:b:o:f:a:")) != -1)
-    {
-        switch (c)
-        {
+    while ((c = getopt(argc, argv, "n:m:c:b:o:f:a:?")) != -1) {
+        switch (c) {
             case 'n':
-                strncpy(if_name_telemetry, optarg, IFNAMSIZ);
+                if (num_interfaces < DB_MAX_ADAPTERS) {
+                    strncpy(adapters[num_interfaces], optarg, IFNAMSIZ);
+                    num_interfaces++;
+                }
                 break;
             case 'm':
                 db_mode = *optarg;
@@ -101,9 +100,9 @@ int process_command_line_args(int argc, char *argv[]){
     }
 }
 
-int open_osd_fifo(){
+int open_osd_fifo() {
     int tempfifo_osd = open("/root/telemetryfifo1", O_WRONLY | O_NONBLOCK);
-    if (tempfifo_osd==-1){
+    if (tempfifo_osd == -1) {
         printf(YEL "DB_PROXY_GROUND: Unable to open OSD FIFO\n" RESET);
     }
     return tempfifo_osd;
@@ -115,11 +114,14 @@ int main(int argc, char *argv[]) {
     usleep((__useconds_t) 1e6);
     process_command_line_args(argc, argv);
 
-    // set up long range receiving socket
-    int lr_socket_proxy = open_socket_send_receive(if_name_telemetry, comm_id, db_mode, bitrate_op, DB_DIREC_DRONE,
-            DB_PORT_PROXY, frame_type);
+    // set up long range sockets
+    db_socket raw_interfaces[DB_MAX_ADAPTERS] = {0};
+    for (int i = 0; i < num_interfaces; ++i) {
+        raw_interfaces[i] = open_db_socket(adapters[i], comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_PROXY,
+                                           frame_type);
+    }
     int fifo_osd = -1, max_clients = 10, tcp_clients[max_clients], new_tcp_client;
-    if (write_to_osdfifo == 'Y'){
+    if (write_to_osdfifo == 'Y') {
         fifo_osd = open_osd_fifo();
     }
 
@@ -134,24 +136,25 @@ int main(int argc, char *argv[]) {
     int tcp_addrlen = sizeof(tcp_server_info.servaddr);
 
     struct data_uni *data_uni_to_drone = get_hp_raw_buffer(prox_adhere_80211);
-    uint8_t seq_num = 0;
+    uint8_t seq_num = 0, seq_num_proxy = 0, last_recv_seq_num = 0;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
     uint8_t tcp_buffer[TCP_BUFFER_SIZE];
-    size_t message_length = 0;
+    size_t payload_length = 0;
 
-    printf(GRN "DB_PROXY_GROUND: started!" RESET "\n");
-    while(keeprunning) {
+    printf(GRN "DB_PROXY_GROUND: started! Enabled diversity on %i adapters." RESET "\n", num_interfaces);
+    while (keeprunning) {
         select_timeout.tv_sec = 5;
         select_timeout.tv_usec = 0;
         FD_ZERO (&fd_socket_set);
         FD_SET (tcp_server_info.sock_fd, &fd_socket_set);
-        FD_SET(lr_socket_proxy, &fd_socket_set);
         int max_sd = tcp_server_info.sock_fd;
-        if (lr_socket_proxy > max_sd)
-        {
-            max_sd = lr_socket_proxy;
+        // add raw DroneBridge sockets
+        for (int i = 0; i < num_interfaces; i++) {
+            FD_SET (raw_interfaces[i].db_socket, &fd_socket_set);
+            if (raw_interfaces[i].db_socket > max_sd)
+                max_sd = raw_interfaces[i].db_socket;
         }
-        //add child sockets (tcp connection sockets) to set
+        // add child sockets (tcp connection sockets) to set
         for (int i = 0; i < max_clients; i++) {
             int tcp_client_sd = tcp_clients[i];
             if (tcp_client_sd > 0)
@@ -160,29 +163,31 @@ int main(int argc, char *argv[]) {
                 max_sd = tcp_client_sd;
         }
 
-        int select_return = select(max_sd+1, &fd_socket_set, NULL, NULL, &select_timeout);
+        int select_return = select(max_sd + 1, &fd_socket_set, NULL, NULL, &select_timeout);
         if (select_return == -1) {
             perror("DB_PROXY_GROUND: select() returned error: ");
         } else if (select_return > 0) {
-            if (FD_ISSET(lr_socket_proxy, &fd_socket_set)){
-                // ---------------
-                // incoming form long range proxy port - write data to OSD-FIFO and pass on to connected TCP clients
-                // ---------------
-                ssize_t l = recv(lr_socket_proxy, lr_buffer, DATA_UNI_LENGTH, 0); int err = errno;
-                if (l > 0){
-                    message_length = get_db_payload(lr_buffer, l, tcp_buffer, &radiotap_length);
-                    send_to_all_tcp_clients(tcp_clients, tcp_buffer, message_length);
-                    if (fifo_osd != -1 && write_to_osdfifo == 'Y'){
-//                        ssize_t written = write(fifo_osd, udp_buffer, message_length);
-//                        printf("Written %i to fifo\n", (int) written);
-//                        if (written < 1){
-//                            perror(RED "DB_TEL_GROUND: Could not write to OSD FIFO" RESET);
-//                        }
-                    }else if (write_to_osdfifo == 'Y'){
-                        printf(YEL "DB_PROXY_GROUND: No OSD-FIFO open. Trying to reopen!\n" RESET);
-                    }
-                } else {
-                    printf(RED "DB_PROXY_GROUND: Long range socket received an error: %s\n" RESET, strerror(err));
+            for (int i = 0; i < num_interfaces; i++) {
+                if (FD_ISSET(raw_interfaces[i].db_socket, &fd_socket_set)) {
+                    // ---------------
+                    // incoming form long range proxy port - write data to OSD-FIFO and pass on to connected TCP clients
+                    // ---------------
+                    ssize_t l = recv(raw_interfaces[i].db_socket, lr_buffer, DATA_UNI_LENGTH, 0);
+                    int err = errno;
+                    if (l > 0) {
+                        payload_length = get_db_payload(lr_buffer, l, tcp_buffer, &seq_num_proxy, &radiotap_length);
+                        if (seq_num_proxy != last_recv_seq_num) {
+                            last_recv_seq_num = seq_num_proxy;
+                            send_to_all_tcp_clients(tcp_clients, tcp_buffer, payload_length);
+                            if (fifo_osd != -1 && write_to_osdfifo == 'Y') {
+                                ssize_t written = write(fifo_osd, tcp_buffer, payload_length);
+                                if (written < 1)
+                                    perror(RED "DB_TEL_GROUND: Could not write to OSD FIFO" RESET);
+                            } else if (write_to_osdfifo == 'Y')
+                                printf(YEL "DB_PROXY_GROUND: No OSD-FIFO open. Trying to reopen!\n" RESET);
+                        }
+                    } else
+                        printf(RED "DB_PROXY_GROUND: Long range socket received an error: %s\n" RESET, strerror(err));
                 }
             }
             // handle incoming tcp connection requests on master TCP socket
@@ -218,13 +223,18 @@ int main(int argc, char *argv[]) {
                     } else {
                         // client sent us some information. Process it...
                         memcpy(data_uni_to_drone->bytes, tcp_buffer, recv_length);
-                        send_packet_hp(DB_PORT_CONTROLLER, (u_int16_t) recv_length, update_seq_num(&seq_num));
+                        for (int j = 0; j < num_interfaces; j++)
+                            send_packet_hp_div(&raw_interfaces[j], DB_PORT_CONTROLLER, (u_int16_t) recv_length,
+                                               update_seq_num(&seq_num));
                     }
                 }
             }
         }
     }
-    close(lr_socket_proxy);
+    for (int i = 0; i < DB_MAX_ADAPTERS; i++) {
+        if (raw_interfaces[i].db_socket > 0)
+            close(raw_interfaces[i].db_socket);
+    }
     for (int i = 0; i < max_clients; i++) {
         if (tcp_clients[i] > 0)
             close(tcp_clients[i]);

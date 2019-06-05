@@ -338,14 +338,14 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
     uint8_t payload_buffer[DATA_UNI_LENGTH]; // contains payload of raw protocol (video header + data = db_video_packet)
     uint16_t radiotap_length = 0;
     int checksum_correct = 1;
-    uint8_t current_antenna_indx = 0;
+    uint8_t current_antenna_indx = 0, seq_num_video = 0;
     uint16_t message_length = 0;
 
     // receive
     ssize_t l = recv(interface->selectable_fd, lr_buffer, MAX_DB_DATA_LENGTH, 0); int err = errno;
     if (l > 0){
         db_gnd_status->received_packet_cnt++;
-        message_length = get_db_payload(lr_buffer, l, payload_buffer, &radiotap_length);
+        message_length = get_db_payload(lr_buffer, l, payload_buffer, &seq_num_video, &radiotap_length);
         if (pass_through){
             // Do not decode using FEC - pure UDP pass through, decoding of FEC must happen on following applications
             // TODO: Implement custom protocol in case of pass_through that tells the receiver about the adapter that it was received on

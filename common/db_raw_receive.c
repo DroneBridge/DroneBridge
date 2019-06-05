@@ -49,26 +49,25 @@ int expected_seq_num;
  * @param port The port of the module using this function. See db_protocol.h (DB_PORT_CONTROLLER, DB_PORT_COMM, ...)
  * @return The socket with set BPF filter
  */
-int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t port)
-{
+int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t port) {
     struct sock_filter dest_filter[] =
             {
-                    { 0x30,  0,  0, 0x00000003 },
-                    { 0x64,  0,  0, 0x00000008 },
-                    { 0x07,  0,  0, 0000000000 },
-                    { 0x30,  0,  0, 0x00000002 },
-                    { 0x4c,  0,  0, 0000000000 },
-                    { 0x02,  0,  0, 0000000000 },
-                    { 0x07,  0,  0, 0000000000 },
-                    { 0x48,  0,  0, 0000000000 },
-                    { 0x45,  1,  0, 0x0000b400 },   // allow rts frames
-                    { 0x45,  0,  5, 0x00000800 },   // allow data frames
-                    { 0x48,  0,  0, 0x00000004 },
-                    { 0x15,  0,  3, 0x00000301 },   // <direction><comm id>
-                    { 0x50,  0,  0, 0x00000006 },
-                    { 0x15,  0,  1, 0x00000005 },   // <port>
-                    { 0x06,  0,  0, 0x00002000 },
-                    { 0x06,  0,  0, 0000000000 },
+                    {0x30, 0, 0, 0x00000003},
+                    {0x64, 0, 0, 0x00000008},
+                    {0x07, 0, 0, 0000000000},
+                    {0x30, 0, 0, 0x00000002},
+                    {0x4c, 0, 0, 0000000000},
+                    {0x02, 0, 0, 0000000000},
+                    {0x07, 0, 0, 0000000000},
+                    {0x48, 0, 0, 0000000000},
+                    {0x45, 1, 0, 0x0000b400},   // allow rts frames
+                    {0x45, 0, 5, 0x00000800},   // allow data frames
+                    {0x48, 0, 0, 0x00000004},
+                    {0x15, 0, 3, 0x00000301},   // <direction><comm id>
+                    {0x50, 0, 0, 0x00000006},
+                    {0x15, 0, 1, 0x00000005},   // <port>
+                    {0x06, 0, 0, 0x00002000},
+                    {0x06, 0, 0, 0000000000},
             };
 
     // override some of the filter settings
@@ -81,8 +80,7 @@ int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t 
                     .filter = dest_filter,
             };
     int ret = setsockopt(newsocket, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
-    if (ret < 0)
-    {
+    if (ret < 0) {
         perror("DB_RECEIVE: could not attach BPF ");
         close(newsocket);
         return -1;
@@ -97,32 +95,26 @@ int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t 
  * @param new_ifname The name of the interface we want the socket to bind to
  * @return The socket that is bound to the network interface
  */
-int bindsocket(int newsocket, char the_mode, char new_ifname[IFNAMSIZ])
-{
+int bindsocket(int newsocket, char the_mode, char new_ifname[IFNAMSIZ]) {
     struct sockaddr_ll sll;
     struct ifreq ifr;
     bzero(&sll, sizeof(sll));
     bzero(&ifr, sizeof(ifr));
-    strncpy((char *)ifr.ifr_name,new_ifname, IFNAMSIZ-1);
+    strncpy((char *) ifr.ifr_name, new_ifname, IFNAMSIZ - 1);
     bzero(&sll, sizeof(sll));
-    if((ioctl(newsocket, SIOCGIFINDEX, &ifr)) == -1)
-    {
+    if ((ioctl(newsocket, SIOCGIFINDEX, &ifr)) == -1) {
         perror("DB_RECEIVE: Unable to find interface index ");
         return -1;
     }
 
     sll.sll_family = AF_PACKET;
     sll.sll_ifindex = ifr.ifr_ifindex;
-    if(the_mode == 'w')
-    {
+    if (the_mode == 'w') {
         sll.sll_protocol = htons(ETHER_TYPE);
-    }
-    else
-    {
+    } else {
         sll.sll_protocol = htons(ETH_P_802_2);
     }
-    if((bind(newsocket, (struct sockaddr *)&sll, sizeof(sll))) ==-1)
-    {
+    if ((bind(newsocket, (struct sockaddr *) &sll, sizeof(sll))) == -1) {
         perror("DB_RECEIVE: bind ");
         return -1;
     }
@@ -134,10 +126,10 @@ int bindsocket(int newsocket, char the_mode, char new_ifname[IFNAMSIZ])
  * @param the_socket The socket to be set to non-blocking
  * @return The socket that is set to non-blocking
  */
-int set_socket_nonblocking(int the_socketfd){
-    if(fcntl(the_socketfd, F_SETFL, O_NONBLOCK) < 0){
+int set_socket_nonblocking(int the_socketfd) {
+    if (fcntl(the_socketfd, F_SETFL, O_NONBLOCK) < 0) {
         perror("Can not put socket in non-blocking mode");
-    }else{
+    } else {
         return the_socketfd;
     }
 }
@@ -149,11 +141,11 @@ int set_socket_nonblocking(int the_socketfd){
  * @param time_out_us Timeout micro seconds
  * @return The socket with a set timeout
  */
-int set_socket_timeout(int the_socketfd, int time_out_s ,int time_out_us){
+int set_socket_timeout(int the_socketfd, int time_out_s, int time_out_us) {
     struct timeval tv_timeout;
     tv_timeout.tv_sec = time_out_s;
     tv_timeout.tv_usec = time_out_us;
-    setsockopt(the_socketfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv_timeout, sizeof(struct timeval));
+    setsockopt(the_socketfd, SOL_SOCKET, SO_RCVTIMEO, (const char *) &tv_timeout, sizeof(struct timeval));
     return the_socketfd;
 }
 
@@ -163,12 +155,12 @@ int set_socket_timeout(int the_socketfd, int time_out_s ,int time_out_us){
  * @param received_seq_num The sequence number of the packet we received "right now"
  * @return The number of packets we lost in between the previous packet and the most current one
  */
-uint8_t count_lost_packets(uint8_t last_seq_num, uint8_t received_seq_num){
+uint8_t count_lost_packets(uint8_t last_seq_num, uint8_t received_seq_num) {
     expected_seq_num = ((last_seq_num == 255) ? 0 : (last_seq_num + 1));
     // Could be one statement. Less confusing this way.
     if (expected_seq_num == received_seq_num) return 0;
     return (uint8_t) ((received_seq_num > expected_seq_num) ? (received_seq_num - expected_seq_num) :
-               (255-expected_seq_num)+received_seq_num);
+                      (255 - expected_seq_num) + received_seq_num);
 }
 
 /**
@@ -176,19 +168,21 @@ uint8_t count_lost_packets(uint8_t last_seq_num, uint8_t received_seq_num){
  * @param receive_buffer: The buffer filled by the raw socket during recv()
  * @param receive_length: The length of the received raw packet (return value of recv())
  * @param payload_buffer: The buffer we write the DroneBridge payload into.
- * @param message_length: A pointer to the variable where we write the message length into
+ * @param seq_num: A pointer to the variable where we write the sequence number of the packet into
  * @param radiotap_length: A pointer to the variable where we write the radiotap header length into
  */
-uint16_t get_db_payload(uint8_t *receive_buffer, ssize_t receive_length, uint8_t *payload_buffer,
-        uint16_t *radiotap_length){
-
+uint16_t get_db_payload(uint8_t *receive_buffer, ssize_t receive_length, uint8_t *payload_buffer, uint8_t *seq_num,
+                        uint16_t *radiotap_length) {
     *radiotap_length = receive_buffer[2] | (receive_buffer[3] << 8);
-    uint16_t payload_length = receive_buffer[*radiotap_length+7] | (receive_buffer[*radiotap_length+8] << 8); // DB_v2
+    *seq_num = receive_buffer[*radiotap_length + 9];
+    uint16_t payload_length =
+            receive_buffer[*radiotap_length + 7] | (receive_buffer[*radiotap_length + 8] << 8); // DB_v2
     // estimate if the packet was sent with offset payload. 4 FCS bytes may or may not be supplied at end of frame.
     if ((receive_length - *radiotap_length - DB_RAW_V2_HEADER_LENGTH) <= (payload_length + 4))
         memcpy(payload_buffer, &receive_buffer[*radiotap_length + DB_RAW_V2_HEADER_LENGTH], payload_length);
     else
-        memcpy(payload_buffer, &receive_buffer[*radiotap_length + DB_RAW_V2_HEADER_LENGTH + DB_RAW_OFFSET], payload_length);
+        memcpy(payload_buffer, &receive_buffer[*radiotap_length + DB_RAW_V2_HEADER_LENGTH + DB_RAW_OFFSET],
+               payload_length);
     return payload_length;
 }
 
@@ -198,43 +192,36 @@ uint16_t get_db_payload(uint8_t *receive_buffer, ssize_t receive_length, uint8_t
  * @param new_mode The DroneBridge mode we are in (monitor or wifi (unsupported))
  * @param comm_id The communication ID to set BPF to
  * @param revc_direction packets with what kind of directions (DB_DIREC_DRONE or DB_DIREC_GROUND) are allowed to pass the
- * filter.
+ *     filter.
  * @param new_port The port of the module using this function. See db_protocol.h (DB_PORT_CONTROLLER, DB_PORT_COMM, ...)
  * @return The socket file descriptor. Socket is bound and has a set BPF filter. Returns -1 if we screwed up.
  */
 int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id, uint8_t revc_direction,
-                        uint8_t new_port)
-{
+                        uint8_t new_port) {
     int sockfd, sockopt;
     //struct ifreq if_ip;	/* get ip addr */
-    struct ifreq ifopts;	/* set promiscuous mode */
+    struct ifreq ifopts;    /* set promiscuous mode */
     //memset(&if_ip, 0, sizeof(struct ifreq));
 
-    if (new_mode == 'w')
-    {
-        if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETHER_TYPE))) == -1)
-        {
+    if (new_mode == 'w') {
+        if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETHER_TYPE))) == -1) {
             perror("DB_RECEIVE: Error in wifi socket setup\n");
             return -1;
         }
-        int flags = fcntl(sockfd,F_GETFL,0);
+        int flags = fcntl(sockfd, F_GETFL, 0);
         fcntl(sockfd, F_SETFL, flags);
-        strncpy(ifopts.ifr_name, newifName, IFNAMSIZ-1);
+        strncpy(ifopts.ifr_name, newifName, IFNAMSIZ - 1);
         ioctl(sockfd, SIOCGIFFLAGS, &ifopts);
         ifopts.ifr_flags |= IFF_PROMISC;
         ioctl(sockfd, SIOCSIFFLAGS, &ifopts);
         /* Allow the socket to be reused - incase connection is closed prematurely */
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt) == -1)
-        {
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt) == -1) {
             perror("DB_RECEIVE: setsockopt");
             close(sockfd);
             exit(EXIT_FAILURE);
         }
-    }
-    else
-    {
-        if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1)
-        {
+    } else {
+        if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
             perror("DB_RECEIVE: Error in monitor mode socket setup\n");
             return -1;
         }
