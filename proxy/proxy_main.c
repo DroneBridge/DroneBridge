@@ -81,6 +81,7 @@ int process_command_line_args(int argc, char *argv[]) {
                 break;
             case 'a':
                 prox_adhere_80211 = (int) strtol(optarg, NULL, 10);
+                break;
             case '?':
                 printf("DroneBridge Proxy module is used to do any UDP <-> DB_CONTROL_AIR routing. UDP IP given by "
                        "IP-checker module. Use"

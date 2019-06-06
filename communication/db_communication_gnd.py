@@ -88,7 +88,7 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
                     sendto_tcp_clients(message, _tcp_connections)
                     db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION.value)
                 else:
-                    print(f"{CColors.FAIL}Destination 2 (GND & UAV) is only supported for ping response messages"
+                    print(f"{CColors.FAIL}Destination 2 (GND & UAV) is only supported for ping response messages "
                           f"{CColors.ENDC}")
                     message = new_error_response_message('Destination 2 (GND & UAV) is unsupported for non ping msgs',
                                                          DBCommProt.DB_ORIGIN_GND.value, comm_json['id'])

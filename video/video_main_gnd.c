@@ -437,7 +437,7 @@ void process_command_line_args(int argc, char *argv[]){
                        "\n\t-r Number of FEC packets per block (default 4). Needs to match with tx."
                        "\n\t-f Bytes per packet (default %d. max %d). This is also the FEC "
                        "block size. Needs to match with tx."
-                       "\n\t <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
+                       "\n\t-p <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
                        "\n\t-v Destination port of video stream when set via UDP (IP checker address) or TCP"
                         , 1024, MAX_USER_PACKET_LENGTH, APP_PORT_VIDEO_FEC);
                 abort();

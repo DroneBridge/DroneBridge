@@ -15,18 +15,16 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #
-import base64
 import json
 import configparser
 import binascii
-from itertools import chain
 import os
-import RPi.GPIO as gp
+# import RPi.GPIO as gp
 from subprocess import call
 import evdev
 
 from DBCommProt import DBCommProt
-from DroneBridge import DBDir, DBPort
+from DroneBridge import DBDir
 
 tag = 'DB_COMM_MESSAGE: '
 PATH_DRONEBRIDGE_SETTINGS = "/boot/DroneBridgeConfig.ini"
@@ -228,43 +226,45 @@ def read_dronebridge_settings(response_header: dict, specific_request: bool, req
 
 
 def init_cam_gpios():
-    gp.setwarnings(False)
-    gp.setmode(gp.BOARD)
-
-    gp.setup(7, gp.OUT)
-    gp.setup(11, gp.OUT)
-    gp.setup(12, gp.OUT)
-
-    gp.setup(15, gp.OUT)
-    gp.setup(16, gp.OUT)
-    gp.setup(21, gp.OUT)
-    gp.setup(22, gp.OUT)
-
-    gp.output(11, True)
-    gp.output(12, True)
-    gp.output(15, True)
-    gp.output(16, True)
-    gp.output(21, True)
-    gp.output(22, True)
+    return
+    # gp.setwarnings(False)
+    # gp.setmode(gp.BOARD)
+    #
+    # gp.setup(7, gp.OUT)
+    # gp.setup(11, gp.OUT)
+    # gp.setup(12, gp.OUT)
+    #
+    # gp.setup(15, gp.OUT)
+    # gp.setup(16, gp.OUT)
+    # gp.setup(21, gp.OUT)
+    # gp.setup(22, gp.OUT)
+    #
+    # gp.output(11, True)
+    # gp.output(12, True)
+    # gp.output(15, True)
+    # gp.output(16, True)
+    # gp.output(21, True)
+    # gp.output(22, True)
 
 
 def change_cam_selection(camera_index):
-    if camera_index == 0:
-        gp.output(7, False)
-        gp.output(11, False)
-        gp.output(12, True)
-    elif camera_index == 1:
-        gp.output(7, True)
-        gp.output(11, False)
-        gp.output(12, True)
-    elif camera_index == 2:
-        gp.output(7, False)
-        gp.output(11, True)
-        gp.output(12, False)
-    elif camera_index == 3:
-        gp.output(7, True)
-        gp.output(11, True)
-        gp.output(12, False)
+    return
+    # if camera_index == 0:
+    #     gp.output(7, False)
+    #     gp.output(11, False)
+    #     gp.output(12, True)
+    # elif camera_index == 1:
+    #     gp.output(7, True)
+    #     gp.output(11, False)
+    #     gp.output(12, True)
+    # elif camera_index == 2:
+    #     gp.output(7, False)
+    #     gp.output(11, True)
+    #     gp.output(12, False)
+    # elif camera_index == 3:
+    #     gp.output(7, True)
+    #     gp.output(11, True)
+    #     gp.output(12, False)
 
 
 def normalize_jscal_axis(device="/dev/input/js0"):

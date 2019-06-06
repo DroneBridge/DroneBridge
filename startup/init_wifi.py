@@ -17,6 +17,7 @@ COMMON = 'COMMON'
 GROUND = 'GROUND'
 UAV = 'AIR'
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Sets up the entire DroneBridge system including wireless adapters')
     parser.add_argument('-g', action='store_true', dest='gnd', default=False,
@@ -25,10 +26,10 @@ def parse_args():
 
 
 def main():
-    parsedArgs = parse_args()
+    parsed_args = parse_args()
     SETUP_GND = False  # If true we are operating on the ground station else we are on the UAV (by .profile via Cam)
     config = read_dronebridge_config()
-    if parsedArgs.gnd:
+    if parsed_args.gnd:
         SETUP_GND = True
         print(CColors.OKGREEN + "Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for ground station"
               + CColors.ENDC)
@@ -125,13 +126,13 @@ def setup_card(interface_name, frequency, data_rate=2):
 def rename_interface(orig_interface_name):
     """
     Changes the name of the interface to its mac address
+
     :param orig_interface_name: The interface that you want to rename
-    :return:
     """
     wifi_card = pyw.getcard(orig_interface_name)
     pyw.down(wifi_card)
     new_name = pyw.macget(wifi_card).replace(':', '')
-    print("\trename...")
+    print(f"\trenaming {orig_interface_name} to {new_name}")
     Popen(['ip link set ' + orig_interface_name + ' name ' + new_name], shell=True).communicate()
     wifi_card = pyw.getcard(new_name)
     pyw.up(wifi_card)
@@ -146,8 +147,8 @@ def waitfor_network_adapters(wifi_ap_blacklist=None):
     """
     Wait for at least one network adapter to be detected by the OS. Adapters that will be used for the Wifi AP will be
     ignored
-    :param wifi_ap_if: Name of the wifi adapter that will be the access point - this one will be ignored
-    :return:
+
+    :param wifi_ap_blacklist: List of wifi adapters that will be ignored and not set to monitor mode
     """
     keep_waiting = True
     print("Waiting for wifi adapters to be detected ", end="")
@@ -208,10 +209,7 @@ def get_firmware_id():
 
 
 def check_root():
-    """
-    Checks if script is executed with root privileges and if not tries to run as root (requesting password)
-    :return:
-    """
+    """Checks if script is executed with root privileges and if not tries to run as root (requesting password)"""
     if os.geteuid() != 0:
         print("Script not started as root. Running sudo..")
         args = ['sudo', sys.executable] + sys.argv + [os.environ]

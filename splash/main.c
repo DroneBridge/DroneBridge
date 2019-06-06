@@ -36,16 +36,16 @@ int main(int argc, char *argv[]) {
     int width, height;
     char filepath[] = {"/root/dronebridge/splash/db_splash.jpg"};
 
-    InitShapes(&width, &height);            // Graphics initialization
+    init(&width, &height);            // Graphics initialization
 
     Start(width, height);
     float a = 0;
-    if (background == 1) { BackgroundRGBA(0, 0, 0, 1); };
+    if (background == 1) { BackgroundRGB(0, 0, 0, 1); };
     Fill(255, 255, 255, 1);
     Image((width-image_width) / 2, (height-image_height) / 2, image_width, image_height, filepath);
     End();
     usleep(7000000);
 
-    FinishShapes();                 // Graphics cleanup
+    finish();                 // Graphics cleanup
     exit(0);
 }
