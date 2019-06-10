@@ -363,43 +363,6 @@ void pb_transmit_block(packet_buffer_t *pbl, int *seq_nr, int port, int packet_l
 
 }
 
-
-wifibroadcast_rx_status_t *telemetry_wbc_status_memory_open(void) {
-
-    int fd = 0;
-//    int sharedmem = 0;
-
-    // TODO: Clean up rx_status shared memory handling
-//    if (transmission_mode == 1) {
-//	while(sharedmem == 0) {
-    fd = shm_open("/wifibroadcast_rx_status_0", O_RDWR, S_IRUSR | S_IWUSR);
-    if(fd < 0) {
-        //        	    fprintf(stderr, "Could not open wifibroadcast rx status - retrying ...\n");
-    } else {
-//            	    sharedmem = 1;
-    }
-//        	usleep(150000);
-//	}
-
-//        if (ftruncate(fd, sizeof(wifibroadcast_rx_status_t)) == -1) {
-//                perror("ftruncate");
-//                exit(1);
-//        }
-
-    void *retval = mmap(NULL, sizeof(wifibroadcast_rx_status_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-//        if (retval == MAP_FAILED) {
-//                perror("mmap");
-//                exit(1);
-//        }
-//    }
-
-    return (wifibroadcast_rx_status_t*)retval;
-}
-
-void telemetry_init(telemetry_data_t *td) {
-    td->rx_status = telemetry_wbc_status_memory_open();
-}
-
 long long current_timestamp() {
     struct timeval te;
     gettimeofday(&te, NULL); // get current time
@@ -533,7 +496,6 @@ int main(int argc, char *argv[]) {
 
     // initialize telemetry shared mem for rssi based transmission (-y 1)
     telemetry_data_t td;
-    telemetry_init(&td);
 
     int x = optind;
     int num_interfaces = 0;

@@ -63,7 +63,7 @@ def start_gnd_modules():
     print(GND_STRING_TAG + "Trying to start individual modules...")
     if interface_selection == 'auto':
         interface_control = get_all_monitor_interfaces(True)
-        print(f"Using: {interface_control} for all modules")
+        print(f"\tUsing: {interface_control} for all modules")
         interface_video = interface_control
         interface_comm = interface_control
         interface_proxy = interface_control
@@ -71,18 +71,17 @@ def start_gnd_modules():
 
     # ----------- start modules ------------------------
     print(f"{GND_STRING_TAG} Starting ip checker module...")
-    Popen(["python3 " + os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_ip_checker.py')],
+    Popen(["python3.7 " + os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_ip_checker.py')],
           shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_comm == 'Y':
         print(f"{GND_STRING_TAG} Starting communication module...")
-        Popen([f"python3 {os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py')} "
+        Popen([f"python3.7 {os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py')} "
                f"-m m -c {communication_id} -a {compatibility_mode} {interface_comm} &"],
               shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     print(f"{GND_STRING_TAG} Starting status module...")
-    Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status')} -m m -c {communication_id} "
-           f"-a {compatibility_mode} {interface_proxy} &"],
+    Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status')} -m m -c {communication_id} {interface_proxy} &"],
           shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     print(f"{GND_STRING_TAG} Starting proxy module...")
@@ -99,7 +98,7 @@ def start_gnd_modules():
 
     if en_plugin == 'Y':
         print(GND_STRING_TAG + "Starting plugin module...")
-        Popen([f"python3 {os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')} -g &"], shell=True, stdin=None,
+        Popen([f"python3.7 {os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')} -g &"], shell=True, stdin=None,
               stdout=None, stderr=None, close_fds=True)
 
     if en_video == 'Y':
@@ -151,8 +150,8 @@ def start_uav_modules():
 
     # ---------- pre-init ------------------------
     if interface_selection == 'auto':
-        interface_control = get_all_monitor_interfaces()
-        print(f"Using: {interface_control} for all modules")
+        interface_control = get_all_monitor_interfaces(True)
+        print(f"\tUsing: {interface_control} for all modules")
         interface_video = interface_control
         interface_comm = interface_control
     frametype = determine_frametype(cts_protection, get_interface())  # TODO: scan for WiFi traffic on all interfaces
@@ -174,7 +173,7 @@ def start_uav_modules():
     # ----------- start modules ------------------------
     if en_comm == 'Y':
         print(f"{UAV_STRING_TAG} Starting communication module...")
-        Popen([f"python3 {os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_comm_air.py')} -m m "
+        Popen([f"python3.7 {os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py')} -m m "
                f"-c {communication_id} -a {compatibility_mode} {interface_comm} &"], shell=True, stdin=None,
               stdout=None, stderr=None, close_fds=True)
 
@@ -187,7 +186,7 @@ def start_uav_modules():
 
     if en_plugin == 'Y':
         print(f"{UAV_STRING_TAG} Starting plugin module...")
-        Popen([f"python3 {os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')} &"], shell=True, stdin=None,
+        Popen([f"python3.7 {os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')} &"], shell=True, stdin=None,
               stdout=None, stderr=None, close_fds=True)
 
     if en_video == 'Y':
@@ -239,11 +238,11 @@ def get_interfaces() -> list:
         return interfaces
 
 
-def get_all_monitor_interfaces(formated=False):
+def get_all_monitor_interfaces(formatted=False):
     """
     Find all possibly working wifi interfaces that can be used by a DroneBridge modules
 
-    :param formated: Formated to be used as input for WBC video module
+    :param formatted: Formatted to be used as input for DroneBridge modules
     :return: List of names of interfaces set to monitor mode
     """
     w_interfaces = []
@@ -253,7 +252,7 @@ def get_all_monitor_interfaces(formated=False):
             card = pyw.getcard(interface_name)
             if pyw.modeget(card) == 'monitor':
                 w_interfaces.append(interface_name)
-    if formated:
+    if formatted:
         formated_str = ""
         for w_int in w_interfaces:
             formated_str = formated_str + " -n " + w_int

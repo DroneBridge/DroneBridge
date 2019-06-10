@@ -57,7 +57,7 @@ int process_command_line_args(int argc, char *argv[]) {
     db_mode = DEFAULT_DB_MODE;
     opterr = 0;
     int c;
-    while ((c = getopt(argc, argv, "n:m:c:")) != -1) {
+    while ((c = getopt(argc, argv, "n:m:c:?")) != -1) {
         switch (c) {
             case 'n':
                 if (num_inf_status < DB_MAX_ADAPTERS) {
