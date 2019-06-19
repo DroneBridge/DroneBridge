@@ -30,5 +30,6 @@ add_executable(osd ${SOURCE_FILES_OSD})
 target_link_libraries(osd db_common)
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries(osd GLESv2 EGL openmaxil bcm_host vcos vchiq_arm pthread rt m shapes freetype z)
+    target_link_libraries(osd brcmGLESv2 brcmEGL openmaxil bcm_host vcos vchiq_arm pthread rt m shapes freetype z)
+    # target_link_libraries(osd GLESv2 EGL openmaxil bcm_host vcos vchiq_arm pthread rt m shapes freetype z)
 endif()

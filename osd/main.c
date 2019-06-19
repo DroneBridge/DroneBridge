@@ -1,8 +1,11 @@
 /*
-Copyright (c) 2015, befinitiv
-Copyright (c) 2012, Broadcom Europe Ltd
-modified by Samuel Brucksch https://github.com/SamuelBrucksch/wifibroadcast_osd
-modified by Rodizio
+ Copyright (c) 2015, befinitiv
+ Copyright (c) 2012, Broadcom Europe Ltd
+ modified by Samuel Brucksch https://github.com/SamuelBrucksch/wifibroadcast_osd
+ modified by Rodizio
+ modifued by Wolfgang Christl
+
+ Uses https://github.com/paeryn/openvg library with enhanced font loading
 
 All rights reserved.
 Redistribution and use in source and binary forms, with or without
@@ -87,13 +90,20 @@ int main(int argc, char *argv[]) {
 #ifdef FRSKY
     frsky_state_t fs;
 #endif
+    int readfd;
 
     struct stat fdstatus;
     signal(SIGPIPE, SIG_IGN);
     char fifonam[100];
     sprintf(fifonam, "/root/telemetryfifo1");
 
-    int readfd;
+    readfd = open(fifonam, O_RDONLY | O_NONBLOCK);
+    if(-1==readfd) {
+        printf("FIFO not existing. Creating FIFO %s", fifonam)
+        if (mkfifo(fifonam, 0777) < 0)
+            perror("Cannot create FIFO %s", fifonam);
+    }
+
     readfd = open(fifonam, O_RDONLY | O_NONBLOCK);
     if(-1==readfd) {
         perror("ERROR: Could not open /root/telemetryfifo1");
@@ -110,9 +120,7 @@ int main(int argc, char *argv[]) {
     telemetry_init(&td);
     fprintf(stderr,"OSD: Sharedmem init done\n");
 
-//    fprintf(stderr,"OSD: Initializing render engine ...\n");
     render_init();
-//    fprintf(stderr,"OSD: Render init done\n");
 
     long long prev_time = current_timestamp();
     long long prev_time2 = current_timestamp();
@@ -135,11 +143,8 @@ int main(int argc, char *argv[]) {
     }
     fscanf(fp3,"%d",&undervolt_gnd);
     fclose(fp3);
-//    fprintf(stderr,"undervolt:%d\n",undervolt_gnd);
 
     while(1) {
-//		fprintf(stderr," start while ");
-//		prev_time = current_timestamp();
 
         FD_ZERO(&set);
         FD_SET(readfd, &set);
@@ -166,16 +171,13 @@ int main(int argc, char *argv[]) {
 #endif
         }
         counter++;
-//	    fprintf(stderr,"OSD: counter: %d\n",counter);
         // render only if we have data that needs to be processed as quick as possible (attitude)
         // or if three iterations (~150ms) passed without rendering
         if ((do_render == 1) || (counter == 3)) {
-//		fprintf(stderr," rendering! ");
             prev_time = current_timestamp();
             fpscount++;
             render(&td, cpuload_gnd, temp_gnd/1000, undervolt_gnd,fps);
             long long took = current_timestamp() - prev_time;
-//		fprintf(stderr,"Render took %lldms\n", took);
             do_render = 0;
             counter = 0;
         }
@@ -183,33 +185,27 @@ int main(int argc, char *argv[]) {
         delta = current_timestamp() - prev_cpu_time;
         if (delta > 1000) {
             prev_cpu_time = current_timestamp();
-//		fprintf(stderr,"delta > 10000\n");
 
             fp2 = fopen("/sys/class/thermal/thermal_zone0/temp","r");
             fscanf(fp2,"%d",&temp_gnd);
             fclose(fp2);
-//		fprintf(stderr,"temp gnd:%d\n",temp_gnd/1000);
 
             fp = fopen("/proc/stat","r");
             fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&a[0],&a[1],&a[2],&a[3]);
             fclose(fp);
 
             cpuload_gnd = (((b[0]+b[1]+b[2]) - (a[0]+a[1]+a[2])) / ((b[0]+b[1]+b[2]+b[3]) - (a[0]+a[1]+a[2]+a[3]))) * 100;
-//		fprintf(stderr,"cpuload gnd:%d\n",cpuload_gnd);
 
             fp = fopen("/proc/stat","r");
             fscanf(fp,"%*s %Lf %Lf %Lf %Lf",&b[0],&b[1],&b[2],&b[3]);
             fclose(fp);
         }
-//		long long took = current_timestamp() - prev_time;
-//		fprintf(stderr,"while took %lldms\n", took);
 
         long long fpscount_timer = current_timestamp() - fpscount_ts_last;
         if (fpscount_timer > 2000) {
             fpscount_ts_last = current_timestamp();
             fps = (fpscount - fpscount_last) / 2;
             fpscount_last = fpscount;
-//		    fprintf(stderr,"OSD FPS: %d\n", fps);
         }
     }
     return 0;

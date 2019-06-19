@@ -28,6 +28,7 @@
 #include <memory.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/stat.h>
 #include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
@@ -102,9 +103,14 @@ int process_command_line_args(int argc, char *argv[]) {
 }
 
 int open_osd_fifo() {
-    int tempfifo_osd = open("/root/telemetryfifo1", O_WRONLY | O_NONBLOCK);
+    char fifoname[100];
+    sprintf(fifoname, "/root/telemetryfifo1");
+    int tempfifo_osd = open(fifoname, O_WRONLY | O_NONBLOCK);
     if (tempfifo_osd == -1) {
         printf(YEL "DB_PROXY_GROUND: Unable to open OSD FIFO\n" RESET);
+        printf("DB_PROXY_GROUND: Creating FIFO %s", fifoname);
+        if (mkfifo(fifoname, 0777) < 0)
+            perror("Cannot create FIFO");
     }
     return tempfifo_osd;
 }
