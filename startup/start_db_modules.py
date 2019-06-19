@@ -285,11 +285,11 @@ def get_video_player(fps):
     """
 
     if fps == 30:
-        return os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'pi_video_player', 'hello_video.bin.30')
+        return os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'pi_video_player', 'db_pi_player_30')
     elif fps <= 60:
-        return os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'pi_video_player', 'hello_video.bin.48')
+        return os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'pi_video_player', 'db_pi_player_48')
     else:
-        return os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'pi_video_player', 'hello_video.bin.240')
+        return os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'pi_video_player', 'db_pi_player_240')
 
 
 def exists_wifi_traffic(wifi_interface):
