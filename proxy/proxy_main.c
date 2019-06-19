@@ -108,7 +108,7 @@ int open_osd_fifo() {
     int tempfifo_osd = open(fifoname, O_WRONLY | O_NONBLOCK);
     if (tempfifo_osd == -1) {
         printf(YEL "DB_PROXY_GROUND: Unable to open OSD FIFO\n" RESET);
-        printf("DB_PROXY_GROUND: Creating FIFO %s", fifoname);
+        printf("DB_PROXY_GROUND: Creating FIFO %s\n", fifoname);
         if (mkfifo(fifoname, 0777) < 0)
             perror("Cannot create FIFO");
     }

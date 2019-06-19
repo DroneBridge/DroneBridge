@@ -48,22 +48,13 @@ function tether_check_function() {
     if [ -d "/sys/class/net/usb0" ]; then
       echo
       echo "USB tethering device detected. Configuring IP ..."
-      nice pump -h wifibrdcast -i usb0 --no-dns --keep-up --no-resolvconf --no-ntp || {
+      nice pump -h dronebridge -i usb0 --no-dns --keep-up --no-resolvconf --no-ntp || {
         echo "ERROR: Could not configure IP for USB tethering device!"
         nice killall wbc_status >/dev/null 2>&1
         nice /root/wifibroadcast_status/wbc_status "ERROR: Could not configure IP for USB tethering device!" 7 55 0
         collect_errorlog
         sleep 365d
       }
-
-      #nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$PHONE_IP:$TELEMETRY_UDP_PORT &
-      #nice /root/wifibroadcast/rssi_forward $PHONE_IP 5003 &
-
-      #if [ "$FORWARD_STREAM" == "rtp" ]; then
-      #  ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$PHONE_IP >/dev/null 2>&1 &
-      #else
-      #  ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$PHONE_IP:$VIDEO_UDP_PORT &
-      #fi
 
       # kill and pause OSD so we can safeley start wbc_status
       ps -ef | nice grep "osd" | nice grep -v grep | awk '{print $2}' | xargs kill -9
@@ -102,10 +93,6 @@ function tether_check_function() {
             /tmp/osd >>/wbc_tmp/telemetrydowntmp.txt &
           fi
           PHONETHERE=0
-          # kill forwarding of video and osd to secondary display
-          ps -ef | nice grep "socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "gst-launch-1.0" | nice grep -v grep | awk '{print $2}' | xargs kill -9
-          ps -ef | nice grep "cat /root/videofifo2" | nice grep -v grep | awk '{print $2}' | xargs kill -9
         fi
         sleep 1
       done
@@ -124,30 +111,16 @@ function hotspot_check_function() {
     # pause loop while saving is in progress
     pause_while
     IP=0
-    if [ "$ETHERNET_HOTSPOT" == "Y" ]; then
+    if [[ "$ETHERNET_HOTSPOT" == "Y" ]]; then
       if nice ping -I eth0 -c 1 -W 1 -n -q 192.168.1.2 >/dev/null 2>&1; then
         IP="192.168.1.2"
         echo "Ethernet device detected. IP: $IP"
-        #nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
-        #nice /root/wifibroadcast/rssi_forward $IP 5003 &
-        #if [ "$FORWARD_STREAM" == "rtp" ]; then
-        #  ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP >/dev/null 2>&1 &
-        #else
-        #  ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$IP:$VIDEO_UDP_PORT &
-        #fi
       fi
     fi
-    if [ "$WIFI_HOTSPOT" == "Y" ]; then
+    if [[ "$WIFI_HOTSPOT" == "Y" ]]; then
       if [[ $(hostapd_cli -i wifihotspot0 all_sta | wc -c) -ne 0 ]]; then
         IP="192.168.2.2"
         echo "Wifi device detected. IP: $IP"
-        # nice socat -b $TELEMETRY_UDP_BLOCKSIZE GOPEN:/root/telemetryfifo2 UDP4-SENDTO:$IP:$TELEMETRY_UDP_PORT &
-        #nice /root/wifibroadcast/rssi_forward $IP 5003 &
-        #if [ "$FORWARD_STREAM" == "rtp" ]; then
-        #  ionice -c 1 -n 4 nice -n -5 cat /root/videofifo2 | nice -n -5 gst-launch-1.0 fdsrc ! h264parse ! rtph264pay pt=96 config-interval=5 ! udpsink port=$VIDEO_UDP_PORT host=$IP >/dev/null 2>&1 &
-        #else
-        #  ionice -c 1 -n 4 nice -n -10 socat -b $VIDEO_UDP_BLOCKSIZE GOPEN:/root/videofifo2 UDP4-SENDTO:$IP:$VIDEO_UDP_PORT &
-        #fi
       fi
     fi
     if [ "$IP" != "0" ]; then
@@ -221,9 +194,9 @@ TTY=$(tty)
 
 # check if cam is detected to determine if we're going to be RX or TX
 # only do this on one tty so that we don't run vcgencmd multiple times (which may make it hang)
-if [ "$TTY" == "/dev/tty1" ]; then
+if [[ "$TTY" == "/dev/tty1" ]]; then
   CAM=$(/usr/bin/vcgencmd get_camera | nice grep -c detected=1)
-  if [ "$CAM" == "0" ]; then # if we are RX ...
+  if [[ "$CAM" == "0" ]]; then # if we are RX ...
     echo "0" >/tmp/cam
   # else we are TX ...
   else
@@ -243,13 +216,13 @@ if [ "$CAM" == "0" ]; then # if we are RX ...
   # if local TTY, set font according to display resolution
   if [ "$TTY" = "/dev/tty1" ] || [ "$TTY" = "/dev/tty2" ] || [ "$TTY" = "/dev/tty3" ] || [ "$TTY" = "/dev/tty4" ] || [ "$TTY" = "/dev/tty5" ] || [ "$TTY" = "/dev/tty6" ] || [ "$TTY" = "/dev/tty7" ] || [ "$TTY" = "/dev/tty8" ] || [ "$TTY" = "/dev/tty9" ] || [ "$TTY" = "/dev/tty10" ] || [ "$TTY" = "/dev/tty11" ] || [ "$TTY" = "/dev/tty12" ]; then
     H_RES=$(tvservice -s | cut -f 2 -d "," | cut -f 2 -d " " | cut -f 1 -d "x")
-    if [ "$H_RES" -ge "1680" ]; then
+    if [[ "$H_RES" -ge "1680" ]]; then
       setfont /usr/share/consolefonts/Lat15-TerminusBold24x12.psf.gz
     else
-      if [ "$H_RES" -ge "1280" ]; then
+      if [[ "$H_RES" -ge "1280" ]]; then
         setfont /usr/share/consolefonts/Lat15-TerminusBold20x10.psf.gz
       else
-        if [ "$H_RES" -ge "800" ]; then
+        if [[ "$H_RES" -ge "800" ]]; then
           setfont /usr/share/consolefonts/Lat15-TerminusBold14.psf.gz
         fi
       fi
@@ -265,7 +238,7 @@ fi
 if vcgencmd get_throttled | nice grep -q -v "0x0"; then
   TEMP=$(cat /sys/class/thermal/thermal_zone0/temp)
   TEMP_C=$(($TEMP / 1000))
-  if [ "$TEMP_C" -lt 75 ]; then # it must be under-voltage
+  if [[ "$TEMP_C" -lt 75 ]]; then # it must be under-voltage
     mount -o remount,ro /boot
     echo "1" >/tmp/undervolt
   # it was either over-temp or both undervolt and over-temp, we set undervolt to 0 anyway, since overtemp can be seen at the temp display on the rx
@@ -282,13 +255,10 @@ case $TTY in
   echo
   tmessage "Display: $(tvservice -s | cut -f 3-20 -d " ")"
   ifconfig eth0 up
-  if [ "$CAM" == "0" ]; then
+  if [[ "$CAM" == "0" ]]; then
     /root/DroneBridge/video/legacy/sharedmem_init_rx
     python3 /root/DroneBridge/startup/init_wifi.py -g
     python3 /root/DroneBridge/startup/start_db_modules.py -g
-    # ionice -c 1 -n 4 nice -n -10 cat /root/videofifo1 | ionice -c 1 -n 4 nice -n -10 $DISPLAY_PROGRAM >/dev/null 2>&1 &
-    # NICS=$(ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot)
-    # ionice -c 1 -n 3 /root/DroneBridge/video/legacy/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
   else
     /root/DroneBridge/video/legacy/sharedmem_init_tx
     python3 /root/DroneBridge/startup/init_wifi.py
@@ -298,7 +268,7 @@ case $TTY in
 /dev/tty2) # osd stuff
   echo "================== OSD (tty2) ==========================="
   # only run osdrx if no cam found
-  if [ "$CAM" == "0" ]; then
+  if [[ "$CAM" == "0" ]]; then
     osdrx_function
   fi
   echo "OSD not enabled in configfile"
@@ -327,8 +297,7 @@ case $TTY in
   ;;
 /dev/tty7) # check tether
   echo "================== CHECK TETHER (tty7) ==========================="
-  if [ "$CAM" == "0" ]; then
-    echo "Waiting some time until everything else is running ..."
+  if [[ "$CAM" == "0" ]]; then
     sleep 6
     tether_check_function
   else
@@ -339,7 +308,7 @@ case $TTY in
 /dev/tty8) # check hotspot
   echo "================== CHECK HOTSPOT (tty8) ==========================="
   if [ "$CAM" == "0" ]; then
-    if [ "$ETHERNET_HOTSPOT" == "Y" ] || [ "$WIFI_HOTSPOT" == "Y" ]; then
+    if [[ "$ETHERNET_HOTSPOT" == "Y" ]] || [[ "$WIFI_HOTSPOT" == "Y" ]]; then
       echo
       echo -n "Waiting until video is running ..."
       HVIDEORXRUNNING=0
@@ -376,8 +345,8 @@ case $TTY in
   ;;
 /dev/tty12) # tty for local interactive login
   echo
-  if [ "$CAM" == "0" ]; then
-    echo -n "Welcome to DroneBridge v0.6 Beta (Ground) - "
+  if [[ "$CAM" == "0" ]]; then
+    echo -n "Welcome to DroneBridge v0.6 Beta (GND) - "
     read -p "Press <enter> to login"
     killall osd
     rw
@@ -388,8 +357,8 @@ case $TTY in
   fi
   ;;
 *) # all other ttys used for interactive login
-  if [ "$CAM" == "0" ]; then
-    echo "Welcome to DroneBridge v0.6 Beta (Ground) - type 'ro' to switch filesystems back to read-only"
+  if [[ "$CAM" == "0" ]]; then
+    echo "Welcome to DroneBridge v0.6 Beta (GND) - type 'ro' to switch filesystems back to read-only"
     rw
   else
     echo "Welcome to DroneBridge v0.6 Beta (UAV) - type 'ro' to switch filesystems back to read-only"

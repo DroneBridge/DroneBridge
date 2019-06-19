@@ -22,5 +22,6 @@ if (EXISTS "/opt/vc/include/bcm_host.h")
     # only build on Raspberry Pi
     add_subdirectory(splash)
     add_subdirectory(osd)
+    add_subdirectory(video/pi_video_player)
 endif ()
 add_subdirectory(common)
