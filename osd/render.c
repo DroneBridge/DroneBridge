@@ -79,7 +79,7 @@ void setfillstroke() {
 
 void render_init() {
     char filename[100] = "/boot/osdfonts/";
-    init(&width, &height);
+    InitShapes(&width, &height);
 
     strcat(filename, FONT);
     myfont = LoadTTFFile(filename);

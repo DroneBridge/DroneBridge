@@ -28,7 +28,7 @@ function osdrx_function() {
   # Convert osdconfig from DOS format to UNIX format
   ionice -c 3 nice dos2unix -n /boot/osdconfig.txt /tmp/osdconfig.txt
   echo
-  cd /root/dronebridge/osd
+  cd /root/DroneBridge/osd
   echo Building OSD:
   ionice -c 3 nice make -j2 || {
     echo
@@ -283,16 +283,16 @@ case $TTY in
   tmessage "Display: $(tvservice -s | cut -f 3-20 -d " ")"
   ifconfig eth0 up
   if [ "$CAM" == "0" ]; then
-    /root/dronebridge/video/legacy/sharedmem_init_rx
-    python3 /root/dronebridge/startup/init_wifi.py -g
-    python3 /root/dronebridge/startup/start_db_modules.py -g
+    /root/DroneBridge/video/legacy/sharedmem_init_rx
+    python3 /root/DroneBridge/startup/init_wifi.py -g
+    python3 /root/DroneBridge/startup/start_db_modules.py -g
     # ionice -c 1 -n 4 nice -n -10 cat /root/videofifo1 | ionice -c 1 -n 4 nice -n -10 $DISPLAY_PROGRAM >/dev/null 2>&1 &
     # NICS=$(ls /sys/class/net/ | nice grep -v eth0 | nice grep -v lo | nice grep -v usb | nice grep -v intwifi | nice grep -v wlan | nice grep -v relay | nice grep -v wifihotspot)
-    # ionice -c 1 -n 3 /root/dronebridge/video/legacy/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
+    # ionice -c 1 -n 3 /root/DroneBridge/video/legacy/rx -p 0 -d 1 -b $VIDEO_BLOCKS -r $VIDEO_FECS -f $VIDEO_BLOCKLENGTH $NICS | ionice -c 1 -n 4 nice -n -10 tee >(ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo2 >/dev/null 2>&1) >(ionice -c 1 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo4 >/dev/null 2>&1) >(ionice -c 3 nice /root/wifibroadcast_misc/ftee /root/videofifo3 >/dev/null 2>&1) | ionice -c 1 -n 4 nice -n -10 /root/wifibroadcast_misc/ftee /root/videofifo1 >/dev/null 2>&1
   else
-    /root/dronebridge/video/legacy/sharedmem_init_tx
-    python3 /root/dronebridge/startup/init_wifi.py
-    python3 /root/dronebridge/startup/start_db_modules.py
+    /root/DroneBridge/video/legacy/sharedmem_init_tx
+    python3 /root/DroneBridge/startup/init_wifi.py
+    python3 /root/DroneBridge/startup/start_db_modules.py
   fi
   ;;
 /dev/tty2) # osd stuff
@@ -311,9 +311,9 @@ case $TTY in
 /dev/tty4)
   echo "================== DroneBridge v0.6 Beta (tty4) ==========================="
   # if [ "$CAM" == "0" ]; then
-  #   dronebridge_ground_function
+  #   DroneBridge_ground_function
   # else
-  #   dronebridge_air_function
+  #   DroneBridge_air_function
   # fi
   sleep 365d
   ;;

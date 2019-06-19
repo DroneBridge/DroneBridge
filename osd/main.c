@@ -99,9 +99,9 @@ int main(int argc, char *argv[]) {
 
     readfd = open(fifonam, O_RDONLY | O_NONBLOCK);
     if(-1==readfd) {
-        printf("FIFO not existing. Creating FIFO %s", fifonam)
+        printf("FIFO not existing. Creating FIFO %s", fifonam);
         if (mkfifo(fifonam, 0777) < 0)
-            perror("Cannot create FIFO %s", fifonam);
+            perror("Cannot create FIFO");
     }
 
     readfd = open(fifonam, O_RDONLY | O_NONBLOCK);

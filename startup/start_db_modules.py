@@ -16,7 +16,7 @@ GROUND = 'GROUND'
 UAV = 'AIR'
 GND_STRING_TAG = 'DroneBridge GND: '
 UAV_STRING_TAG = 'DroneBridge UAV: '
-DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "root", "dronebridge")
+DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "root", "DroneBridge")
 
 
 def parse_arguments():

@@ -34,18 +34,18 @@ int main(int argc, char *argv[]) {
     background = atoi(argv[3]);
 
     int width, height;
-    char filepath[] = {"/root/dronebridge/splash/db_splash.jpg"};
+    char filepath[] = {"/root/DroneBridge/splash/db_splash.jpg"};
 
-    init(&width, &height);            // Graphics initialization
+    InitShapes(&width, &height);            // Graphics initialization
 
     Start(width, height);
     float a = 0;
-    if (background == 1) { BackgroundRGB(0, 0, 0, 1); };
+    if (background == 1) { BackgroundRGBA(0, 0, 0, 1); };
     Fill(255, 255, 255, 1);
     Image((width-image_width) / 2, (height-image_height) / 2, image_width, image_height, filepath);
     End();
     usleep(7000000);
 
-    finish();                 // Graphics cleanup
+    FinishShapes();                 // Graphics cleanup
     exit(0);
 }
