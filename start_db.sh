@@ -2,14 +2,13 @@
 
 function start_osd() {
   echo
-  ionice -c 3 nice dos2unix -n /boot/osdconfig.txt /tmp/osdconfig.txt
+  dos2unix -n /boot/osdconfig.txt /boot/osdconfig.txt
   echo
   cd /root/DroneBridge/osd
   echo Building OSD:
-  ionice -c 3 nice make -j2 || {
+  make -j2 || {
     echo
     echo "ERROR: Could not build OSD, check osdconfig.txt!"
-    # nice /root/wifibroadcast_status/wbc_status "ERROR: Could not build OSD, check osdconfig.txt for errors." 7 55 0
   }
 }
 
@@ -31,15 +30,15 @@ CAM=$(/usr/bin/vcgencmd get_camera | nice grep -c detected=1)
 
 if [[ "$CAM" == "0" ]]; then
   echo -n "Welcome to DroneBridge v0.6 Beta (GND) - "
-  /root/DroneBridge/video/legacy/sharedmem_init_rx
-  python3 /root/DroneBridge/startup/init_wifi.py -g
+  echo
+  python3.7 /root/DroneBridge/startup/init_wifi.py -g
   start_osd
-  python3 /root/DroneBridge/startup/start_db_modules.py -g
+  python3.7 /root/DroneBridge/startup/start_db_modules.py -g
 else
   echo -n "Welcome to DroneBridge v0.6 Beta (UAV) - "
-  /root/DroneBridge/video/legacy/sharedmem_init_tx
-  python3 /root/DroneBridge/startup/init_wifi.py
-  python3 /root/DroneBridge/startup/start_db_modules.py
+  echo
+  python3.7 /root/DroneBridge/startup/init_wifi.py
+  python3.7 /root/DroneBridge/startup/start_db_modules.py
 fi
 
 
