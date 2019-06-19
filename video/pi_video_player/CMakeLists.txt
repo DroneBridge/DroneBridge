@@ -4,7 +4,10 @@ project(pi_video_player)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_FLAGS "-O3")        ## Optimize
 
+add_definitions(-DOMX_SKIP64BIT)
+
 link_directories(/opt/vc/lib/)
+link_directories(/opt/vc/src/hello_pi/libs/ilclient)
 
 include_directories (/opt/vc/include /opt/vc/src/hello_pi/libs/ilclient)
 

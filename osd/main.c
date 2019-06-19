@@ -99,18 +99,18 @@ int main(int argc, char *argv[]) {
 
     readfd = open(fifonam, O_RDONLY | O_NONBLOCK);
     if(-1==readfd) {
-        printf("FIFO not existing. Creating FIFO %s", fifonam);
+        printf("OSD: FIFO not existing. Creating FIFO %s", fifonam);
         if (mkfifo(fifonam, 0777) < 0)
-            perror("Cannot create FIFO");
+            perror("OSD: Cannot create FIFO");
     }
 
     readfd = open(fifonam, O_RDONLY | O_NONBLOCK);
     if(-1==readfd) {
-        perror("ERROR: Could not open /root/telemetryfifo1");
+        perror("OSD ERROR: Could not open /root/telemetryfifo1");
         exit(EXIT_FAILURE);
     }
     if(-1==fstat(readfd, &fdstatus)) {
-        perror("ERROR: fstat /root/telemetryfifo1");
+        perror("OSD ERROR: fstat /root/telemetryfifo1");
         close(readfd);
         exit(EXIT_FAILURE);
     }
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
 
     fp3 = fopen("/tmp/undervolt","r");
     if(NULL == fp3) {
-        perror("ERROR: Could not open /tmp/undervolt");
+        perror("OSD ERROR: Could not open /tmp/undervolt");
         exit(EXIT_FAILURE);
     }
     fscanf(fp3,"%d",&undervolt_gnd);
