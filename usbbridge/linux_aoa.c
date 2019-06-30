@@ -27,8 +27,9 @@
 #include "linux_aoa.h"
 
 
-const uint16_t AOA_PIDS[6] = {AOA_ACCESSORY_PID, AOA_ACCESSORY_ADB_PID, AOA_AUDIO_PID, AOA_AUDIO_ADB_PID,
-                              AOA_ACCESSORY_AUDIO_PID, AOA_ACCESSORY_AUDIO_ADB_PID};
+uint8_t raw_usb_msg_buff[DB_AOA_MAX_MSG_LENGTH] = {0};
+db_usb_msg *usb_msg = (db_usb_msg *) raw_usb_msg_buff;
+
 
 bool is_accessory_device(libusb_device *device, db_accessory_t *accessory) {
     struct libusb_device_descriptor desc = {0};
@@ -72,7 +73,9 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
                 return -1;
             }
             printf("Detected device in accessory mode: %4.4x:%4.4x\n", AOA_ACCESSORY_VID, accessory->pid);
-            accessory->handle = accessory->handle;
+            ret = libusb_claim_interface(accessory->handle, 0);
+            if (ret != 0)
+                printf("--> Error claiming AOA interface: %s", libusb_error_name(ret));
             libusb_free_device_list(device_list, 1);
             return 1;
         }
@@ -173,6 +176,9 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
  * @return
  */
 int init_db_accessory(db_accessory_t *db_acc) {
+    usb_msg->ident[0] = 0x44;
+    usb_msg->ident[0] = 0x42;
+    usb_msg->ident[0] = 0x01;
     if (check_for_present_aoa_dev(db_acc) < 1) {
         int found_dev = discover_compatible_devices(db_acc);
         while (!found_dev) {
@@ -246,8 +252,25 @@ int init_db_accessory(db_accessory_t *db_acc) {
 }
 
 
-void send_data(db_accessory_t *db_acc){
-
+/**
+ * A function to send data over the USB interface using the DroneBridge USB message format. Uses memcpy
+ * @param db_acc
+ */
+void send_data_db_proto(db_accessory_t *db_acc, uint8_t data[], uint16_t data_length, uint8_t port){
+    if (data_length < DB_AOA_MAX_PAY_LENGTH) {
+        uint16_t bulk_size = data_length;
+        usb_msg->port = port;
+        usb_msg->pay_lenght = data_length;
+        memcpy(usb_msg->payload, data, data_length);
+        int num_trans;
+        int ret = libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_IN, raw_usb_msg_buff,
+                (data_length + DB_AOA_HEADER_LENGTH), &num_trans, 1000);
+        if (ret != 0)
+            printf("--> Error sending data: %s\n", libusb_error_name(ret));
+        else if(num_trans != bulk_size)
+            printf("--> Error: Did not send all data (%i/%i)\n", bulk_size, num_trans);
+    } else
+        printf("Error: Supplied payload is too big for send buffer\n");
 }
 
 

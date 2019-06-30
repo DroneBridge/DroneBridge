@@ -46,6 +46,9 @@
 #define AOA_STRING_URL_ID		4
 #define AOA_STRING_SER_ID	    5
 
+#define AOA_ACCESSORY_EP_IN		    0x81
+#define AOA_ACCESSORY_EP_OUT	    0x02
+
 
 // DroneBridge AOA specification
 #define DB_AOA_MANUFACTURER     "DroneBridge"
@@ -54,6 +57,14 @@
 #define DB_AOA_VERSION          "1.0"
 #define DB_AOA_DESC             "For gnd station to app communication via USB"
 #define DB_AOA_SER              "0.6"
+
+#define DB_AOA_MAX_MSG_LENGTH   1023
+#define DB_AOA_HEADER_LENGTH    6
+#define DB_AOA_MAX_PAY_LENGTH   1017
+
+
+extern uint8_t raw_usb_msg_buff[DB_AOA_MAX_MSG_LENGTH];
+
 
 typedef struct accessory_t {
     struct libusb_device_handle *handle;
@@ -70,8 +81,17 @@ typedef struct accessory_t {
     char *serial;
 } db_accessory_t;
 
+typedef struct db_usb_msg {
+    char ident[3];
+    uint8_t port;
+    uint16_t pay_lenght;
+    uint8_t payload[DB_AOA_MAX_PAY_LENGTH];
+
+} __attribute__((packed)) db_usb_msg ;
+
 
 int init_db_accessory(db_accessory_t *db_acc);
+void send_data_db_proto(db_accessory_t *db_acc, uint8_t data[], uint16_t data_length, uint8_t port);
 void exit_close_aoa_device(db_accessory_t *db_acc);
 
 #endif //DRONEBRIDGE_LINUX_AOA_H
