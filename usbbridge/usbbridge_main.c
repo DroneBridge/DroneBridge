@@ -29,7 +29,7 @@
 
 bool keeprunning = true;
 
-#define DATA_LENGTH     512
+#define DATA_LENGTH     256
 
 void intHandler(int dummy) {
     keeprunning = false;
@@ -42,7 +42,8 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i < 5; i++) {
         uint8_t data[DATA_LENGTH] = {9};
-        send_data_db_proto(&accessory, data, DATA_LENGTH, 0x09);
+        send_debug(&accessory);
+        // send_data_db_proto(&accessory, data, DATA_LENGTH, 0x09);
     }
 
     exit_close_aoa_device(&accessory);
