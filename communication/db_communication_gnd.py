@@ -147,7 +147,7 @@ if __name__ == "__main__":
         read_sockets.extend(tcp_connections)
         prev_seq_num = None
         try:
-            r, _, _ = select(read_sockets, [], [], 0)
+            r, _, _ = select(read_sockets, [], [])
             for readable_sock in r:
                 if readable_sock is tcp_master:  # new connection
                     conn, addr = readable_sock.accept()

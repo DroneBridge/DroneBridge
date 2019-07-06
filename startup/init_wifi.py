@@ -99,7 +99,9 @@ def setup_card(interface_name, frequency, data_rate=2):
     driver_name = iwhw.ifdriver(interface_name)
     print(CColors.OKGREEN + "Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz" +
             " bitrate: " + get_bit_rate(data_rate) + " Mbps" + CColors.ENDC)
-    pyw.up(wifi_card)
+    if not pyw.isup(wifi_card):
+        print("\tup...")
+        pyw.up(wifi_card)
     if is_atheros_card(driver_name):
         # for all other cards the transmission rate is set via the radiotap header
         set_bitrate(interface_name, data_rate)
@@ -111,7 +113,9 @@ def setup_card(interface_name, frequency, data_rate=2):
     if is_realtek_card(driver_name):
         # Other cards power settings are set via e.g. 'txpower_atheros 58' or 'txpower_ralink 0' (defaults)
         pyw.txset(wifi_card, 'fixed', 3000)
-    pyw.up(wifi_card)
+    if not pyw.isup(wifi_card):
+        print("\tup...")
+        pyw.up(wifi_card)
     print("\tfrequency...")
     pyw.freqset(wifi_card, frequency)
     print("\tMTU...")
@@ -129,13 +133,16 @@ def rename_interface(orig_interface_name):
 
     :param orig_interface_name: The interface that you want to rename
     """
-    wifi_card = pyw.getcard(orig_interface_name)
-    pyw.down(wifi_card)
-    new_name = pyw.macget(wifi_card).replace(':', '')
-    print(f"\trenaming {orig_interface_name} to {new_name}")
-    Popen(['ip link set ' + orig_interface_name + ' name ' + new_name], shell=True).communicate()
-    wifi_card = pyw.getcard(new_name)
-    pyw.up(wifi_card)
+    if pyw.isinterface(orig_interface_name):
+        wifi_card = pyw.getcard(orig_interface_name)
+        pyw.down(wifi_card)
+        new_name = pyw.macget(wifi_card).replace(':', '')
+        print(f"\trenaming {orig_interface_name} to {new_name}")
+        Popen(['ip link set ' + orig_interface_name + ' name ' + new_name], shell=True).communicate()
+        wifi_card = pyw.getcard(new_name)
+        pyw.up(wifi_card)
+    else:
+        print("Error: Interface " + str(orig_interface_name) + " does not exist. Cannot rename")
 
 
 def set_bitrate(interface_name, datarate):
@@ -173,19 +180,23 @@ def waitfor_network_adapters(wifi_ap_blacklist=None):
 
 def setup_hotspot(interface):
     if interface == 'internal':
-        card = pyw.getcard(PI3_WIFI_NIC)
-    else:
+        interface = PI3_WIFI_NIC
+    if pyw.isinterface(HOTSPOT_NIC):
+        interface = HOTSPOT_NIC  # check if we already setup a hot spot
+    if pyw.isinterface(interface):
         card = pyw.getcard(interface)
-    pyw.down(card)
-    Popen(["ip link set " + card.dev + " name " + HOTSPOT_NIC], shell=True)
-    time.sleep(1)
-    card = pyw.getcard(HOTSPOT_NIC)
-    pyw.up(card)
-    pyw.inetset(card, '192.168.2.1')
-    Popen(["udhcpd -I 192.168.2.1 /etc/udhcpd-wifi.conf"], shell=True, close_fds=True, stdout=DEVNULL)
-    Popen(["dos2unix -n /boot/apconfig.txt /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
-    Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
-    print(CColors.OKGREEN + "Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 " + CColors.ENDC)
+        pyw.down(card)
+        Popen(["ip link set " + card.dev + " name " + HOTSPOT_NIC], shell=True)
+        time.sleep(1)
+        card = pyw.getcard(HOTSPOT_NIC)
+        pyw.up(card)
+        pyw.inetset(card, '192.168.2.1')
+        Popen(["udhcpd -I 192.168.2.1 /etc/udhcpd-wifi.conf"], shell=True, close_fds=True, stdout=DEVNULL)
+        Popen(["dos2unix -n /boot/apconfig.txt /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
+        Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
+        print(CColors.OKGREEN + "Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 " + CColors.ENDC)
+    else:
+        print("Error: Could not find AP-adapter: " + str(interface) + ", unable to enable access point")
 
 
 def setup_eth_hotspot():

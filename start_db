@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ### BEGIN INIT INFO
 # Provides: start DroneBridge
 # Required-Start: $remote_fs $syslog $local_fs
@@ -9,11 +9,9 @@
 # Description:  Helper & auto start script for DroneBridge. Placed in /etc/init.d/ to handle DroneBridge on system boot
 ### END INIT INFO
 
-declare -a DBModuleNames=(
-"osd" "video_air" "video_gnd" "db_pi_player" "db_pi_player_30" "db_pi_player_48"
+declare -a DBModuleNames=("osd" "video_air" "video_gnd" "db_pi_player" "db_pi_player_30" "db_pi_player_48"
 "db_pi_player_240" "status" "proxy" "control_air" "control_ground" "db_ip_checker.py" "db_communication_air.py"
-"db_communication_gnd.py" "init_wifi.py" "start_db_modules.py"
-)
+"db_communication_gnd.py" "init_wifi.py" "start_db_modules.py")
 
 RED='\033[0;31m'
 GRN='\033[1;32m'
@@ -35,7 +33,7 @@ function start_osd() {
 
 function stop_db_modules() {
   echo "Stopping DroneBridge modules"
-  for DB_MODULE in in ${DBModuleNames[@]}; do
+  for DB_MODULE in ${DBModuleNames[@]}; do
     pkill -9 -n -x -f "$DB_MODULE"
   done
 }
@@ -86,8 +84,8 @@ case "$1" in
     ;;
   status)
     echo "Status of DroneBridge applications"
-    for DB_MODULE in in ${DBModuleNames[@]}; do
-      if pgrep -x "$DB_MODULE" >/dev/null
+    for DB_MODULE in ${DBModuleNames[@]}; do
+      if pgrep -f "$DB_MODULE" >/dev/null
       then
           echo -e "$DB_MODULE ${GRN}running${NC}"
       else

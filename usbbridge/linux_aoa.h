@@ -93,6 +93,7 @@ typedef struct db_usb_msg {
 int init_db_accessory(db_accessory_t *db_acc);
 void send_data_db_proto(db_accessory_t *db_acc, uint8_t data[], uint16_t data_length, uint8_t port);
 void send_debug(db_accessory_t *db_acc);
+void receive_debug(db_accessory_t *db_acc);
 void exit_close_aoa_device(db_accessory_t *db_acc);
 
 #endif //DRONEBRIDGE_LINUX_AOA_H

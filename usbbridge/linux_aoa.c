@@ -271,13 +271,26 @@ int init_db_accessory(db_accessory_t *db_acc) {
 
 void send_debug(db_accessory_t *db_acc) {
     int num_trans;
-    uint16_t data_length = 256;
-    uint8_t data[256] = {6};
-    int ret = libusb_bulk_transfer(db_acc->handle, 0x02, data, data_length, &num_trans, 1000);
+    uint16_t data_length = 64;
+    uint8_t data[64] = {6};
+    int ret = libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_OUT, data, data_length, &num_trans, 1000);
     if (ret != 0)
         printf("--> Error sending data (%i sent): %s\n", num_trans, libusb_error_name(ret));
+    else
+        printf("Wrote some %i\n", num_trans);
 }
 
+
+void receive_debug(db_accessory_t *db_acc) {
+    int num_trans;
+    uint16_t data_length = 512;
+    uint8_t data[512] = {0};
+    int ret = libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_IN, data, data_length, &num_trans, 1000);
+    if (ret != 0)
+        printf("--> Error sending data (%i sent): %s\n", num_trans, libusb_error_name(ret));
+    else
+        printf("Got some %i\n", num_trans);
+}
 
 /**
  * A function to send data over the USB interface using the DroneBridge USB message format. Uses memcpy

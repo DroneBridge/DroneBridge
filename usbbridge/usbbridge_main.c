@@ -40,9 +40,9 @@ int main(int argc, char *argv[]) {
     db_accessory_t accessory;
     init_db_accessory(&accessory); // blocking
 
-    for (int i = 0; i < 5; i++) {
-        uint8_t data[DATA_LENGTH] = {9};
+    for (int i = 0; i < 100; i++) {
         send_debug(&accessory);
+        receive_debug(&accessory);
         // send_data_db_proto(&accessory, data, DATA_LENGTH, 0x09);
     }
 
