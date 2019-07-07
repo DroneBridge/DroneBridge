@@ -37,3 +37,9 @@ class DBCommProt(Enum):
     DB_TYPE_SETTINGS_RESPONSE = 'settingsresponse'
     DB_REQUEST_TYPE_WBC = 'wbc'
     DB_REQUEST_TYPE_DB = 'db'
+
+    DB_DST_GND = 1
+    DB_DST_GND_UAV = 2
+    DB_DST_PER = 3
+    DB_DST_GCS = 4
+    DB_DST_UAV = 5

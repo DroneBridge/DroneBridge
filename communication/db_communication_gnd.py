@@ -16,6 +16,8 @@
 #   limitations under the License.
 #
 import argparse
+from queue import Queue, Empty
+
 from select import select, error
 from socket import socket, AF_INET, SOCK_STREAM
 
@@ -24,7 +26,9 @@ from DBCommProt import DBCommProt
 from DroneBridge import DBMode, DBPort, DBDir, DroneBridge
 from db_comm_messages import parse_comm_message, new_error_response_message, process_db_comm_protocol
 
+
 keep_running = True
+message_queues = {}
 
 
 def parse_arguments():
@@ -77,11 +81,11 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
     try:
         comm_json = parse_comm_message(db_comm_message_bytes)
         if comm_json is not None:
-            if comm_json['destination'] == 1:
+            if comm_json['destination'] == DBCommProt.DB_DST_GND.value:
                 message = process_db_comm_protocol(comm_json, DBDir.DB_TO_UAV)
                 if message != "":
                     sendto_tcp_clients(message, _tcp_connections)
-            elif comm_json['destination'] == 2:
+            elif comm_json['destination'] == DBCommProt.DB_DST_GND_UAV.value:
                 # Always process ping requests right away! Do not wait for UAV response!
                 if comm_json['type'] == DBCommProt.DB_TYPE_PING_REQUEST.value:
                     message = process_db_comm_protocol(comm_json, DBDir.DB_TO_UAV)
@@ -93,11 +97,11 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
                     message = new_error_response_message('Destination 2 (GND & UAV) is unsupported for non ping msgs',
                                                          DBCommProt.DB_ORIGIN_GND.value, comm_json['id'])
                     sendto_tcp_clients(message, _tcp_connections)
-            elif comm_json['destination'] == 3:
+            elif comm_json['destination'] == DBCommProt.DB_DST_PER.value:
                 db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
-            elif comm_json['destination'] == 4:
+            elif comm_json['destination'] == DBCommProt.DB_DST_GCS.value:
                 sendto_tcp_clients(db_comm_message_bytes, _tcp_connections)
-            elif comm_json['destination'] == 5:
+            elif comm_json['destination'] == DBCommProt.DB_DST_UAV.value:
                 db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
             else:
                 print("DB_COMM_GND: Unknown message type")
@@ -120,8 +124,13 @@ def sendto_tcp_clients(data_bytes: bytes, _tcp_connections: list):
     :param data_bytes: Payload to send
     :param _tcp_connections: List of socket objects to use for sending
     """
+    print("Enqueueing data")
     for connected_socket in _tcp_connections:
-        connected_socket.sendall(data_bytes)
+        # assert isinstance(message_queues[connected_socket], Queue)
+        message_queues[connected_socket].put(data_bytes)
+    # print("Sending data to TCP clients")
+    # for connected_socket in _tcp_connections:
+    #     connected_socket.sendall(data_bytes)
 
 
 if __name__ == "__main__":
@@ -137,7 +146,7 @@ if __name__ == "__main__":
     # identify the relevant messages based on the id in every communication message. Robust & multiple clients possible
     tcp_master = open_tcp_socket()
     tcp_connections = []
-    TCP_BUFFER_SIZE = 1472
+    TCP_BUFFER_SIZE = 2048
     MONITOR_BUFFERSIZE = 2048
     db.clear_socket_buffers()
 
@@ -147,18 +156,20 @@ if __name__ == "__main__":
         read_sockets.extend(tcp_connections)
         prev_seq_num = None
         try:
-            r, _, _ = select(read_sockets, [], [])
+            r, w, e = select(read_sockets, tcp_connections, tcp_connections)
             for readable_sock in r:
                 if readable_sock is tcp_master:  # new connection
                     conn, addr = readable_sock.accept()
+                    conn.setblocking(0)
                     tcp_connections.append(conn)
-                    conn.recv(TCP_BUFFER_SIZE)
+                    message_queues[readable_sock] = Queue()
                     print(f"DB_COMM_GND: TCP client connected {addr}")
                 elif readable_sock in tcp_connections:
                     received_data = readable_sock.recv(TCP_BUFFER_SIZE)
                     if len(received_data) == 0:
                         tcp_connections.remove(readable_sock)
                         readable_sock.close()
+                        del message_queues[readable_sock]
                         print("DB_COMM_GND: Client disconnected")
                     else:
                         process_comm_proto(received_data, tcp_connections)
@@ -170,6 +181,18 @@ if __name__ == "__main__":
                         prev_seq_num = seq_num
                 else:
                     print("DB_COMM_GND: Unknown socket received something. That should not happen.")
+            for writeable_tcp_sock in w:
+                # assert isinstance(message_queues[writeable_sock], Queue)
+                if not message_queues[writeable_tcp_sock].empty():
+                    try:
+                        next_msg = message_queues[writeable_tcp_sock].get_nowait()
+                        writeable_tcp_sock.sendall(next_msg)
+                    except Empty:
+                        print("DB_COMM_GND: No data in queue to write to TCP clients")
+            for error_tcp_sock in e:
+                print("DB_COMM_GND: A TCP socket encountered an error: " + error_tcp_sock.getpeername())
+                tcp_connections.remove(error_tcp_sock)
+                error_tcp_sock.close()
         except error:
             print("DB_COMM_GND: Select got an error. That should not happen.")
     db.close_sockets()
