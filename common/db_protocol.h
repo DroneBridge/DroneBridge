@@ -77,7 +77,7 @@ typedef u32 __le32;
 #define APP_PORT_COMM       1603
 #define APP_PORT_TELEMETRY  1604 // accepts MAVLink and LTM telemetry messages. Non MAVLink telemetry messages get rerouted internally to APP_PORT_PROXY
 #define APP_PORT_PROXY 		14556 // use this port for all MAVLink messages
-#define APP_PORT_STATUS     1608 // for all kinds of status protocol messages. Same port on ground station and app
+#define APP_PORT_STATUS     1602 // for all kinds of status protocol messages. Same port on ground station and app
 #define APP_PORT_VIDEO      5000 // app accepts raw H.264 streams
 #define APP_PORT_VIDEO_FEC  5001 // app accepts raw DroneBridge video stream data, performs FEC on Android device
 

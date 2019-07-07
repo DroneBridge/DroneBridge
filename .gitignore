@@ -98,3 +98,5 @@ video/video_air
 plugins/example_read_rc/readrc
 
 plugins/rc_to_gpio_mapper/rc_gpio_map
+
+TCPTest/

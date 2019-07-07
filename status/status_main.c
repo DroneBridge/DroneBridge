@@ -42,6 +42,7 @@
 #include "../common/db_raw_send_receive.h"
 
 #define TCP_STATUS_BUFF_SIZE 2048
+#define MAX_TCP_CLIENTS 10
 
 bool volatile keeprunning = true;
 int num_inf_status = 0;
@@ -89,8 +90,7 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     usleep((__useconds_t) 1e6);
     struct timespec timestamp;
-    int restarts = 0, cardcounter = 0, select_return, max_sd, max_clients = 10, tcp_clients[max_clients],
-    new_tcp_client, prev_seq_num_status = 0;
+    int restarts = 0, cardcounter = 0, select_return, max_sd, new_tcp_client, prev_seq_num_status = 0;
     struct timeval timecheck;
     long start, rightnow, status_message_update_rate = 100; // send status messages every 100ms (10Hz)
     int8_t best_dbm = 0;
@@ -100,9 +100,7 @@ int main(int argc, char *argv[]) {
     uint8_t lr_buffer[DATA_UNI_LENGTH];
     uint8_t message_buff[DATA_UNI_LENGTH - DB_RAW_V2_HEADER_LENGTH];
     uint8_t tcp_message_buff[TCP_STATUS_BUFF_SIZE];
-    for (int i = 0; i < max_clients; i++) {
-        tcp_clients[i] = 0;
-    }
+    int tcp_clients[MAX_TCP_CLIENTS] = {0};
 
     DB_RC_MESSAGE db_rc_status_message;
     db_rc_status_message.ident[0] = '$';
@@ -164,7 +162,7 @@ int main(int argc, char *argv[]) {
                 max_sd = raw_interfaces_status[i].db_socket;
         }
         //add child sockets (tcp connection sockets) to set
-        for (int i = 0; i < max_clients; i++) {
+        for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
             int tcp_client_sd = tcp_clients[i];
             if (tcp_client_sd > 0)
                 FD_SET(tcp_client_sd, &fd_socket_set);
@@ -211,7 +209,7 @@ int main(int argc, char *argv[]) {
                 printf("DB_STATUS_GND: New connection (%s:%d)\n", inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
                        ntohs(status_tcp_server_info.servaddr.sin_port));
                 //add new socket to array of sockets
-                for (int i = 0; i < max_clients; i++) {
+                for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
                     if (tcp_clients[i] == 0) {   // if position is empty
                         tcp_clients[i] = new_tcp_client;
                         break;
@@ -219,7 +217,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             // handle messages from connected TCP clients
-            for (int i = 0; i < max_clients; i++) {
+            for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
                 int current_client_sock = tcp_clients[i];
                 if (FD_ISSET(current_client_sock, &fd_socket_set)) {
                     if (read(current_client_sock, tcp_message_buff, TCP_STATUS_BUFF_SIZE) == 0) {
@@ -285,7 +283,7 @@ int main(int argc, char *argv[]) {
             start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
         }
     }
-    for (int i = 0; i < max_clients; i++) {
+    for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
         if (tcp_clients[i] > 0)
             close(tcp_clients[i]);
     }

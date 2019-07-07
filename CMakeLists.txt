@@ -7,6 +7,11 @@ add_subdirectory(proxy)
 add_subdirectory(telemetry)
 add_subdirectory(video)
 add_subdirectory(usbbridge)
+
+if (EXISTS "TCPTest/tcptest")
+    add_subdirectory(TCPTest)
+endif ()
+
 if (EXISTS "video/legacy")
     add_subdirectory(video/legacy)
 endif ()

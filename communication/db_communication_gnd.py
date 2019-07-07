@@ -86,7 +86,7 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
                 if comm_json['type'] == DBCommProt.DB_TYPE_PING_REQUEST.value:
                     message = process_db_comm_protocol(comm_json, DBDir.DB_TO_UAV)
                     sendto_tcp_clients(message, _tcp_connections)
-                    db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION.value)
+                    db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
                 else:
                     print(f"{CColors.FAIL}Destination 2 (GND & UAV) is only supported for ping response messages "
                           f"{CColors.ENDC}")
@@ -94,11 +94,11 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
                                                          DBCommProt.DB_ORIGIN_GND.value, comm_json['id'])
                     sendto_tcp_clients(message, _tcp_connections)
             elif comm_json['destination'] == 3:
-                db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION.value)
+                db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
             elif comm_json['destination'] == 4:
                 sendto_tcp_clients(db_comm_message_bytes, _tcp_connections)
             elif comm_json['destination'] == 5:
-                db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION.value)
+                db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
             else:
                 print("DB_COMM_GND: Unknown message type")
                 error_resp = new_error_response_message('DB_COMM_GND: Unknown message type', DBDir.DB_TO_UAV.value,
@@ -155,7 +155,7 @@ if __name__ == "__main__":
                     conn.recv(TCP_BUFFER_SIZE)
                     print(f"DB_COMM_GND: TCP client connected {addr}")
                 elif readable_sock in tcp_connections:
-                    received_data = readable_sock.socket.recv(TCP_BUFFER_SIZE)
+                    received_data = readable_sock.recv(TCP_BUFFER_SIZE)
                     if len(received_data) == 0:
                         tcp_connections.remove(readable_sock)
                         readable_sock.close()

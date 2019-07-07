@@ -37,6 +37,7 @@
 #include "../common/tcp_server.h"
 
 #define TCP_BUFFER_SIZE (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH)
+#define MAX_TCP_CLIENTS 10
 
 bool volatile keeprunning = true;
 char db_mode, write_to_osdfifo;
@@ -129,7 +130,8 @@ int main(int argc, char *argv[]) {
         raw_interfaces[i] = open_db_socket(adapters[i], comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_PROXY,
                                            frame_type);
     }
-    int fifo_osd = -1, max_clients = 10, tcp_clients[max_clients], new_tcp_client;
+    int fifo_osd = -1, new_tcp_client;
+    int tcp_clients[MAX_TCP_CLIENTS] = {0};
     if (write_to_osdfifo == 'Y') {
         fifo_osd = open_osd_fifo();
     }
@@ -164,7 +166,7 @@ int main(int argc, char *argv[]) {
                 max_sd = raw_interfaces[i].db_socket;
         }
         // add child sockets (tcp connection sockets) to set
-        for (int i = 0; i < max_clients; i++) {
+        for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
             int tcp_client_sd = tcp_clients[i];
             if (tcp_client_sd > 0)
                 FD_SET(tcp_client_sd, &fd_socket_set);
@@ -209,7 +211,7 @@ int main(int argc, char *argv[]) {
                 printf("DB_PROXY_GROUND: New connection (%s:%d)\n", inet_ntoa(tcp_server_info.servaddr.sin_addr),
                        ntohs(tcp_server_info.servaddr.sin_port));
                 //add new socket to array of sockets
-                for (int i = 0; i < max_clients; i++) {
+                for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
                     if (tcp_clients[i] == 0) {   // if position is empty
                         tcp_clients[i] = new_tcp_client;
                         break;
@@ -217,7 +219,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             // handle messages from connected TCP clients
-            for (int i = 0; i < max_clients; i++) {
+            for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
                 int current_client_sock = tcp_clients[i];
                 if (FD_ISSET(current_client_sock, &fd_socket_set)) {
                     if ((recv_length = read(current_client_sock, tcp_buffer, TCP_BUFFER_SIZE)) == 0) {
@@ -244,7 +246,7 @@ int main(int argc, char *argv[]) {
         if (raw_interfaces[i].db_socket > 0)
             close(raw_interfaces[i].db_socket);
     }
-    for (int i = 0; i < max_clients; i++) {
+    for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
         if (tcp_clients[i] > 0)
             close(tcp_clients[i]);
     }
