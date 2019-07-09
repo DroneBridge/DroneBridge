@@ -24,17 +24,20 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <time.h>
 #include <stdbool.h>
 #include <memory.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/ccolors.h"
 #include "../common/tcp_server.h"
+#include "../common/mavlink/c_library_v2/mavlink_types.h"
 
 #define TCP_BUFFER_SIZE (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH)
 #define MAX_TCP_CLIENTS 10
@@ -44,9 +47,18 @@ char db_mode, write_to_osdfifo;
 uint8_t comm_id = DEFAULT_V2_COMMID, frame_type;
 int bitrate_op, prox_adhere_80211, num_interfaces;
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
+const int max_tel_msg_log_size = MAVLINK_MAX_PACKET_LEN + sizeof(uint64_t);
+uint8_t tel_msg_log_buff[MAVLINK_MAX_PACKET_LEN + sizeof(uint64_t)];
 
 void intHandler(int dummy) {
     keeprunning = false;
+}
+
+static inline uint64_t getSystemTimeUsecs()
+{
+    struct timeval tv;		  //System time
+    gettimeofday(&tv, NULL);
+    return ((uint64_t)tv.tv_sec) * 1000000 + tv.tv_usec;
 }
 
 int process_command_line_args(int argc, char *argv[]) {
@@ -103,6 +115,43 @@ int process_command_line_args(int argc, char *argv[]) {
     }
 }
 
+bool file_exists(char fname[]) {
+    if( access( fname, F_OK ) != -1 )
+        return true;
+    else
+        return false;
+}
+
+FILE* open_telemetry_log_file() {
+    char filename[100];
+    struct tm *timenow;
+
+    time_t now = time(NULL);
+    timenow = gmtime(&now);
+    strftime(filename, sizeof(filename), "/boot/log/DB_TELEMETRY_%Y-%m-%d_%H:%M:%S", timenow);
+    for (int i = 0; i < 10; i++) {
+        char c = i + '0';
+        strcat(filename, &c);
+        if (!file_exists(filename))
+            break;
+    }
+    FILE *fptr;
+    fptr = fopen(filename, "ab+");
+    if(fptr == NULL)
+        printf(RED "DB_PROXY_GROUND: Error opening log file!\n" RESET);
+    return fptr;
+}
+
+int log_telem_to_file(FILE *file_pnt, uint8_t tel_bytes[], int tel_bytes_length) {
+    if (file_pnt != NULL) {
+        uint64_t time = getSystemTimeUsecs();
+        memcpy(tel_msg_log_buff, (void*)&time, sizeof(uint64_t));
+        memcpy(tel_msg_log_buff + sizeof(uint64_t), tel_bytes, tel_bytes_length);
+        return fwrite(tel_msg_log_buff, tel_bytes_length + sizeof(uint64_t), 1, file_pnt);
+    }
+    return 0;
+}
+
 int open_osd_fifo() {
     char fifoname[100];
     sprintf(fifoname, "/root/telemetryfifo1");
@@ -145,6 +194,10 @@ int main(int argc, char *argv[]) {
     // Setup TCP server for GCS communication
     struct tcp_server_info tcp_server_info = create_tcp_server_socket(APP_PORT_PROXY);
     int tcp_addrlen = sizeof(tcp_server_info.servaddr);
+
+    // open log file for messages incoming from long range link
+    FILE *log_file;
+    log_file = open_telemetry_log_file();
 
     struct data_uni *data_uni_to_drone = get_hp_raw_buffer(prox_adhere_80211);
     uint8_t seq_num = 0, seq_num_proxy = 0, last_recv_seq_num = 0;
@@ -189,6 +242,7 @@ int main(int argc, char *argv[]) {
                         payload_length = get_db_payload(lr_buffer, l, tcp_buffer, &seq_num_proxy, &radiotap_length);
                         if (seq_num_proxy != last_recv_seq_num) {
                             last_recv_seq_num = seq_num_proxy;
+                            log_telem_to_file(log_file, tcp_buffer, payload_length);
                             send_to_all_tcp_clients(tcp_clients, tcp_buffer, payload_length);
                             if (fifo_osd != -1 && write_to_osdfifo == 'Y') {
                                 ssize_t written = write(fifo_osd, tcp_buffer, payload_length);
@@ -252,5 +306,9 @@ int main(int argc, char *argv[]) {
     }
     close(tcp_server_info.sock_fd);
     close(fifo_osd);
+    if (log_file != NULL) {
+        fflush(log_file);
+        fclose(log_file);
+    }
     return 0;
 }

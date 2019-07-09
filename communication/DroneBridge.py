@@ -42,6 +42,10 @@ class DBDir(Enum):
     DB_TO_UAV = b'\x01'
     DB_TO_GND = b'\x03'
 
+    @property
+    def int_val(self) -> int:
+        return int.from_bytes(self.value, byteorder="little")
+
 
 class DBMode(Enum):
     MONITOR = 'm'

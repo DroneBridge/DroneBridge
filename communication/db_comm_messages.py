@@ -64,14 +64,14 @@ def process_db_comm_protocol(loaded_json: json, comm_direction: DBDir) -> bytes:
             message = change_settings(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
     elif loaded_json['type'] == DBCommProt.DB_TYPE_SYS_IDENT_REQUEST.value:
         if comm_direction == DBDir.DB_TO_UAV:
-            message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
+            message = create_sys_ident_response(loaded_json['id'], DBCommProt.DB_ORIGIN_GND.value)
         else:
-            message = create_sys_ident_response(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+            message = create_sys_ident_response(loaded_json['id'], DBCommProt.DB_ORIGIN_UAV.value)
     elif loaded_json['type'] == DBCommProt.DB_TYPE_PING_REQUEST.value:
         if comm_direction == DBDir.DB_TO_UAV:
-            message = new_ping_response_message(loaded_json, DBCommProt.DB_ORIGIN_GND.value)
+            message = new_ping_response_message(loaded_json['id'], DBCommProt.DB_ORIGIN_GND.value)
         else:
-            message = new_ping_response_message(loaded_json, DBCommProt.DB_ORIGIN_UAV.value)
+            message = new_ping_response_message(loaded_json['id'], DBCommProt.DB_ORIGIN_UAV.value)
     elif loaded_json['type'] == DBCommProt.DB_TYPE_CAMSELECT.value:
         change_cam_selection(loaded_json['cam'])
         message = new_ack_message(DBCommProt.DB_ORIGIN_UAV.value, loaded_json['id'])
@@ -105,7 +105,7 @@ def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
     complete_response['id'] = loaded_json['id']
     if loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_DB.value:
         if 'settings' in loaded_json:
-            complete_response = read_dronebridge_settings(complete_response, True, loaded_json['settings'])
+            complete_response = read_dronebridge_settings(complete_response, True, loaded_json)
         else:
             complete_response = read_dronebridge_settings(complete_response, False, None)
     elif loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
@@ -113,6 +113,7 @@ def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
         return new_error_response_message("WBC settings read unsupported", origin, loaded_json['id'])
     response = json.dumps(complete_response)
     crc32 = binascii.crc32(str.encode(response))
+    a = ""
     return response.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
@@ -131,10 +132,10 @@ def new_ack_message(origin: int, new_id: int) -> bytes:
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-def new_ping_response_message(loaded_json: json, origin: int) -> bytes:
+def new_ping_response_message(request_id: int, origin: int) -> bytes:
     """returns a ping response message"""
     command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_PING_RESPONSE.value, 'origin': origin,
-                          'id': loaded_json['id']})
+                          'id': request_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
@@ -189,9 +190,9 @@ def get_firmware_id() -> int:
     return version_num
 
 
-def create_sys_ident_response(loaded_json: int, origin: int) -> bytes:
+def create_sys_ident_response(requested_id: int, origin: int) -> bytes:
     command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SYS_IDENT_RESPONSE.value, 'origin': origin,
-                          'HID': 0, 'FID': get_firmware_id(), 'id': loaded_json['id']})
+                          'HID': 0, 'FID': get_firmware_id(), 'id': requested_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
@@ -207,21 +208,26 @@ def read_dronebridge_settings(response_header: dict, specific_request: bool, req
     """
     config = configparser.ConfigParser()
     config.optionxform = str
-    settings = {}  # settings object that gets sent
+    response_settings = {}  # settings object that gets sent
     config.read(PATH_DRONEBRIDGE_SETTINGS)
 
     if specific_request:
         for section in requested_settings['settings']:
-            for requested_set in requested_settings[section]:
-                if requested_set in config[section]:
-                    settings[section][requested_set] = config.get(section, requested_set)
+            temp_dict = {}
+            for requested_setting in requested_settings['settings'][section]:
+                if requested_setting in config[section]:
+                    temp_dict[requested_setting] = config.get(section, requested_setting)
+            response_settings[section] = temp_dict
     else:
         for section in requested_settings['settings']:
-            for key in config[section]:
-                if key not in db_settings_blacklist:
-                    settings[section][key] = config.get(section, key)
+            temp_dict = {}
+            for requested_setting in requested_settings['settings'][section]:
+                if requested_setting in config[section]:
+                    if requested_setting not in db_settings_blacklist:
+                        temp_dict[requested_setting] = config.get(section, requested_setting)
+            response_settings[section] = temp_dict
 
-    response_header['settings'] = settings
+    response_header['settings'] = response_settings
     return response_header
 
 

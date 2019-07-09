@@ -36,6 +36,7 @@
 #include <signal.h>
 #include "fec.h"
 #include "video_lib.h"
+#include "recorder.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/shared_memory.h"
@@ -52,6 +53,10 @@ db_uav_status_t *db_uav_status;
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 db_socket raw_sockets[DB_MAX_ADAPTERS];
 struct timespec start_time, end_time;
+
+volatile int recorder_running = 1;
+volatile uint32_t receive_count = 0;
+uint8_t rec_buff[REC_BUFF_SIZE] = {0};
 
 typedef struct {
     uint32_t seq_nr;

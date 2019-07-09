@@ -16,10 +16,9 @@
 #   limitations under the License.
 #
 import argparse
-from queue import Queue, Empty
 
 from select import select, error
-from socket import socket, AF_INET, SOCK_STREAM
+from socket import socket, AF_INET, SOCK_STREAM, SO_REUSEADDR, SOL_SOCKET
 
 from CColors import CColors
 from DBCommProt import DBCommProt
@@ -28,7 +27,6 @@ from db_comm_messages import parse_comm_message, new_error_response_message, pro
 
 
 keep_running = True
-message_queues = {}
 
 
 def parse_arguments():
@@ -63,6 +61,7 @@ def open_tcp_socket() -> socket:
     tcp_socket.bind(('', 1603))
     tcp_socket.setblocking(False)
     tcp_socket.listen(5)
+    tcp_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     return tcp_socket
 
 
@@ -105,13 +104,12 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
                 db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
             else:
                 print("DB_COMM_GND: Unknown message type")
-                error_resp = new_error_response_message('DB_COMM_GND: Unknown message type', DBDir.DB_TO_UAV.value,
-                                                        comm_json['id'])
+                error_resp = new_error_response_message('DB_COMM_GND: Unknown message type',
+                                                        DBCommProt.DB_ORIGIN_GND.value, comm_json['id'])
                 sendto_tcp_clients(error_resp, _tcp_connections)
         else:
             print("DB_COMM_GND: Corrupt message")
-            error_resp = new_error_response_message('DB_COMM_GND: Corrupt message', DBDir.DB_TO_UAV.value,
-                                                    comm_json['id'])
+            error_resp = new_error_response_message('DB_COMM_GND: Corrupt message', DBCommProt.DB_ORIGIN_GND.value, 0)
             sendto_tcp_clients(error_resp, _tcp_connections)
     except (UnicodeDecodeError, ValueError):
         print("DB_COMM_GND: Command could not be processed correctly! (UnicodeDecodeError, ValueError)")
@@ -124,13 +122,9 @@ def sendto_tcp_clients(data_bytes: bytes, _tcp_connections: list):
     :param data_bytes: Payload to send
     :param _tcp_connections: List of socket objects to use for sending
     """
-    print("Enqueueing data")
+    print("Responding ...")
     for connected_socket in _tcp_connections:
-        # assert isinstance(message_queues[connected_socket], Queue)
-        message_queues[connected_socket].put(data_bytes)
-    # print("Sending data to TCP clients")
-    # for connected_socket in _tcp_connections:
-    #     connected_socket.sendall(data_bytes)
+        connected_socket.sendall(data_bytes)
 
 
 if __name__ == "__main__":
@@ -160,16 +154,13 @@ if __name__ == "__main__":
             for readable_sock in r:
                 if readable_sock is tcp_master:  # new connection
                     conn, addr = readable_sock.accept()
-                    conn.setblocking(0)
                     tcp_connections.append(conn)
-                    message_queues[readable_sock] = Queue()
                     print(f"DB_COMM_GND: TCP client connected {addr}")
                 elif readable_sock in tcp_connections:
                     received_data = readable_sock.recv(TCP_BUFFER_SIZE)
                     if len(received_data) == 0:
                         tcp_connections.remove(readable_sock)
                         readable_sock.close()
-                        del message_queues[readable_sock]
                         print("DB_COMM_GND: Client disconnected")
                     else:
                         process_comm_proto(received_data, tcp_connections)
@@ -181,14 +172,6 @@ if __name__ == "__main__":
                         prev_seq_num = seq_num
                 else:
                     print("DB_COMM_GND: Unknown socket received something. That should not happen.")
-            for writeable_tcp_sock in w:
-                # assert isinstance(message_queues[writeable_sock], Queue)
-                if not message_queues[writeable_tcp_sock].empty():
-                    try:
-                        next_msg = message_queues[writeable_tcp_sock].get_nowait()
-                        writeable_tcp_sock.sendall(next_msg)
-                    except Empty:
-                        print("DB_COMM_GND: No data in queue to write to TCP clients")
             for error_tcp_sock in e:
                 print("DB_COMM_GND: A TCP socket encountered an error: " + error_tcp_sock.getpeername())
                 tcp_connections.remove(error_tcp_sock)
