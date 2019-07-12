@@ -81,13 +81,18 @@ def start_gnd_modules():
               shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     print(f"{GND_STRING_TAG} Starting status module...")
-    Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status')} -m m -c {communication_id} {interface_proxy} &"],
-          shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+    # Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status')} -m m -c {communication_id} {interface_proxy} &"],
+    #       shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status'), "-m", "m", "-c", communication_id, interface_proxy],
+          shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting proxy module...")
-    Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy')} -m m -c {communication_id} "
-           f"-f {frametype} -b {get_bit_rate(datarate)} -a {compatibility_mode} {interface_proxy}&"],
-          shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+    # Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy')} -m m -c {communication_id} "
+    #        f"-f {frametype} -b {get_bit_rate(datarate)} -a {compatibility_mode} {interface_proxy}&"],
+    #       shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy'), "-m", "m", "-c", communication_id, "-f", frametype,
+           "-b", get_bit_rate(datarate), "-a", compatibility_mode, interface_proxy],
+          shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_control == 'Y':
         print(f"{GND_STRING_TAG} Starting control module...")

@@ -86,6 +86,13 @@ void init_outputs(){
     }
 }
 
+/**
+ * Write final data to various outputs (UDP, (TCP) etc.)
+ *
+ * @param data Data to publish
+ * @param message_length Lenght of data
+ * @param fec_decoded Indicator if the data also contains FEC packets. True if pure DATA packets (and fully decoded FEC)
+ */
 void publish_data(uint8_t *data, size_t message_length, bool fec_decoded){
     if (udp_enabled){
         client_video_addr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
@@ -128,6 +135,7 @@ void block_buffer_list_reset(block_buffer_t *block_buffer_list, int block_buffer
 }
 
 /**
+ * Takes a stream of payload (FEC & DATA) and does error correction publishing the corrected data in the end
  *
  * @param data: The payload of raw protocol (a db_video_packet_t)
  * @param data_len: Length of the payload
@@ -332,6 +340,13 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
     // TODO: Check if we got all possible packets of a block already and decode, no need to wait for a packet of the next block to indicate
 }
 
+/**
+ * Extracts the payload from received packet, reads radiotap header for RSSI info and forwards payload to decoding stage
+ *
+ * @param interface
+ * @param block_buffer_list
+ * @param adapter_no
+ */
 void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer_list, int adapter_no) {
     struct ieee80211_radiotap_iterator rti;
 

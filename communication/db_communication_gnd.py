@@ -124,7 +124,8 @@ def sendto_tcp_clients(data_bytes: bytes, _tcp_connections: list):
     """
     print("Responding ...")
     for connected_socket in _tcp_connections:
-        connected_socket.sendall(data_bytes)
+        if connected_socket.sendall(data_bytes) is not None:
+            print("\tShit!")
 
 
 if __name__ == "__main__":

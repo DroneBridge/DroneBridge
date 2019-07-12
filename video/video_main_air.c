@@ -75,6 +75,7 @@ void int_handler(int dummy){
 }
 
 /**
+ * Sends a DATA or FEC block or any other data using all available adapters
  *
  * @param seq_nr Video header sequence number
  * @param data_uni_to_ground Pointer to transmission buffer
@@ -110,7 +111,8 @@ void transmit_packet(uint32_t seq_nr, const uint8_t *packet_data, uint data_leng
 }
 
 /**
- * Takes payload data, generated FEC blocks and sends DATA and FEC blocks interleaved
+ * Takes payload data (a block), generates FEC block for DATA and sends DATA and FEC packets interleaved
+ *
  * @param pbl Array where the future payload data is located as blocks of data (payload is split into arrays)
  * @param seq_nr: video_packet_header_t sequence number
  * @param fec_packet_size: FEC block size
@@ -261,6 +263,7 @@ int main(int argc, char *argv[]) {
     //initialize forward error correction
     fec_init();
 
+    // open DroneBridge raw sockets
     for (int k = 0; k < num_interfaces; ++k) {
         raw_sockets[k] = open_db_socket(adapters[k], comm_id, 'm', bitrate_op, DB_DIREC_GROUND, DB_PORT_VIDEO, frame_type);
     }
@@ -295,7 +298,7 @@ int main(int argc, char *argv[]) {
                 // always transmit/FEC encode packets of length pack_size, even if payload (data_length) is less
                 transmit_block(input.pb_list, &(input.seq_nr), pack_size); // input.pb_list is video_packet_data_t[num_fec + num_data]
                 if (db_uav_status->injected_block_cnt % 50){
-                    printf("\ttried to inject %i packets, failed %i, injection time/packet %ius, encoding time %ius         \r",
+                    printf("\ttried to inject %i packets, failed %i, injection time/packet %ius, FEC encoding time %ius         \r",
                            db_uav_status->injected_packet_cnt, db_uav_status->injection_fail_cnt,
                            db_uav_status->injection_time_packet, db_uav_status->encoding_time);
                     fflush(stderr);
