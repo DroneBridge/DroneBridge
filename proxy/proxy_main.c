@@ -127,18 +127,22 @@ FILE* open_telemetry_log_file() {
     struct tm *timenow;
 
     time_t now = time(NULL);
-    timenow = gmtime(&now);
-    strftime(filename, sizeof(filename), "/boot/log/DB_TELEMETRY_%Y-%m-%d_%H:%M:%S", timenow);
-    for (int i = 0; i < 10; i++) {
-        char c = i + '0';
-        strcat(filename, &c);
-        if (!file_exists(filename))
-            break;
+    timenow = localtime(&now);
+    strftime(filename, sizeof(filename), "/boot/log/DB_TELEMETRY_%F_%H%M", timenow);
+    if (file_exists(filename)) {
+        for (int i = 0; i < 10; i++) {
+            char str[12];
+            sprintf(str, "_%d", i);
+            strcat(filename, str);
+            if (!file_exists(filename))
+                break;
+        }
     }
-    FILE *fptr;
-    fptr = fopen(filename, "ab+");
+    FILE *fptr = fopen(filename, "a");
     if(fptr == NULL)
-        printf(RED "DB_PROXY_GROUND: Error opening log file!\n" RESET);
+        perror(RED "DB_PROXY_GROUND: Error opening log file!" RESET);
+    else
+        printf("DB_PROXY_GROUND: Opened telemetry log: %s", filename);
     return fptr;
 }
 
