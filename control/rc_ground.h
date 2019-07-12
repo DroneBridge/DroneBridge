@@ -26,5 +26,6 @@ int send_rc_packet(uint16_t channel_data[]);
 int conf_rc(char adapters[DB_MAX_ADAPTERS][IFNAMSIZ], int num_inf_rc, int comm_id, int db_mode, int bitrate_op, int frame_type,
             int new_rc_protocol, char allow_rc_overwrite, int adhere_80211);
 void open_rc_shm();
+void close_raw_interfaces();
 
 #endif //CONTROL_TX_H

@@ -19,6 +19,7 @@
 
 #include <arpa/inet.h>
 #include <stdint.h>
+#include <unistd.h>
 #include "parameter.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_crc.h"
@@ -279,4 +280,11 @@ int send_rc_packet(uint16_t channel_data[]) {
         }
     }
     return 0;
+}
+
+void close_raw_interfaces(){
+    for (int i = 0; i < DB_MAX_ADAPTERS; i++) {
+        if (raw_interfaces_rc[i].db_socket != -1)
+            close(raw_interfaces_rc[i].db_socket);
+    }
 }

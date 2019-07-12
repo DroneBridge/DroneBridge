@@ -47,7 +47,7 @@ int detect_RC(int new_Joy_IF) {
 }
 
 int main(int argc, char *argv[]) {
-    atexit(close_socket_send_receive);
+    atexit(close_raw_interfaces);
     char RC_name[128];
     char calibrate_comm[500];
     uint8_t comm_id, frame_type;

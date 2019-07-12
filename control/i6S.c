@@ -247,6 +247,6 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         send_rc_packet(JoystickData);
     }
     close(fd);
-    close_socket_send_receive();
+    close_raw_interfaces();
     return 0;
 }
