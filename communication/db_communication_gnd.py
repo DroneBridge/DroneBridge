@@ -145,6 +145,7 @@ if __name__ == "__main__":
     MONITOR_BUFFERSIZE = 2048
     db.clear_socket_buffers()
 
+    print(CColors.OKGREEN + "DB_COMM_GND: started!" + CColors.ENDC)
     while keep_running:
         read_sockets = [tcp_master]
         read_sockets.extend(db.list_lr_sockets)

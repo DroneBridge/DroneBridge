@@ -76,9 +76,10 @@ def start_gnd_modules():
 
     if en_comm == 'Y':
         print(f"{GND_STRING_TAG} Starting communication module...")
-        Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py'), "-m", "m",
-               "-c", str(communication_id), "-a", str(compatibility_mode), interface_comm],
-              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
+        comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py'), "-m", "m",
+                "-c", str(communication_id), "-a", str(compatibility_mode)]
+        comm.extend(interface_comm.split())
+        Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting status module...")
     Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'db_status'), "-m", "m", "-c", str(communication_id), interface_proxy],
@@ -173,9 +174,10 @@ def start_uav_modules():
     # ----------- start modules ------------------------
     if en_comm == 'Y':
         print(f"{UAV_STRING_TAG} Starting communication module...")
-        Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py'), "-m", "m",
-               "-c", str(communication_id), "-a", str(compatibility_mode), interface_comm],
-              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
+        comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py'), "-m", "m",
+                "-c", str(communication_id), "-a", str(compatibility_mode)]
+        comm.extend(interface_comm.split())
+        Popen(comm, shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_control == 'Y':
         print(f"{UAV_STRING_TAG} Starting control module...")

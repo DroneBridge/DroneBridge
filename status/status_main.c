@@ -135,8 +135,6 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < num_inf_status; i++) {
         raw_interfaces_status[i] = open_db_socket(adapters[i], comm_id, db_mode, 6, DB_DIREC_DRONE, DB_PORT_STATUS,
                 DB_FRAMETYPE_DEFAULT);
-        raw_interfaces_status[i].db_socket = set_socket_nonblocking(raw_interfaces_status[i].db_socket);
-
     }
 
     fd_set fd_socket_set;

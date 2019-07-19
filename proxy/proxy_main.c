@@ -142,7 +142,7 @@ FILE* open_telemetry_log_file() {
     if(fptr == NULL)
         perror(RED "DB_PROXY_GROUND: Error opening log file!" RESET);
     else
-        printf("DB_PROXY_GROUND: Opened telemetry log: %s", filename);
+        printf("DB_PROXY_GROUND: Opened telemetry log: %s\n", filename);
     return fptr;
 }
 

@@ -34,7 +34,7 @@ function start_osd() {
 function stop_db_modules() {
   echo "Stopping DroneBridge modules"
   for DB_MODULE in ${DBModuleNames[@]}; do
-    pkill -9 -n -x -f "$DB_MODULE"
+    pkill -f "$DB_MODULE"
   done
 }
 

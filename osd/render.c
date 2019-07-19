@@ -102,7 +102,7 @@ void render_init() {
 void render(telemetry_data_t *td, uint8_t cpuload_gnd, uint8_t temp_gnd, uint8_t undervolt, int osdfps) {
     Start(width,height); // render start
     setfillstroke();
-
+    BackgroundRGBA(0, 0, 0, 0);
     if (td->rx_status_sysair->undervolt == 1) draw_message(0,"Undervoltage on TX","Check wiring/power-supply","Bitrate limited to 1 Mbit",WARNING_POS_X, WARNING_POS_Y, GLOBAL_SCALE);
     if (undervolt == 1) draw_message(0,"Undervoltage on RX","Check wiring/power-supply"," ",WARNING_POS_X, WARNING_POS_Y, GLOBAL_SCALE);
 
