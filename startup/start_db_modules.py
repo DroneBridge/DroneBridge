@@ -71,40 +71,35 @@ def start_gnd_modules():
 
     # ----------- start modules ------------------------
     print(f"{GND_STRING_TAG} Starting ip checker module...")
-    Popen(["python3.7 " + os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_ip_checker.py')],
-          shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+    Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_ip_checker.py')],
+          shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_comm == 'Y':
         print(f"{GND_STRING_TAG} Starting communication module...")
-        Popen([f"python3.7 {os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py')} "
-               f"-m m -c {communication_id} -a {compatibility_mode} {interface_comm} &"],
-              shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+        Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py'), "-m", "m",
+               "-c", str(communication_id), "-a", str(compatibility_mode), interface_comm],
+              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     print(f"{GND_STRING_TAG} Starting status module...")
-    # Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status')} -m m -c {communication_id} {interface_proxy} &"],
-    #       shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
-    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'status'), "-m", "m", "-c", str(communication_id), interface_proxy],
+    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'db_status'), "-m", "m", "-c", str(communication_id), interface_proxy],
           shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting proxy module...")
-    # Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy')} -m m -c {communication_id} "
-    #        f"-f {frametype} -b {get_bit_rate(datarate)} -a {compatibility_mode} {interface_proxy}&"],
-    #       shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
-    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'proxy'), "-m", "m", "-c", str(communication_id), "-f",
+    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'db_proxy'), "-m", "m", "-c", str(communication_id), "-f",
            str(frametype), "-b", str(get_bit_rate(datarate)), "-a", str(compatibility_mode), interface_proxy],
           shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_control == 'Y':
         print(f"{GND_STRING_TAG} Starting control module...")
-        Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_ground')} {interface_control} "
-               f"-j {joy_interface} -m m -v {rc_proto} -o {en_rc_overwrite} -c {communication_id} -t {frametype} "
-               f"-b {get_bit_rate(datarate)} -a {compatibility_mode} &"],
-              shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+        Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_ground'), interface_control, "-j",
+               str(joy_interface), "-m", "m", "-v", str(rc_proto), "-o", str(en_rc_overwrite), "-c",
+               str(communication_id), "-t", str(frametype), "-b", str(get_bit_rate(datarate)), "-a", str(compatibility_mode)],
+              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_plugin == 'Y':
         print(GND_STRING_TAG + "Starting plugin module...")
-        Popen([f"python3.7 {os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')} -g &"], shell=True, stdin=None,
-              stdout=None, stderr=None, close_fds=True)
+        Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py'), "-g"],
+              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_video == 'Y':
         print(f"{GND_STRING_TAG} Starting video module... (FEC: {video_blocks}/{video_fecs}/{video_blocklength})")
@@ -170,7 +165,7 @@ def start_uav_modules():
     # ---------- Error pre-check ------------------------
     if serial_int_cont == serial_int_sumd and en_control == 'Y' and enable_sumd_rc == 'Y':
         print(UAV_STRING_TAG + "Error - Control module and SUMD output are assigned to the same serial port. Disabling "
-                               "SUMD.")
+                               "SUMD")
         enable_sumd_rc = 'N'
     print(f"{UAV_STRING_TAG} Communication ID: {communication_id}")
     print(f"{UAV_STRING_TAG} Trying to start individual modules...")
@@ -178,21 +173,22 @@ def start_uav_modules():
     # ----------- start modules ------------------------
     if en_comm == 'Y':
         print(f"{UAV_STRING_TAG} Starting communication module...")
-        Popen([f"python3.7 {os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py')} -m m "
-               f"-c {communication_id} -a {compatibility_mode} {interface_comm} &"], shell=True, stdin=None,
-              stdout=None, stderr=None, close_fds=True)
+        Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py'), "-m", "m",
+               "-c", str(communication_id), "-a", str(compatibility_mode), interface_comm],
+              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_control == 'Y':
         print(f"{UAV_STRING_TAG} Starting control module...")
-        Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_air')} -u {serial_int_cont} -m m "
-               f"-c {communication_id} -v {serial_prot} -t {frametype} -l {pass_through_packet_size} -r {baud_control} "
-               f"-e {enable_sumd_rc} -s {serial_int_sumd} -b {get_bit_rate(2)} {interface_control} &"],
-              shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+        Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_air'), "-u", str(serial_int_cont), "-m", "m",
+               "-c", str(communication_id), "-v", str(serial_prot), "-t", str(frametype), "-l",
+               str(pass_through_packet_size), "-r", str(baud_control), "-e", str(enable_sumd_rc), "-s",
+               str(serial_int_sumd), "-b", str(get_bit_rate(2)), interface_control],
+              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_plugin == 'Y':
         print(f"{UAV_STRING_TAG} Starting plugin module...")
-        Popen([f"python3.7 {os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')} &"], shell=True, stdin=None,
-              stdout=None, stderr=None, close_fds=True)
+        Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')],
+              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_video == 'Y':
         print(f"{UAV_STRING_TAG} Starting video transmission, FEC {video_blocks}/{video_fecs}/{video_blocklength}) : "
@@ -271,12 +267,23 @@ def get_all_monitor_interfaces(formatted=False):
 
 def measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, video_frametype, datarate,
                                 interface_video):
+    """
+    Measure available network capacity.
+
+    :param video_blocks:
+    :param video_fecs:
+    :param video_blocklength:
+    :param video_frametype:
+    :param datarate:
+    :param interface_video:
+    :return: Capacity in bit per second
+    """
     print(f"{CColors.OKGREEN} {UAV_STRING_TAG} Measuring available bitrate {CColors.ENDC}")
     tx_measure = Popen(os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'tx_measure') + " -p 77 -b "
                        + str(video_blocks) + " -r " + str(video_fecs) + " -f " + str(video_blocklength) + " -t "
                        + str(video_frametype) + " -d " + str(get_bit_rate(datarate)) + " -y 0 " + interface_video,
                        stdout=subprocess.PIPE, shell=True, stdin=None, stderr=None, close_fds=True)
-    return int(tx_measure.stdout.readline())
+    return int(tx_measure.stdout.readline()) * 8
 
 
 def get_video_player(fps):

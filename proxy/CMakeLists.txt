@@ -7,5 +7,5 @@ set(CMAKE_C_FLAGS "-O3") ## Optimize
 add_subdirectory(../common db_common)
 set(SOURCE_FILES proxy_main.c)
 
-add_executable(proxy ${SOURCE_FILES})
-target_link_libraries(proxy db_common)
+add_executable(db_proxy ${SOURCE_FILES})
+target_link_libraries(db_proxy db_common)

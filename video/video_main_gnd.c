@@ -81,7 +81,7 @@ void init_outputs(){
     if (udp_enabled){
         udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
         client_video_addr.sin_family = AF_INET;
-        client_video_addr.sin_addr.s_addr = inet_addr("192.168.2.2");
+        client_video_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
         client_video_addr.sin_port = htons(dest_port_video);
     }
 }
@@ -93,15 +93,18 @@ void init_outputs(){
  * @param message_length Lenght of data
  * @param fec_decoded Indicator if the data also contains FEC packets. True if pure DATA packets (and fully decoded FEC)
  */
-void publish_data(uint8_t *data, size_t message_length, bool fec_decoded){
+void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded){
     if (udp_enabled){
         client_video_addr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
-        sendto (udp_socket, data, message_length, 0, (struct sockaddr *) &client_video_addr,
-                sizeof (client_video_addr));
+        if (sendto (udp_socket, data, message_length, 0, (struct sockaddr *) &client_video_addr, sizeof (client_video_addr)) < message_length)
+            fprintf(stderr, RED "Not all data sent via UDP\n" RESET);
     }
-    if (fec_decoded) // only output decoded fec packets to stdout so that video player can read data stream directly
-        if (write(STDOUT_FILENO, data, message_length) < message_length)
-            printf(RED "Not all data written to stdout\n" RESET);
+    if (fec_decoded) {
+        // only output decoded fec packets to stdout so that video player can read data stream directly
+        if (write(STDOUT_FILENO, data, message_length) < 0)
+            fprintf(stderr, RED "Error writing to stdout %s\n" RESET, strerror(errno));
+    }
+
     // TODO: setup a TCP server and send to connected clients
 
     now = current_timestamp();
@@ -285,16 +288,15 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
 
 
             //decode data and publish it
-
             fec_decode((unsigned int) pack_size, data_blocks, num_data_block, fec_blocks, fec_block_nos, erased_blocks, nr_fec_blocks);
             for(i=0; i<num_data_block; ++i) {
                 video_packet_data_t *vpd_corrected = (video_packet_data_t *)data_blocks[i];
 
                 if(!reconstruction_failed || data_pkgs[i]->valid) {
                     //if reconstruction did fail, the data_length value is undefined. better limit it to some sensible value
-                    if(vpd_corrected->data_length > pack_size)
+                    if(vpd_corrected->data_length > pack_size) {
                         vpd_corrected->data_length = (uint32_t) pack_size;
-
+                    }
                     // do not publish the data_length field of video_packet_data_t struct
                     publish_data(data_blocks[i] + 4, vpd_corrected->data_length - 4, true);
                 }
@@ -401,7 +403,7 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
         db_gnd_status->last_update = time(NULL);
         process_video_payload(payload_buffer, message_length, checksum_correct, block_buffer_list);
     } else {
-        printf(RED "DB_VIDEO_GND: Received an error: %s\n" RESET, strerror(err));
+        fprintf(stderr, RED "DB_VIDEO_GND: Received an error: %s\n" RESET, strerror(err));
     }
 }
 
@@ -425,7 +427,7 @@ void process_command_line_args(int argc, char *argv[]){
                 num_fec_block = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'f':
-                pack_size = (uint8_t) strtol(optarg, NULL, 10);
+                pack_size = (int) strtol(optarg, NULL, 10);
                 break;
             case 'p':
                 if (*optarg == 'Y')
@@ -438,10 +440,10 @@ void process_command_line_args(int argc, char *argv[]){
                     udp_enabled = true;
                 break;
             case 'v':
-                dest_port_video = (uint8_t) strtol(optarg, NULL, 10);
+                dest_port_video = (int) strtol(optarg, NULL, 10);
                 break;
             default:
-                printf("Based of Wifibroadcast by befinitiv, based on packetspammer by Andy Green.  Licensed under GPL2\n"
+                fprintf(stderr, "Based of Wifibroadcast by befinitiv, based on packet spammer by Andy Green.  Licensed under GPL2\n"
                        "This tool takes a data stream via the DroneBridge long range video port and outputs it via stdout, "
                        "UDP or TCP"
                        "\nIt uses the Reed-Solomon FEC code to repair lost or damaged packets."
@@ -452,6 +454,7 @@ void process_command_line_args(int argc, char *argv[]){
                        "\n\t-r Number of FEC packets per block (default 4). Needs to match with tx."
                        "\n\t-f Bytes per packet (default %d. max %d). This is also the FEC "
                        "block size. Needs to match with tx."
+                       "\n\t-u <Y|N> to enable or disable UDP forwarding of decoded data"
                        "\n\t-p <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
                        "\n\t-v Destination port of video stream when set via UDP (IP checker address) or TCP"
                         , 1024, MAX_USER_PACKET_LENGTH, APP_PORT_VIDEO_FEC);
@@ -469,12 +472,12 @@ int main(int argc, char *argv[]) {
 
     process_command_line_args(argc, argv);
     if (num_interfaces == 0){
-        printf(RED "DB_VIDEO_GND: No interface specified. Aborting" RESET);
+        fprintf(stderr, RED "DB_VIDEO_GND: No interface specified. Aborting" RESET);
         abort();
     }
 
     if(pack_size > MAX_USER_PACKET_LENGTH) {
-        printf("Packet length is limited to %d bytes (you requested %d bytes)\n", MAX_USER_PACKET_LENGTH, pack_size);
+        fprintf(stderr, "Packet length is limited to %d bytes (you requested %d bytes)\n", MAX_USER_PACKET_LENGTH, pack_size);
         abort();
     }
 
@@ -497,7 +500,7 @@ int main(int argc, char *argv[]) {
     db_gnd_status = db_gnd_status_memory_open();
     db_gnd_status->wifi_adapter_cnt = (uint32_t) num_interfaces;
 
-    printf(GRN "DB_VIDEO_GND: started!" RESET "\n");
+    fprintf(stderr, GRN "DB_VIDEO_GND: started!" RESET "\n");
     while(keeprunning) {
         fd_set readset;
         struct timeval to;

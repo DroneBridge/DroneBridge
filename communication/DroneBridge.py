@@ -20,6 +20,8 @@ from enum import Enum
 from select import select
 from socket import socket, AF_PACKET, SOCK_RAW, htons, timeout
 
+from Cryptodome.Cipher import AES
+
 from bpf import attach_filter
 
 
@@ -55,12 +57,15 @@ class DBMode(Enum):
 DB_RAW_OFFSET_BYTES = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DB_RAW_OFFSET = len(DB_RAW_OFFSET_BYTES)
 DB_HEADER_LENGTH = 10
+DB_RAW_ENCRYPT_NONCE_LENGTH = 16
+DB_RAW_ENCRYPT_MAC_LENGTH = 16
+DB_RAW_ENCRYPT_HEADER_LENGTH = DB_RAW_ENCRYPT_NONCE_LENGTH + DB_RAW_ENCRYPT_MAC_LENGTH
 
 
 class DroneBridge:
     """
     Handles all data transmission using the DroneBridge raw protocol. Creates sockets and supplies methods for sending
-    and receiving messages. Support for diversity transmission and receiving
+    and receiving messages. Support for diversity transmission and receiving. Support for AES128, AES192 & AES256
     """
 
     # when adhering the 802.11 header the payload is offset to not be overwritten by SQN. (Use with non patched drivers)
@@ -69,7 +74,7 @@ class DroneBridge:
 
     def __init__(self, comm_direction: DBDir, interfaces: list, mode: DBMode, communication_id: int or bytes,
                  dronebridge_port: DBPort or bytes, tag="MyDBApplication", db_blocking_socket=True, frame_type="rts",
-                 transmission_bitrate=36, compatibility_mode=False):
+                 transmission_bitrate=36, compatibility_mode=False, encryption_key=None):
         """
         Class that handles communication between multiple wifi cards in monitor mode using the DroneBridge raw protocol
 
@@ -84,6 +89,9 @@ class DroneBridge:
         :param transmission_bitrate: Only supported by some Ralink cards. Set packet specific transmission rate
         :param compatibility_mode: Adheres the 80211 packet standard by not writing payload data into the header.
             Enable if you want to communicate with partners that do not have patched drivers etc. -> longer packets
+        :param encryption_key: If supplied all raw messages will be encrypted using AES. Must be a String representing
+            the HEX bytes of the secret key. Must have a length of 32, 48 or 64 characters representing 128bit, 192bit
+            and 256bit AES encryption. Eg. "3373367639792442264528482B4D6251" for 128bit encryption
         """
         assert type(comm_direction) is DBDir
         assert type(mode) is DBMode
@@ -111,6 +119,11 @@ class DroneBridge:
             self.fcf = b'\x08\x00\x00\x00'  # Data frame
         self.rth = self.generate_radiotap_header(6)
         self.set_transmission_bitrate(transmission_bitrate)
+        if encryption_key is not None and len(encryption_key) == (32 or 48 or 64):
+            self.use_encryption = True
+            self.aes_key = bytes.fromhex(encryption_key)
+        else:
+            self.use_encryption = False
 
     def sendto_ground_station(self, data_bytes: bytes, db_port: DBPort):
         """Convenient function. Send stuff to the ground station"""
@@ -134,6 +147,10 @@ class DroneBridge:
         :param port_bytes: DroneBridge raw protocol destination port
         :param direction: DroneBridge raw protocol direction
         """
+        if self.use_encryption:
+            cypher = AES.new(self.aes_key, AES.MODE_EAX)
+            text, tag = cypher.encrypt_and_digest(data_bytes)
+            data_bytes = cypher.nonce + tag + data_bytes
         if len(data_bytes) >= 1480:
             print(f"{self.tag}: WARNING - Payload might be too big for a single transmission! {len(data_bytes)}>=1480")
         payload_length_bytes = bytes(len(data_bytes).to_bytes(2, byteorder='little', signed=False))
@@ -200,10 +217,9 @@ class DroneBridge:
         for sock in self.list_lr_sockets:
             sock.close()
 
-    @staticmethod
-    def parse_packet(packet: bytes) -> (bytes, int):
+    def parse_packet(self, packet: bytes) -> (bytes, int):
         """
-        Parse DroneBridge raw protocol v2. Returns packet payload and sequence number
+        Parse DroneBridge raw protocol v2. Returns packet payload and sequence number. Decrypts packet if necessary
 
         :param packet: Bytes of a received packet via monitor mode including radiotap header
         :return: Tuple: packet payload as bytes, packet sequence number
@@ -216,7 +232,21 @@ class DroneBridge:
             payload_start = packet[2] + DB_HEADER_LENGTH
         else:
             payload_start = packet[2] + DB_HEADER_LENGTH + DB_RAW_OFFSET  # for adhere_80211_header packets
-        return packet[payload_start:(payload_start + db_v2_payload_length)], int(packet[packet[2] + 10])
+        if self.use_encryption:
+            nonce = packet[payload_start:(payload_start + DB_RAW_ENCRYPT_NONCE_LENGTH)]
+            tag = packet[(payload_start + DB_RAW_ENCRYPT_NONCE_LENGTH):(
+                        payload_start + DB_RAW_ENCRYPT_NONCE_LENGTH + DB_RAW_ENCRYPT_MAC_LENGTH)]
+            cypher = AES.new(self.aes_key, AES.MODE_EAX, nonce)
+            data_bytes = cypher.decrypt(packet[(payload_start + DB_RAW_ENCRYPT_HEADER_LENGTH):(
+                        payload_start + DB_RAW_ENCRYPT_HEADER_LENGTH + db_v2_payload_length)])
+            try:
+                cypher.verify(tag)
+                return data_bytes, int(packet[packet[2] + 10])
+            except ValueError:
+                print(f"{self.tag}: ERROR - Can not decrypt payload. Key incorrect or message corrupt")
+            return b'', int(packet[packet[2] + 10])
+        else:
+            return packet[payload_start:(payload_start + db_v2_payload_length)], int(packet[packet[2] + 10])
 
     @staticmethod
     def generate_radiotap_header(rate: int) -> bytes:

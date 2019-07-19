@@ -13,6 +13,8 @@ from subprocess import Popen, DEVNULL
 from common_helpers import read_dronebridge_config, get_bit_rate, HOTSPOT_NIC, PI3_WIFI_NIC
 
 PATH_DB_VERSION = os.path.join(os.sep, "boot", "db_version.txt")
+SUPPORTED_DRIVERS = ['rt2800usb', 'ath9k_htc']
+EXPERIMENTAL_DRIVERS = ['rtl8812au', 'rtl8814au', 'rtl8188eus']
 COMMON = 'COMMON'
 GROUND = 'GROUND'
 UAV = 'AIR'
@@ -97,6 +99,8 @@ def setup_card(interface_name, frequency, data_rate=2):
     print("Settings up " + interface_name)
     wifi_card = pyw.getcard(interface_name)
     driver_name = iwhw.ifdriver(interface_name)
+    if driver_name in EXPERIMENTAL_DRIVERS:
+        print(CColors.WARNING + "Warning: Using WiFi adapter with experimental support!" + CColors.ENDC)
     print(CColors.OKGREEN + "Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz" +
             " bitrate: " + get_bit_rate(data_rate) + " Mbps" + CColors.ENDC)
     if not pyw.isup(wifi_card):

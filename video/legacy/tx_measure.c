@@ -26,7 +26,6 @@
 #include <netpacket/packet.h>
 #include <net/if.h>
 #include <netinet/ether.h>
-//#include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
