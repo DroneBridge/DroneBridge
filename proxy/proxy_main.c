@@ -41,6 +41,7 @@
 
 #define TCP_BUFFER_SIZE (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH)
 #define MAX_TCP_CLIENTS 10
+#define MAX_TIRES_OSD_FIFO_OPEN 10
 
 bool volatile keeprunning = true;
 char db_mode, write_to_osdfifo;
@@ -157,17 +158,22 @@ int log_telem_to_file(FILE *file_pnt, uint8_t tel_bytes[], int tel_bytes_length)
 }
 
 int open_osd_fifo() {
+    int tries = 0;
     char fifoname[100];
     sprintf(fifoname, "/root/telemetryfifo1");
     int tempfifo_osd = open(fifoname, O_WRONLY | O_NONBLOCK);
-    while (tempfifo_osd == -1) {
+    // try to open FIFO to OSD for a couple of times. OSD might not start because of no HDMI devide connected -> no FIFO
+    while (tempfifo_osd == -1 && tries < MAX_TIRES_OSD_FIFO_OPEN) {
         perror(YEL "DB_PROXY_GROUND: Unable to open OSD FIFO. OSD make sure OSD is running" RESET);
         printf("DB_PROXY_GROUND: Creating FIFO %s\n", fifoname);
         if (mkfifo(fifoname, 0777) < 0)
             perror("Cannot create FIFO");
         tempfifo_osd = open(fifoname, O_WRONLY | O_NONBLOCK);
-        usleep((__useconds_t) 2e6);
+        tries++;
+        usleep((__useconds_t) 3e6);
     }
+    if (tempfifo_osd == -1)
+        fprintf(stderr, "DB_PROXY_GROUND: Error opening FIFO. Giving up. OSD might not be running because of no HDMI DEV");
     return tempfifo_osd;
 }
 
@@ -252,8 +258,7 @@ int main(int argc, char *argv[]) {
                                 ssize_t written = write(fifo_osd, tcp_buffer, payload_length);
                                 if (written < 1)
                                     perror(RED "DB_TEL_GROUND: Could not write to OSD FIFO" RESET);
-                            } else if (write_to_osdfifo == 'Y')
-                                printf(YEL "DB_PROXY_GROUND: No OSD-FIFO open. Trying to reopen!\n" RESET);
+                            }
                         }
                     } else
                         printf(RED "DB_PROXY_GROUND: Long range socket received an error: %s\n" RESET, strerror(err));
@@ -309,7 +314,8 @@ int main(int argc, char *argv[]) {
             close(tcp_clients[i]);
     }
     close(tcp_server_info.sock_fd);
-    close(fifo_osd);
+    if (fifo_osd > 0)
+        close(fifo_osd);
     if (log_file != NULL) {
         fflush(log_file);
         fclose(log_file);
