@@ -173,7 +173,8 @@ int open_osd_fifo() {
         usleep((__useconds_t) 3e6);
     }
     if (tempfifo_osd == -1)
-        fprintf(stderr, "DB_PROXY_GROUND: Error opening FIFO. Giving up. OSD might not be running because of no HDMI DEV");
+        printf(YEL "DB_PROXY_GROUND: Error opening FIFO. Giving up. OSD might not be running because of no HDMI DEV"
+        RESET "\n" );
     return tempfifo_osd;
 }
 

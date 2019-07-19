@@ -1,11 +1,11 @@
 import argparse
 import os
 import subprocess
+from socket import *
+from subprocess import Popen
 
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
-from subprocess import Popen
-from socket import *
 
 from CColors import CColors
 from Chipset import is_atheros_card, is_realtek_card, is_ralink_card
@@ -82,19 +82,22 @@ def start_gnd_modules():
         Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting status module...")
-    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'db_status'), "-m", "m", "-c", str(communication_id), interface_proxy],
-          shell=False, stdin=None, stdout=None, stderr=None)
+    comm_status = [os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'db_status'), "-m", "m", "-c", str(communication_id)]
+    comm_status.extend(interface_proxy)
+    Popen(interface_proxy, shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting proxy module...")
-    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'db_proxy'), "-m", "m", "-c", str(communication_id), "-f",
-           str(frametype), "-b", str(get_bit_rate(datarate)), "-a", str(compatibility_mode), interface_proxy],
-          shell=False, stdin=None, stdout=None, stderr=None)
+    comm_proxy = [os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'db_proxy'), "-m", "m", "-c", str(communication_id),
+                  "-f", str(frametype), "-b", str(get_bit_rate(datarate)), "-a", str(compatibility_mode)]
+    comm_proxy.extend(interface_proxy.split())
+    Popen(comm_proxy, shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_control == 'Y':
         print(f"{GND_STRING_TAG} Starting control module...")
         Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_ground'), interface_control, "-j",
                str(joy_interface), "-m", "m", "-v", str(rc_proto), "-o", str(en_rc_overwrite), "-c",
-               str(communication_id), "-t", str(frametype), "-b", str(get_bit_rate(datarate)), "-a", str(compatibility_mode)],
+               str(communication_id), "-t", str(frametype), "-b", str(get_bit_rate(datarate)), "-a",
+               str(compatibility_mode)],
               shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_plugin == 'Y':
@@ -104,13 +107,15 @@ def start_gnd_modules():
 
     if en_video == 'Y':
         print(f"{GND_STRING_TAG} Starting video module... (FEC: {video_blocks}/{video_fecs}/{video_blocklength})")
-        db_video_receive = Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_gnd')} -d {video_blocks} "
-                                  f"-r {video_fecs} -f {video_blocklength} -c {communication_id} -p N "
-                                  f"-v {fwd_stream_port} {interface_video}"],
-                                 stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
+        receive_comm = [os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_gnd'), "-d", str(video_blocks),
+                        "-r", str(video_fecs), "-f", str(video_blocklength), "-c", str(communication_id), "-p", "N",
+                        "-v", str(fwd_stream_port)]
+        receive_comm.extend(interface_video.split())
+        db_video_receive = Popen(receive_comm, stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True,
+                                 shell=False)
         print(f"{GND_STRING_TAG} Starting video player...")
         Popen([get_video_player(fps)], stdin=db_video_receive.stdout, stdout=None, stderr=None, close_fds=True,
-              shell=True)
+              shell=False)
 
 
 def start_uav_modules():
@@ -161,7 +166,8 @@ def start_uav_modules():
                                                         datarate, get_all_monitor_interfaces(False)))
         print(f"{UAV_STRING_TAG} Available bandwidth is {video_bitrate / 1000} kbit/s")
         video_bitrate = int(video_channel_util / 100 * int(video_bitrate))
-        print(f"{CColors.OKGREEN} {UAV_STRING_TAG} Setting video bitrate to {video_bitrate / 1000} kbit/s {CColors.ENDC}")
+        print(
+            f"{CColors.OKGREEN} {UAV_STRING_TAG} Setting video bitrate to {video_bitrate / 1000} kbit/s {CColors.ENDC}")
 
     # ---------- Error pre-check ------------------------
     if serial_int_cont == serial_int_sumd and en_control == 'Y' and enable_sumd_rc == 'Y':
@@ -177,32 +183,39 @@ def start_uav_modules():
         comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py'), "-m", "m",
                 "-c", str(communication_id), "-a", str(compatibility_mode)]
         comm.extend(interface_comm.split())
-        Popen(comm, shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
+        Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_control == 'Y':
         print(f"{UAV_STRING_TAG} Starting control module...")
-        Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_air'), "-u", str(serial_int_cont), "-m", "m",
-               "-c", str(communication_id), "-v", str(serial_prot), "-t", str(frametype), "-l",
-               str(pass_through_packet_size), "-r", str(baud_control), "-e", str(enable_sumd_rc), "-s",
-               str(serial_int_sumd), "-b", str(get_bit_rate(2)), interface_control],
-              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
+        comm = [os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_air'), "-u", str(serial_int_cont), "-m", "m",
+                "-c", str(communication_id), "-v", str(serial_prot), "-t", str(frametype), "-l",
+                str(pass_through_packet_size), "-r", str(baud_control), "-e", str(enable_sumd_rc), "-s",
+                str(serial_int_sumd), "-b", str(get_bit_rate(2))]
+        comm.extend(interface_control.split())
+        Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_plugin == 'Y':
         print(f"{UAV_STRING_TAG} Starting plugin module...")
         Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')],
-              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
+              shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_video == 'Y':
-        print(f"{UAV_STRING_TAG} Starting video transmission, FEC {video_blocks}/{video_fecs}/{video_blocklength}) : "
+        print(f"{UAV_STRING_TAG} Starting video transmission, FEC {video_blocks}/{video_fecs}/{video_blocklength} : "
               f"{width} x {height} fps {fps}, video bitrate: {video_bitrate} bit/s, key framerate: {keyframerate} "
               f"frame type: {frametype}")
-        raspivid_task = Popen(
-            [f"raspivid -w {width} -h {height} -fps {fps} -b {video_bitrate} -g {keyframerate} -t 0 {extraparams} -o -"],
-            stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True, shell=True)
-        Popen([f"{os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_air')} -d {video_blocks} -r {video_fecs} "
-               f"-f {video_blocklength} -t {frametype} -b {get_bit_rate(datarate)} -c {communication_id} "
-               f"-a {compatibility_mode} {interface_video}"],
-              stdin=raspivid_task.stdout, stdout=None, stderr=None, close_fds=True, shell=True)
+
+        raspivid_comm = ["raspivid", "-w", str(width), "-h", str(height), "-fps", str(fps), "-b", str(video_bitrate),
+                         "-g", str(keyframerate), "-t", "0"]
+        raspivid_comm.extend(extraparams.split())
+        raspivid_comm.extend(["-o", "-"])
+        raspivid_task = Popen(raspivid_comm, stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True,
+                              shell=False)
+
+        video_air_comm = [os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_air'), "-d", str(video_blocks), "-r",
+                          str(video_fecs), "-f", str(video_blocklength), "-t", str(frametype),
+                          "-b", str(get_bit_rate(datarate)), "-c", str(communication_id), "-a", str(compatibility_mode)]
+        video_air_comm.extend(interface_video.split())
+        Popen(video_air_comm, stdin=raspivid_task.stdout, stdout=None, stderr=None, close_fds=True, shell=False)
 
 
 def get_interface():
