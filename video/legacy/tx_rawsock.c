@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <sys/ioctl.h>
 #include <getopt.h>
+#include <sys/mman.h>
 
 #define MAX_PACKET_LENGTH 4192
 #define MAX_USER_PACKET_LENGTH 2278

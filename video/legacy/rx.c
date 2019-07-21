@@ -18,6 +18,9 @@
 #include "wifibroadcast.h"
 #include "radiotap.h"
 #include <time.h>
+#include <sys/mman.h>
+#include <sys/stat.h>        /* For mode constants */
+#include <fcntl.h>           /* For O_* constants */
 #include <sys/resource.h>
 
 #define MAX_PACKET_LENGTH 4192

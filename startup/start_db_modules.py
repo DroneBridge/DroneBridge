@@ -83,7 +83,7 @@ def start_gnd_modules():
 
     print(f"{GND_STRING_TAG} Starting status module...")
     comm_status = [os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'db_status'), "-m", "m", "-c", str(communication_id)]
-    comm_status.extend(interface_proxy)
+    comm_status.extend(interface_proxy.split())
     Popen(comm_status, shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting proxy module...")
@@ -112,7 +112,7 @@ def start_gnd_modules():
                         "-v", str(fwd_stream_port)]
         receive_comm.extend(interface_video.split())
         db_video_receive = Popen(receive_comm, stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True,
-                                 shell=False)
+                                 shell=False, bufsize=0)
         print(f"{GND_STRING_TAG} Starting video player...")
         Popen([get_video_player(fps)], stdin=db_video_receive.stdout, stdout=None, stderr=None, close_fds=True,
               shell=False)
@@ -209,7 +209,7 @@ def start_uav_modules():
         raspivid_comm.extend(extraparams.split())
         raspivid_comm.extend(["-o", "-"])
         raspivid_task = Popen(raspivid_comm, stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True,
-                              shell=False)
+                              shell=False, bufsize=0)
 
         video_air_comm = [os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'video_air'), "-d", str(video_blocks), "-r",
                           str(video_fecs), "-f", str(video_blocklength), "-t", str(frametype),

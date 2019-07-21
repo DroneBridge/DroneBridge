@@ -58,8 +58,9 @@ function init_dronebridge() {
   if [[ "$CAM" == "0" ]]; then
     echo "Welcome to DroneBridge v0.6 Beta (GND) - "
     python3.7 /root/DroneBridge/startup/init_wifi.py -g
-    start_osd
     python3.7 /root/DroneBridge/startup/start_db_modules.py -g
+    sleep 2
+    start_osd
   else
     echo "Welcome to DroneBridge v0.6 Beta (UAV) - "
     python3.7 /root/DroneBridge/startup/init_wifi.py
