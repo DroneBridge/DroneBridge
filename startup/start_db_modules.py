@@ -72,19 +72,19 @@ def start_gnd_modules():
     # ----------- start modules ------------------------
     print(f"{GND_STRING_TAG} Starting ip checker module...")
     Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_ip_checker.py')],
-          shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
+          shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_comm == 'Y':
         print(f"{GND_STRING_TAG} Starting communication module...")
         comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py'), "-m", "m",
-                "-c", str(communication_id), "-a", str(compatibility_mode), "-f", frametype]
+                "-c", str(communication_id), "-a", str(compatibility_mode), "-f", str(frametype)]
         comm.extend(interface_comm.split())
         Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting status module...")
     comm_status = [os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'db_status'), "-m", "m", "-c", str(communication_id)]
     comm_status.extend(interface_proxy)
-    Popen(interface_proxy, shell=False, stdin=None, stdout=None, stderr=None)
+    Popen(comm_status, shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting proxy module...")
     comm_proxy = [os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'db_proxy'), "-m", "m", "-c", str(communication_id),
@@ -181,7 +181,7 @@ def start_uav_modules():
     if en_comm == 'Y':
         print(f"{UAV_STRING_TAG} Starting communication module...")
         comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py'), "-m", "m",
-                "-c", str(communication_id), "-a", str(compatibility_mode), "-f", frametype]
+                "-c", str(communication_id), "-a", str(compatibility_mode), "-f", str(frametype)]
         comm.extend(interface_comm.split())
         Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 

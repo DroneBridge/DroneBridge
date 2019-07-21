@@ -29,7 +29,14 @@
  * @return shared memory id where IP form DroneBridge IP-Checker module is stored
  */
 int init_shared_memory_ip(){
-    return shmget(IP_SHM_KEY, 15, 0666);
+    int key = shmget(IP_SHM_KEY, 15, 0666);
+    if (key == -1) {
+        perror("shmget");
+        key = shmget(IP_SHM_KEY, 15, IPC_CREAT);
+        if (key == -1)
+            perror("shmget");
+    }
+    return key;
 }
 
 /**
@@ -50,7 +57,6 @@ char * get_ip_from_ipchecker(int shmid){
             shmdt(myPtr);
         }
     } else {
-        perror("shmget");
         return "127.0.0.1";
     }
     return ip_checker_ip;
