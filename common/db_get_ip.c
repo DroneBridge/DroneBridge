@@ -51,6 +51,7 @@ char * get_ip_from_ipchecker(int shmid){
         }
     } else {
         perror("shmget");
+        return "127.0.0.1";
     }
     return ip_checker_ip;
 }

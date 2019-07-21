@@ -73,7 +73,7 @@ class DroneBridge:
     MONITOR_BUFFERSIZE_COMM = 2048
 
     def __init__(self, comm_direction: DBDir, interfaces: list, mode: DBMode, communication_id: int or bytes,
-                 dronebridge_port: DBPort or bytes, tag="MyDBApplication", db_blocking_socket=True, frame_type="rts",
+                 dronebridge_port: DBPort or bytes, tag="MyDBApplication", db_blocking_socket=True, frame_type=1,
                  transmission_bitrate=36, compatibility_mode=False, encryption_key=None):
         """
         Class that handles communication between multiple wifi cards in monitor mode using the DroneBridge raw protocol
@@ -85,7 +85,7 @@ class DroneBridge:
         :param dronebridge_port: DroneBridge port to listen for incoming packets
         :param tag: Name printed in front of every log message
         :param db_blocking_socket: Should the opened sockets block on receiving
-        :param frame_type: [rts|data] 80211 frame type used to send message. Data & RTS frames supported
+        :param frame_type: [1|2] for RTS|DATA. 80211 frame type used to send message. Data & RTS frames supported
         :param transmission_bitrate: Only supported by some Ralink cards. Set packet specific transmission rate
         :param compatibility_mode: Adheres the 80211 packet standard by not writing payload data into the header.
             Enable if you want to communicate with partners that do not have patched drivers etc. -> longer packets
@@ -113,7 +113,7 @@ class DroneBridge:
         self.recv_seq_num = 0  # contains sequence number of last packet received via receive_data()
         for _interface in interfaces:
             self.list_lr_sockets.append(self._open_comm_sock(_interface, blocking_socket=db_blocking_socket))
-        if frame_type == "rts":
+        if frame_type == 1:
             self.fcf = b'\xb4\x00\x00\x00'  # RTS frame
         else:
             self.fcf = b'\x08\x00\x00\x00'  # Data frame

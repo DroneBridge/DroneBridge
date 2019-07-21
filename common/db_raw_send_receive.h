@@ -37,15 +37,10 @@ typedef struct {
 void set_bitrate(int bitrate_option);
 db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
                                    uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type);
-int open_socket_send_receive(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
-                             uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type);
 uint8_t update_seq_num(uint8_t *old_seq_num);
 struct data_uni * get_hp_raw_buffer(int adhere_to_80211_header);
-int send_packet(uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num, int adhere_80211_header);
-int send_packet_div(db_socket *a_db_socket, uint8_t payload[], uint8_t dest_port, u_int16_t payload_length, 
+int send_packet_div(db_socket *a_db_socket, uint8_t payload[], uint8_t dest_port, u_int16_t payload_length,
         uint8_t new_seq_num, int adhere_80211_header);
-int send_packet_hp(uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num);
 int send_packet_hp_div(db_socket *a_db_socket, uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num);
-void close_socket_send_receive();
 
 #endif //CONTROL_DB_RAW_SEND_H

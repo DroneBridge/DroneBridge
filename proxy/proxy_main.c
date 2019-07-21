@@ -100,14 +100,14 @@ int process_command_line_args(int argc, char *argv[]) {
             case '?':
                 printf("DroneBridge Proxy module is used to do any UDP <-> DB_CONTROL_AIR routing. UDP IP given by "
                        "IP-checker module. Use"
-                       "\n\t-n <network_IF_proxy_module> "
+                       "\n\t-n [network_IF_proxy_module] "
                        "\n\t-m [w|m] DroneBridge mode - wifi - monitor mode (default: m) (wifi not supported yet!)"
                        "\n\t-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
                        "\n\t-o [Y|N] Write telemetry to /root/telemetryfifo1 FIFO (default: Y)"
-                       "\n\t-f <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)"
+                       "\n\t-f [1|2] DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)"
                        "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
                        "supported with Ralink chipsets)"
-                       "\n\t-a <0|1> to disable/enable. Offsets the payload by some bytes so that it sits outside "
+                       "\n\t-a [0|1] to disable/enable. Offsets the payload by some bytes so that it sits outside "
                        "then 802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!");
                 break;
             default:

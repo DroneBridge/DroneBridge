@@ -77,7 +77,7 @@ def start_gnd_modules():
     if en_comm == 'Y':
         print(f"{GND_STRING_TAG} Starting communication module...")
         comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py'), "-m", "m",
-                "-c", str(communication_id), "-a", str(compatibility_mode)]
+                "-c", str(communication_id), "-a", str(compatibility_mode), "-f", frametype]
         comm.extend(interface_comm.split())
         Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
@@ -167,7 +167,7 @@ def start_uav_modules():
         print(f"{UAV_STRING_TAG} Available bandwidth is {video_bitrate / 1000} kbit/s")
         video_bitrate = int(video_channel_util / 100 * int(video_bitrate))
         print(
-            f"{CColors.OKGREEN} {UAV_STRING_TAG} Setting video bitrate to {video_bitrate / 1000} kbit/s {CColors.ENDC}")
+            f"{CColors.OKGREEN}{UAV_STRING_TAG} Setting video bitrate to {video_bitrate / 1000} kbit/s {CColors.ENDC}")
 
     # ---------- Error pre-check ------------------------
     if serial_int_cont == serial_int_sumd and en_control == 'Y' and enable_sumd_rc == 'Y':
@@ -181,7 +181,7 @@ def start_uav_modules():
     if en_comm == 'Y':
         print(f"{UAV_STRING_TAG} Starting communication module...")
         comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py'), "-m", "m",
-                "-c", str(communication_id), "-a", str(compatibility_mode)]
+                "-c", str(communication_id), "-a", str(compatibility_mode), "-f", frametype]
         comm.extend(interface_comm.split())
         Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
@@ -293,7 +293,7 @@ def measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, vid
     :param interface_video:
     :return: Capacity in bit per second
     """
-    print(f"{CColors.OKGREEN} {UAV_STRING_TAG} Measuring available bitrate {CColors.ENDC}")
+    print(f"{CColors.OKGREEN}{UAV_STRING_TAG} Measuring available bitrate {CColors.ENDC}")
     tx_measure = Popen(os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'tx_measure') + " -p 77 -b "
                        + str(video_blocks) + " -r " + str(video_fecs) + " -f " + str(video_blocklength) + " -t "
                        + str(video_frametype) + " -d " + str(get_bit_rate(datarate)) + " -y 0 " + interface_video,
@@ -341,16 +341,20 @@ def exists_wifi_traffic(wifi_interface):
 
 def determine_frametype(cts_protection, interface_name):
     """
-    Checks if there is wifi traffic.
+    Checks if there is wifi traffic. And determines the to use frame type (DATA, RTS, BEACON)
 
     :param cts_protection: The value from the DroneBridgeConfig
     :param interface_name: The interface to listen for traffic
-    :return 2 for data frames, 1 for RTS frames
+    :return
+
+    - 1 for RTS frames
+    - 2 for data frames
+    - 3 for beacon frames (reception not supported)
     """
     print("Determining frame type...")
     wifi_driver = iwhw.ifdriver(interface_name)
     if is_ralink_card(wifi_driver):
-        return 1  # TODO: injection with rt2800usb broken? Injects some packets and then stops
+        return 2  # injection with rt2800usb and RTS broken?!
     elif is_realtek_card(wifi_driver):
         return 2  # use data frames (~1Mbps with rtl8814au an RTS)
     elif cts_protection == 'Y' and is_atheros_card(wifi_driver):

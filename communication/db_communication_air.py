@@ -47,6 +47,9 @@ def parse_arguments():
     parser.add_argument('-c', action='store', type=int, dest='comm_id', required=True,
                         help='Communication ID must be the same on drone and groundstation. A number between 0-255 '
                              'Example: "125"', default='111')
+    parser.add_argument('-f', action='store', type=int, dest='frametype', required=False,
+                        help='[1|2] DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)',
+                        default='2')
     return parser.parse_args()
 
 
@@ -62,9 +65,10 @@ if __name__ == "__main__":
     list_interfaces = parsedArgs.DB_INTERFACES
     comm_id = bytes([parsedArgs.comm_id])
     comp_mode = parsedArgs.comp_mode
+    frame_type = int(parsedArgs.frametype)
     print("DB_COMM_AIR: Communication ID: " + str(comm_id))
     db = DroneBridge(DBDir.DB_TO_GND, list_interfaces, DBMode.MONITOR, comm_id, DBPort.DB_PORT_COMMUNICATION,
-                     tag="DB_COMM_AIR", db_blocking_socket=True, frame_type="rts", compatibility_mode=comp_mode)
+                     tag="DB_COMM_AIR", db_blocking_socket=True, frame_type=frame_type, compatibility_mode=comp_mode)
     first_run = True
     while keep_running:
         if first_run:
