@@ -19,8 +19,6 @@ cmake-build-debug/
 
 status/common_lib/CMakeFiles/
 
-*.cmake
-
 x86bin/
 
 db_esp32/build/
