@@ -298,7 +298,7 @@ def measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, vid
                        + str(video_blocks) + " -r " + str(video_fecs) + " -f " + str(video_blocklength) + " -t "
                        + str(video_frametype) + " -d " + str(get_bit_rate(datarate)) + " -y 0 " + interface_video,
                        stdout=subprocess.PIPE, shell=True, stdin=None, stderr=None, close_fds=True)
-    return int(tx_measure.stdout.readline()) * 8
+    return int(tx_measure.stdout.readline())
 
 
 def get_video_player(fps):

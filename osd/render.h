@@ -45,10 +45,9 @@ void draw_kbitrate(int cts, int kbitrate, uint16_t kbitrate_measured_tx, uint16_
 void draw_sys(uint8_t cpuload_air, uint8_t temp_air, uint8_t cpuload_gnd, uint8_t temp_gnd, float pos_x, float pos_y, float scale);
 void draw_message(int severity, char line1[30], char line2[30], char line3[30], float pos_x, float pos_y, float scale);
 
-//new stuff from fritz walter https://www.youtube.com/watch?v=EQ01b3aJ-rk
-//this will only indicate how much % are left. Mavlink specific, but could be used with others as well.
 void draw_batt_gauge(int remaining, float pos_x, float pos_y, float scale);
 void draw_batt_status(float voltage, float current, float pos_x, float pos_y, float scale);
+void draw_batt_mah(float voltage, float current, float pos_x, float pos_y, float scale);
 void draw_position(float lat, float lon, float pos_x, float pos_y, float scale);
 void draw_sat(int sats, int fixtype, float pos_x, float pos_y, float scale);
 void draw_home_distance(int distance, bool home_fixed, float pos_x, float pos_y, float scale);

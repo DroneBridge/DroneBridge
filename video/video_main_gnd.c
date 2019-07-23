@@ -514,7 +514,7 @@ int main(int argc, char *argv[]) {
                 max_sd = interfaces[i].selectable_fd;
         }
 
-        int select_return = select(FD_SETSIZE, &readset, NULL, NULL, &to);
+        int select_return = select(max_sd, &readset, NULL, NULL, &to);
         if(select_return == 0)
             continue;
 

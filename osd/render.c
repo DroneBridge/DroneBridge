@@ -35,6 +35,10 @@ float home_lat;
 float home_lon;
 int home_counter;
 char buffer[40];
+float mAhDrawRaw, mAhDrawn;
+bool first = true;
+long long lastT, timeDiff;
+
 Fontinfo myfont,osdicons;
 
 int packetslost_last[6];
@@ -52,7 +56,6 @@ long long current_ts() {
     long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds
     return milliseconds;
 }
-
 
 int getWidth(float pos_x_percent) {
     return (width * 0.01f * pos_x_percent);
@@ -160,6 +163,11 @@ void render(telemetry_data_t *td, uint8_t cpuload_gnd, uint8_t temp_gnd, uint8_t
 #ifdef UPLINK_RSSI
     draw_rc_signal(td->rx_status_rc->adapter[0].current_signal_dbm, td->rx_status_rc->received_packet_cnt,
             UPLINK_RSSI_POS_X, UPLINK_RSSI_POS_Y, UPLINK_RSSI_SCALE * GLOBAL_SCALE);
+#endif
+
+
+#ifdef BATT_MAH
+    draw_batt_mah(td->voltage, td->ampere, BATT_MAH_POS_X, BATT_MAH_POS_Y, BATT_MAH_SCALE * GLOBAL_SCALE);
 #endif
 
 
@@ -446,6 +454,25 @@ void draw_mode(int mode, int armed, float pos_x, float pos_y, float scale){
         }
     }
     TextMid(getWidth(pos_x), getHeight(pos_y), buffer, myfont, text_scale);
+}
+
+
+void draw_batt_mah(float voltage, float current, float pos_x, float pos_y, float scale){
+    float text_scale = getWidth(2) * scale;
+
+    VGfloat height_text = TextHeight(myfont, text_scale)+getHeight(0.3)*scale;
+    if(first){ // little trick needed to be done to take the initial time
+        lastT = current_ts();
+        first = false;
+    }
+    timeDiff = current_ts() - lastT; //get the time difference between last time and new time
+    mAhDrawRaw = current * timeDiff / 3600; //calculate the mAh
+    mAhDrawn += mAhDrawRaw; //add the calculated mAh the total used
+
+    lastT = current_ts(); //set lastT back to current time
+    sprintf(buffer, "%.f", mAhDrawn);
+    TextEnd(getWidth(pos_x), getHeight(pos_y), buffer, myfont, text_scale);
+    Text(getWidth(pos_x), getHeight(pos_y), " mAh", myfont, text_scale*0.6);
 }
 
 
