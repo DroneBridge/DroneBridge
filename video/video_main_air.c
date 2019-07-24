@@ -266,6 +266,7 @@ int main(int argc, char *argv[]) {
     // open DroneBridge raw sockets
     for (int k = 0; k < num_interfaces; ++k) {
         raw_sockets[k] = open_db_socket(adapters[k], comm_id, 'm', bitrate_op, DB_DIREC_GROUND, DB_PORT_VIDEO, frame_type);
+        strncpy(db_uav_status->adapter[k].name, adapters[k], IFNAMSIZ);
     }
     printf(GRN "DB_VIDEO_AIR: started!" RESET "\n");
     while (keeprunning) {

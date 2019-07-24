@@ -318,7 +318,7 @@ void render(telemetry_data_t *td, uint8_t cpuload_gnd, uint8_t temp_gnd, uint8_t
 
     no_signal = false;
     for (i = 0; i < ac; ++i) { // find out which card has best signal (and if at least one card has a signal)
-        if (td->rx_status->adapter[i].current_signal_dbm > best_dbm)
+        if (td->rx_status->adapter[i].current_signal_dbm > best_dbm && td->rx_status->adapter[i].current_signal_dbm != 0)
             best_dbm = td->rx_status->adapter[i].current_signal_dbm;
     }
 
@@ -1153,7 +1153,7 @@ void draw_card_signal(int8_t signal, int signal_good, int card, int adapter_cnt,
     TextEnd(getWidth(pos_x) - width_value - width_cardno - getWidth(0.3) * scale, getHeight(pos_y) - card * height_text,
             buffer, osdicons, text_scale * 0.6);
 
-    sprintf(buffer, "%d", card);
+    sprintf(buffer, "%d %s", card, db_gnd_status->adapter[card].name);
     TextEnd(getWidth(pos_x) - width_value - getWidth(0.3) * scale, getHeight(pos_y) - card * height_text, buffer,
             myfont, text_scale * 0.4);
 
@@ -1186,12 +1186,14 @@ void draw_card_signal(int8_t signal, int signal_good, int card, int adapter_cnt,
 //    packetslost_last[card] = lost;
     sprintf(buffer, "(%d)", packets);
 
-    // draw RSSI of antennas of respective adapter
-    char ant_rssi_buf[40];
-    for (int i = 0; i < db_gnd_status->adapter[card].num_antennas; ++i) {
-        if (db_gnd_status->adapter[card].ant_signal_dbm[i] < 0) {
-            sprintf(ant_rssi_buf, " %ddBm", db_gnd_status->adapter[card].ant_signal_dbm[i]);
-            strcat(buffer, ant_rssi_buf);
+    if (db_gnd_status->adapter[card].num_antennas > 1) {
+        // draw RSSI of antennas of respective adapter
+        char ant_rssi_buf[40];
+        for (int i = 0; i < db_gnd_status->adapter[card].num_antennas; ++i) {
+            if (db_gnd_status->adapter[card].ant_signal_dbm[i] < 0) {
+                sprintf(ant_rssi_buf, " %ddBm", db_gnd_status->adapter[card].ant_signal_dbm[i]);
+                strcat(buffer, ant_rssi_buf);
+            }
         }
     }
     Text(getWidth(pos_x) + width_unit + getWidth(0.65) * scale, getHeight(pos_y) - card * height_text, buffer, myfont,

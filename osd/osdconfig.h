@@ -45,10 +45,10 @@
 #define UPLINK_RSSI_POS_Y 89
 #define UPLINK_RSSI_SCALE 1.1
 
-#define RSSI
-#define RSSI_POS_X 32
-#define RSSI_POS_Y 89
-#define RSSI_SCALE 1
+//#define RSSI
+//#define RSSI_POS_X 32
+//#define RSSI_POS_Y 89
+//#define RSSI_SCALE 1
 
 #define KBITRATE
 #define KBITRATE_POS_X 73

@@ -32,6 +32,7 @@
 #include "../common/db_get_ip.h"
 #include "../common/ccolors.h"
 #include "../common/radiotap/radiotap_iter.h"
+#include "../common/db_raw_send_receive.h"
 
 #define MAX_PACKET_LENGTH 4192
 #define MAX_USER_PACKET_LENGTH 1450
@@ -50,13 +51,15 @@ volatile bool keeprunning = true;
 int param_block_buffers = 1;
 int pack_size = MAX_USER_PACKET_LENGTH;
 db_gnd_status_t *db_gnd_status = NULL;
-int max_block_num = -1, udp_socket, shID;
+int max_block_num = -1, udp_socket, shID = -1;
 struct sockaddr_in client_video_addr;
 long long prev_time = 0;
 long long now = 0;
 int bytes_written = 0;
 
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
+char overwrite_ip[INET6_ADDRSTRLEN];
+bool fixed_ip = false;
 
 typedef struct {
     int selectable_fd;
@@ -64,22 +67,22 @@ typedef struct {
 } monitor_interface_t;
 
 
-void int_handler(int dummy){
+void int_handler(int dummy) {
     keeprunning = false;
 }
 
 long long current_timestamp() {
     struct timeval te;
     gettimeofday(&te, NULL); // get current time
-    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // calculate milliseconds
+    long long milliseconds = te.tv_sec * 1000LL + te.tv_usec / 1000; // calculate milliseconds
     return milliseconds;
 }
 
 
-void init_outputs(){
+void init_outputs() {
     if (pass_through) dest_port_video = APP_PORT_VIDEO_FEC;
-    if (udp_enabled){
-        udp_socket = socket (AF_INET, SOCK_DGRAM, 0);
+    if (udp_enabled) {
+        udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
         client_video_addr.sin_family = AF_INET;
         client_video_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
         client_video_addr.sin_port = htons(dest_port_video);
@@ -93,10 +96,12 @@ void init_outputs(){
  * @param message_length Lenght of data
  * @param fec_decoded Indicator if the data also contains FEC packets. True if pure DATA packets (and fully decoded FEC)
  */
-void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded){
-    if (udp_enabled){
-        client_video_addr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
-        if (sendto (udp_socket, data, message_length, 0, (struct sockaddr *) &client_video_addr, sizeof (client_video_addr)) < message_length)
+void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
+    if (udp_enabled) {
+        if (!fixed_ip)
+            client_video_addr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
+        if (sendto(udp_socket, data, message_length, 0, (struct sockaddr *) &client_video_addr,
+                   sizeof(client_video_addr)) < message_length)
             fprintf(stderr, RED "Not all data sent via UDP\n" RESET);
     }
     if (fec_decoded) {
@@ -121,12 +126,12 @@ void block_buffer_list_reset(block_buffer_t *block_buffer_list, int block_buffer
     int i;
     block_buffer_t *rb = block_buffer_list;
 
-    for(i=0; i<block_buffer_list_len; ++i) {
+    for (i = 0; i < block_buffer_list_len; ++i) {
         rb->block_num = -1;
 
         int j;
         packet_buffer_t *p = rb->packet_buffer_list;
-        for(j=0; j<num_data_block+num_fec_block; ++j) {
+        for (j = 0; j < num_data_block + num_fec_block; ++j) {
             p->valid = 0;
             p->crc_correct = 0;
             p->len = 0;
@@ -158,20 +163,22 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
 
     //we have received a block number that exceeds the currently seen ones -> we need to make room for this new block
     //or we have received a block_num that is several times smaller than the current window of buffers -> this indicated that either the window is too small or that the transmitter has been restarted
-    int tx_restart = (block_num + 128*param_block_buffers < max_block_num);
+    int tx_restart = (block_num + 128 * param_block_buffers < max_block_num);
     // with block_buffer_list length == 1 (d=1) this means we received all packets of a block (we still might miss some)
-    if((block_num > max_block_num || tx_restart) && crc_correct) {
-        if(tx_restart) {
+    if ((block_num > max_block_num || tx_restart) && crc_correct) {
+        if (tx_restart) {
             db_gnd_status->tx_restart_cnt++;
-            fprintf(stderr, "TX RESTART: Detected blk %x that lies outside of the current retr block buffer window (max_block_num = %x) (if there was no tx restart, increase window size via -d)\n", block_num, max_block_num);
+            fprintf(stderr,
+                    "TX RESTART: Detected blk %x that lies outside of the current retr block buffer window (max_block_num = %x) (if there was no tx restart, increase window size via -d)\n",
+                    block_num, max_block_num);
 
             block_buffer_list_reset(block_buffer_list, param_block_buffers);
         }
         //first, find the minimum block num in the buffers list. this will be the block that we replace
         int min_block_num = INT_MAX;
         int min_block_num_idx = 0;
-        for(i=0; i<param_block_buffers; ++i) {
-            if(block_buffer_list[i].block_num < min_block_num) {
+        for (i = 0; i < param_block_buffers; ++i) {
+            if (block_buffer_list[i].block_num < min_block_num) {
                 min_block_num = block_buffer_list[i].block_num;
                 min_block_num_idx = i;
             }
@@ -182,7 +189,7 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
         packet_buffer_t *packet_buffer_list = block_buffer_list[min_block_num_idx].packet_buffer_list;
         int last_block_num = block_buffer_list[min_block_num_idx].block_num;
 
-        if(last_block_num != -1) {
+        if (last_block_num != -1) {
             //db_gnd_status->adapter[].received_block_cnt++;
 
             //we have both pointers to the packet buffers (to get information about crc and vadility) and raw data pointers for fec_decode
@@ -197,23 +204,23 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
             // first, split the received packets into DATA a FEC packets and count the damaged packets
             // We assume that the packets are correctly ordered inside the packet buffer list
             i = 0;
-            while(di < num_data_block || fi < num_fec_block) {
-                if(di < num_data_block) {
+            while (di < num_data_block || fi < num_fec_block) {
+                if (di < num_data_block) {
                     data_pkgs[di] = packet_buffer_list + i++;
                     data_blocks[di] = data_pkgs[di]->data;
-                    if(!data_pkgs[di]->valid)
+                    if (!data_pkgs[di]->valid)
                         datas_missing++;
-                    if(data_pkgs[di]->valid && !data_pkgs[di]->crc_correct)
+                    if (data_pkgs[di]->valid && !data_pkgs[di]->crc_correct)
                         datas_corrupt++;
                     di++;
                 }
 
-                if(fi < num_fec_block) {
+                if (fi < num_fec_block) {
                     fec_pkgs[fi] = packet_buffer_list + i++;
-                    if(!fec_pkgs[fi]->valid)
+                    if (!fec_pkgs[fi]->valid)
                         fecs_missing++;
 
-                    if(fec_pkgs[fi]->valid && !fec_pkgs[fi]->crc_correct)
+                    if (fec_pkgs[fi]->valid && !fec_pkgs[fi]->crc_correct)
                         fecs_corrupt++;
 
                     fi++;
@@ -234,38 +241,38 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
             di = 0;
 
             //look for missing DATA and replace them with good FECs
-            while(di < num_data_block && fi < num_fec_block) {
+            while (di < num_data_block && fi < num_fec_block) {
                 //if this data is fine we go to the next
-                if(data_pkgs[di]->valid && data_pkgs[di]->crc_correct) {
+                if (data_pkgs[di]->valid && data_pkgs[di]->crc_correct) {
                     di++;
                     continue;
                 }
 
                 //if this DATA is corrupt and there are less good fecs than missing datas we cannot do anything for this data
-                if(data_pkgs[di]->valid && !data_pkgs[di]->crc_correct && good_fecs <= datas_missing) {
+                if (data_pkgs[di]->valid && !data_pkgs[di]->crc_correct && good_fecs <= datas_missing) {
                     di++;
                     continue;
                 }
 
                 //if this FEC is not received we go on to the next
-                if(!fec_pkgs[fi]->valid) {
+                if (!fec_pkgs[fi]->valid) {
                     fi++;
                     continue;
                 }
 
                 //if this FEC is corrupted and there are more lost packages than good fecs we should replace this DATA even with this corrupted FEC
-                if(!fec_pkgs[fi]->crc_correct && datas_missing > good_fecs) {
+                if (!fec_pkgs[fi]->crc_correct && datas_missing > good_fecs) {
                     fi++;
                     continue;
                 }
 
 
-                if(!data_pkgs[di]->valid)
+                if (!data_pkgs[di]->valid)
                     datas_missing--;
-                else if(!data_pkgs[di]->crc_correct)
+                else if (!data_pkgs[di]->crc_correct)
                     datas_corrupt--;
 
-                if(fec_pkgs[fi]->crc_correct)
+                if (fec_pkgs[fi]->crc_correct)
                     good_fecs--;
 
                 //at this point, data is invalid and fec is good -> replace data with fec
@@ -279,7 +286,7 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
 
             int reconstruction_failed = datas_missing_c + datas_corrupt_c > good_fecs_c;
 
-            if(reconstruction_failed) {
+            if (reconstruction_failed) {
                 //we did not have enough FEC packets to repair this block
                 db_gnd_status->damaged_block_cnt++;
                 //fprintf(stderr, "Could not fully reconstruct block %x! Damage rate: %f (%d / %d blocks)\n", last_block_num, 1.0 * rx_status->damaged_block_cnt / rx_status->received_block_cnt, rx_status->damaged_block_cnt, rx_status->received_block_cnt);
@@ -288,13 +295,14 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
 
 
             //decode data and publish it
-            fec_decode((unsigned int) pack_size, data_blocks, num_data_block, fec_blocks, fec_block_nos, erased_blocks, nr_fec_blocks);
-            for(i=0; i<num_data_block; ++i) {
-                video_packet_data_t *vpd_corrected = (video_packet_data_t *)data_blocks[i];
+            fec_decode((unsigned int) pack_size, data_blocks, num_data_block, fec_blocks, fec_block_nos, erased_blocks,
+                       nr_fec_blocks);
+            for (i = 0; i < num_data_block; ++i) {
+                video_packet_data_t *vpd_corrected = (video_packet_data_t *) data_blocks[i];
 
-                if(!reconstruction_failed || data_pkgs[i]->valid) {
+                if (!reconstruction_failed || data_pkgs[i]->valid) {
                     //if reconstruction did fail, the data_length value is undefined. better limit it to some sensible value
-                    if(vpd_corrected->data_length > pack_size) {
+                    if (vpd_corrected->data_length > pack_size) {
                         vpd_corrected->data_length = (uint32_t) pack_size;
                     }
                     // do not publish the data_length field of video_packet_data_t struct
@@ -304,7 +312,7 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
 
 
             //reset buffers
-            for(i=0; i<num_data_block + num_fec_block; ++i) {
+            for (i = 0; i < num_data_block + num_fec_block; ++i) {
                 packet_buffer_t *p = packet_buffer_list + i;
                 p->valid = 0;
                 p->crc_correct = 0;
@@ -319,21 +327,23 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
 
     //find the buffer into which we have to write this packet
     block_buffer_t *rbb = block_buffer_list;
-    for(i=0; i<param_block_buffers; ++i) {
-        if(rbb->block_num == block_num) {
+    for (i = 0; i < param_block_buffers; ++i) {
+        if (rbb->block_num == block_num) {
             break;
         }
         rbb++;
     }
 
     //check if we have actually found the corresponding block. this could not be the case due to a corrupt packet
-    if(i != param_block_buffers) {
+    if (i != param_block_buffers) {
         packet_buffer_t *packet_buffer_list = rbb->packet_buffer_list;
-        packet_num = db_video_packet->video_packet_header.sequence_number % (num_data_block+num_fec_block); //if retr_block_size would be limited to powers of two, this could be replace by a locical and operation
+        packet_num = db_video_packet->video_packet_header.sequence_number % (num_data_block +
+                                                                             num_fec_block); //if retr_block_size would be limited to powers of two, this could be replace by a locical and operation
 
         //only overwrite packets where the checksum is not yet correct. otherwise the packets are already received correctly
-        if(packet_buffer_list[packet_num].crc_correct == 0) {
-            memcpy(packet_buffer_list[packet_num].data, data + sizeof(video_packet_header_t), data_len - sizeof(video_packet_header_t));
+        if (packet_buffer_list[packet_num].crc_correct == 0) {
+            memcpy(packet_buffer_list[packet_num].data, data + sizeof(video_packet_header_t),
+                   data_len - sizeof(video_packet_header_t));
             packet_buffer_list[packet_num].len = (uint) (data_len - sizeof(video_packet_header_t));
             packet_buffer_list[packet_num].valid = 1;
             packet_buffer_list[packet_num].crc_correct = crc_correct;
@@ -359,17 +369,19 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
     uint16_t message_length = 0;
 
     // receive
-    ssize_t l = recv(interface->selectable_fd, lr_buffer, MAX_DB_DATA_LENGTH, 0); int err = errno;
-    if (l > 0){
+    ssize_t l = recv(interface->selectable_fd, lr_buffer, MAX_DB_DATA_LENGTH, 0);
+    int err = errno;
+    if (l > 0) {
         db_gnd_status->received_packet_cnt++;
         message_length = get_db_payload(lr_buffer, l, payload_buffer, &seq_num_video, &radiotap_length);
-        if (pass_through){
+        if (pass_through) {
             // Do not decode using FEC - pure UDP pass through, decoding of FEC must happen on following applications
             // TODO: Implement custom protocol in case of pass_through that tells the receiver about the adapter that it was received on
             publish_data(payload_buffer, message_length, false);
         }
-        if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *)lr_buffer, radiotap_length, NULL) != 0){
-            fprintf(stderr ,RED " Could not init radiotap header\n");
+        if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *) lr_buffer, radiotap_length,
+                                             NULL) != 0) {
+            fprintf(stderr, RED " Could not init radiotap header\n");
             return;
         }
         while ((ieee80211_radiotap_iterator_next(&rti)) == 0) {
@@ -387,16 +399,16 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
                     db_gnd_status->adapter[adapter_no].lock_quality = (*rti.this_arg);
                 case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
                     if (current_antenna_indx == 0) // first occurrence in header will be general RSSI
-                        db_gnd_status->adapter[adapter_no].current_signal_dbm = (int8_t)(*rti.this_arg);
+                        db_gnd_status->adapter[adapter_no].current_signal_dbm = (int8_t) (*rti.this_arg);
                     if (current_antenna_indx <= MAX_ANTENNA_CNT)
-                        db_gnd_status->adapter[adapter_no].ant_signal_dbm[current_antenna_indx] = (int8_t)(*rti.this_arg);
+                        db_gnd_status->adapter[adapter_no].ant_signal_dbm[current_antenna_indx] = (int8_t) (*rti.this_arg);
                     break;
                 default:
                     break;
             }
         }
         db_gnd_status->adapter[adapter_no].num_antennas = (uint8_t) (current_antenna_indx + 1);
-        if(!checksum_correct)
+        if (!checksum_correct)
             db_gnd_status->adapter[adapter_no].wrong_crc_cnt++;
         db_gnd_status->adapter[adapter_no].received_packet_cnt++;
 
@@ -407,11 +419,11 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
     }
 }
 
-void process_command_line_args(int argc, char *argv[]){
+void process_command_line_args(int argc, char *argv[]) {
     num_interfaces = 0, comm_id = DEFAULT_V2_COMMID, pass_through = false, udp_enabled = true;
     num_data_block = 8, num_fec_block = 4, pack_size = 1024, dest_port_video = APP_PORT_VIDEO;
     int c;
-    while ((c = getopt (argc, argv, "n:c:r:f:p:d:u:v:")) != -1) {
+    while ((c = getopt(argc, argv, "n:c:r:f:p:d:u:v:i:")) != -1) {
         switch (c) {
             case 'n':
                 strncpy(adapters[num_interfaces], optarg, IFNAMSIZ);
@@ -442,22 +454,28 @@ void process_command_line_args(int argc, char *argv[]){
             case 'v':
                 dest_port_video = (int) strtol(optarg, NULL, 10);
                 break;
+            case 'i':
+                fixed_ip = true;
+                strncpy(overwrite_ip, optarg, INET6_ADDRSTRLEN);
+                break;
             default:
-                fprintf(stderr, "Based of Wifibroadcast by befinitiv, based on packet spammer by Andy Green.  Licensed under GPL2\n"
-                       "This tool takes a data stream via the DroneBridge long range video port and outputs it via stdout, "
-                       "UDP or TCP"
-                       "\nIt uses the Reed-Solomon FEC code to repair lost or damaged packets."
-                       "\n\n\t-n Name of a network interface that should be used to receive the stream. Must be in monitor "
-                       "mode. Multiple interfaces supported by calling this option multiple times (-n inter1 -n inter2 -n interx)"
-                       "\n\t-c <communication id> Choose a number from 0-255. Same on ground station and UAV!."
-                       "\n\t-d Number of data packets in a block (default 8). Needs to match with tx."
-                       "\n\t-r Number of FEC packets per block (default 4). Needs to match with tx."
-                       "\n\t-f Bytes per packet (default %d. max %d). This is also the FEC "
-                       "block size. Needs to match with tx."
-                       "\n\t-u <Y|N> to enable or disable UDP forwarding of decoded data"
-                       "\n\t-p <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
-                       "\n\t-v Destination port of video stream when set via UDP (IP checker address) or TCP"
-                        , 1024, MAX_USER_PACKET_LENGTH, APP_PORT_VIDEO_FEC);
+                fprintf(stderr,
+                        "Based of Wifibroadcast by befinitiv, based on packet spammer by Andy Green.  Licensed under GPL2\n"
+                        "This tool takes a data stream via the DroneBridge long range video port and outputs it via stdout, "
+                        "UDP or TCP"
+                        "\nIt uses the Reed-Solomon FEC code to repair lost or damaged packets."
+                        "\n\n\t-n Name of a network interface that should be used to receive the stream. Must be in monitor "
+                        "mode. Multiple interfaces supported by calling this option multiple times (-n inter1 -n inter2 -n interx)"
+                        "\n\t-c <communication id> Choose a number from 0-255. Same on ground station and UAV!."
+                        "\n\t-d Number of data packets in a block (default 8). Needs to match with tx."
+                        "\n\t-r Number of FEC packets per block (default 4). Needs to match with tx."
+                        "\n\t-f Bytes per packet (default %d. max %d). This is also the FEC "
+                        "block size. Needs to match with tx."
+                        "\n\t-u <Y|N> to enable or disable UDP forwarding of decoded data"
+                        "\n\t-i UDP DST IP overwrite: Ignore DroneBridge IP checker shared memory and send data to this IP"
+                        "\n\t-p <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
+                        "\n\t-v Destination port of video stream when set via UDP (IP checker address) or TCP", 1024,
+                        MAX_USER_PACKET_LENGTH, APP_PORT_VIDEO_FEC);
                 abort();
         }
     }
@@ -467,67 +485,78 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, int_handler);
     setpriority(PRIO_PROCESS, 0, -10);
     monitor_interface_t interfaces[MAX_PENUMBRA_INTERFACES];
-    int i, max_sd = 0;
+    int i;
     block_buffer_t *block_buffer_list;
 
     process_command_line_args(argc, argv);
-    if (num_interfaces == 0){
+    if (num_interfaces == 0) {
         fprintf(stderr, RED "DB_VIDEO_GND: No interface specified. Aborting" RESET);
         abort();
     }
 
-    if(pack_size > MAX_USER_PACKET_LENGTH) {
-        fprintf(stderr, "Packet length is limited to %d bytes (you requested %d bytes)\n", MAX_USER_PACKET_LENGTH, pack_size);
+    if (pack_size > MAX_USER_PACKET_LENGTH) {
+        fprintf(stderr, "Packet length is limited to %d bytes (you requested %d bytes)\n", MAX_USER_PACKET_LENGTH,
+                pack_size);
         abort();
     }
 
     fec_init();
-    shID = init_shared_memory_ip();
+    if (!fixed_ip)
+        shID = init_shared_memory_ip();
+    else if (fixed_ip && udp_enabled) {
+        fprintf(stderr, "DB_VIDEO_GND: Sending to %s\n", overwrite_ip);
+        client_video_addr.sin_addr.s_addr = inet_addr(overwrite_ip);
+    }
+
     init_outputs();
+    db_gnd_status = db_gnd_status_memory_open();
+    db_gnd_status->wifi_adapter_cnt = (uint32_t) num_interfaces;
 
     for (int j = 0; j < num_interfaces; ++j) {
-        interfaces[j].selectable_fd = open_receive_socket(adapters[j], 'm', comm_id, DB_DIREC_GROUND, DB_PORT_VIDEO);
+        db_socket db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO, DB_FRAMETYPE_DATA);
+        interfaces[j].selectable_fd = db_sock.db_socket;// open_receive_socket(adapters[j], 'm', comm_id, DB_DIREC_GROUND, DB_PORT_VIDEO);
+        strncpy(db_gnd_status->adapter[j].name, adapters[j], IFNAMSIZ);
+        fprintf(stderr, "%s\n", db_gnd_status->adapter[j].name);
+        db_gnd_status->adapter[j].received_packet_cnt = 0;
+        db_gnd_status->adapter[j].wrong_crc_cnt = 0;
+        db_gnd_status->adapter[j].current_signal_dbm = -100;
     }
 
     //block buffers contain both the block_num as well as packet buffers for a block.
     block_buffer_list = malloc(sizeof(block_buffer_t) * param_block_buffers);
-    for(i=0; i<param_block_buffers; ++i)
-    {
+    for (i = 0; i < param_block_buffers; ++i) {
         block_buffer_list[i].block_num = -1;
-        block_buffer_list[i].packet_buffer_list = lib_alloc_packet_buffer_list(num_data_block+num_fec_block, MAX_PACKET_LENGTH);
+        block_buffer_list[i].packet_buffer_list = lib_alloc_packet_buffer_list(num_data_block + num_fec_block,
+                                                                               MAX_PACKET_LENGTH);
     }
 
-    db_gnd_status = db_gnd_status_memory_open();
-    db_gnd_status->wifi_adapter_cnt = (uint32_t) num_interfaces;
-
-    fprintf(stderr, GRN "DB_VIDEO_GND: started!" RESET "\n");
-    while(keeprunning) {
-        fd_set readset;
-        struct timeval to;
-        to.tv_sec = 0;
-        to.tv_usec = (__suseconds_t) 1e5;
-
+    fprintf(stderr, GRN "DB_VIDEO_GND: started on %i interfaces" RESET "\n", num_interfaces);
+    fd_set readset;
+    while (keeprunning) {
         FD_ZERO(&readset);
-        for(i = 0; i < num_interfaces; ++i) {
+
+        int max_sd = interfaces[0].selectable_fd;
+        for (i = 0; i < num_interfaces; i++) {
             FD_SET(interfaces[i].selectable_fd, &readset);
             if (interfaces[i].selectable_fd > max_sd)
                 max_sd = interfaces[i].selectable_fd;
         }
 
-        int select_return = select(max_sd, &readset, NULL, NULL, &to);
-        if(select_return == 0)
-            continue;
-
-        for(i=0; i<num_interfaces; ++i) {
-            if(FD_ISSET(interfaces[i].selectable_fd, &readset)) {
-                process_packet(interfaces + i, block_buffer_list, i);
+        int select_return = select(max_sd + 1, &readset, NULL, NULL, NULL);
+        if (select_return == -1) {
+            perror("DB_VIDEO_GND: select() returned error: ");
+        } else if (select_return > 0) {
+            for (i = 0; i < num_interfaces; i++) {
+                if (FD_ISSET(interfaces[i].selectable_fd, &readset)) {
+                    process_packet(&interfaces[i], block_buffer_list, i);
+                }
             }
         }
     }
 
-    for(int g = 0; i < num_interfaces; ++i){
+    for (int g = 0; i < num_interfaces; ++i) {
         close(interfaces[g].selectable_fd);
     }
-    if(udp_enabled) close(udp_socket);
+    if (udp_enabled) close(udp_socket);
     return (0);
 }

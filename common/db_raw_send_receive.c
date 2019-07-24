@@ -170,7 +170,7 @@ int conf_monitor(int sockfd, uint8_t comm_id, int bitrate_option, uint8_t send_d
  * @param comm_id The communication ID
  * @param trans_mode The transmission mode (m|w) for monitor or wifi
  * @param bitrate_option Transmission bit rate. Only works with Ralink cards
- * @param send_direction Are the sent packets for the drone or the groundstation
+ * @param send_direction Are the sent packets for the drone or the ground station
  * @param receive_new_port Port the BPF filter gets set to. Port open for receiving data.
  * @param frame_type The type of raw frame being sent: 1=RTS, 2=DATA
  * @return the socket file descriptor or -1 if something went wrong
