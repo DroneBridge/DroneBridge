@@ -42,7 +42,6 @@ typedef struct {
     uint8_t rate; // as reported by radiotap header (500kbps units, eg, 0x02=1Mbps)
     uint8_t lock_quality; // signal quality radiotap header
     uint8_t type; // 0 = Atheros, 1 = Ralink, 2 = Realtek
-    int signal_good;
     char name[IFNAMSIZ];
 } __attribute__((packed)) db_adapter_status;
 

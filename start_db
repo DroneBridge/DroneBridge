@@ -66,7 +66,6 @@ function init_dronebridge() {
     echo "Welcome to DroneBridge v0.6 Beta (GND) - "
     python3.7 /root/DroneBridge/startup/init_wifi.py -g
     python3.7 /root/DroneBridge/startup/start_db_modules.py -g
-    sleep 2
     start_osd
   else
     echo "Welcome to DroneBridge v0.6 Beta (UAV) - "

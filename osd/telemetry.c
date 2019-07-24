@@ -66,10 +66,7 @@ void telemetry_init(telemetry_data_t *td) {
     td->ltm_home_latitude = 0;
 #endif
 
-
-#ifdef DOWNLINK_RSSI
-	td->rx_status = db_gnd_status_memory_open();
-#endif
+    td->rx_status = db_gnd_status_memory_open();
 
 #ifdef UPLINK_RSSI
 	td->rx_status_rc = db_rc_status_memory_open();

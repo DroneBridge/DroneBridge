@@ -29,18 +29,18 @@
 /* POS_Y - from bottom to top (0-100)
 /* SCALE - scale factor
 /* ------------------------------------------*/
-#define DOWNLINK_RSSI
+#define DOWNLINK_RSSI  // RSSI on GND of adapter with best reception
 #define DOWNLINK_RSSI_POS_X 13
 #define DOWNLINK_RSSI_POS_Y 89
 #define DOWNLINK_RSSI_SCALE 1.2
-#define DOWNLINK_RSSI_FEC_BAR true // set to true to draw FEC bar display
+#define DOWNLINK_RSSI_FEC_BAR false // set to true to draw FEC bar display
 
-#define DOWNLINK_RSSI_DETAILED
+#define DOWNLINK_RSSI_DETAILED  // individual adapters in GND
 #define DOWNLINK_RSSI_DETAILED_POS_X 9
 #define DOWNLINK_RSSI_DETAILED_POS_Y 78
 #define DOWNLINK_RSSI_DETAILED_SCALE 0.75
 
-#define UPLINK_RSSI
+#define UPLINK_RSSI  // RC RSSI on UAV
 #define UPLINK_RSSI_POS_X 92
 #define UPLINK_RSSI_POS_Y 89
 #define UPLINK_RSSI_SCALE 1.1
@@ -66,6 +66,11 @@
 #define HOME_ARROW_SCALE 1
 #define HOME_ARROW_USECOG false // use course over ground (from gps) instead of magnetometer
 #define HOME_ARROW_INVERT false // set to true if arrow points in the opposite direction
+
+#define BATT_MAH
+#define BATT_MAH_POS_X 19
+#define BATT_MAH_POS_Y 15
+#define BATT_MAH_SCALE 1
 
 #define BATT_STATUS
 #define BATT_STATUS_POS_X 19
@@ -105,10 +110,10 @@
 #define AHI_INVERT_PITCH 1 // default -1, set to 1 if pitch moves in the wrong direction
 #define AHI_SWAP_ROLL_AND_PITCH true // set to true to swap roll and pitch (Frsky and Smartport only)
 
-// #define POSITION
-#define POSITION_POS_X 76
-#define POSITION_POS_Y 6
-#define POSITION_SCALE 0.8
+//#define POSITION
+//#define POSITION_POS_X 76
+//#define POSITION_POS_Y 6
+//#define POSITION_SCALE 0.8
 
 #define SAT
 #define SAT_POS_X 6

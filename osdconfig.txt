@@ -67,6 +67,11 @@
 #define HOME_ARROW_USECOG false // use course over ground (from gps) instead of magnetometer
 #define HOME_ARROW_INVERT false // set to true if arrow points in the opposite direction
 
+#define BATT_MAH
+#define BATT_MAH_POS_X 19
+#define BATT_MAH_POS_Y 15
+#define BATT_MAH_SCALE 1
+
 #define BATT_STATUS
 #define BATT_STATUS_POS_X 19
 #define BATT_STATUS_POS_Y 6
