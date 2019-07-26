@@ -86,7 +86,7 @@ speed_t interpret_baud(int user_baud) {
  * @param raw_interfaces_telem
  */
 void send_buffered_mavlink(int length_message, mavlink_message_t *mav_message, uint8_t *proxy_seq_number,
-        db_socket *raw_interfaces_telem) {
+                           db_socket_t *raw_interfaces_telem) {
     mav_tel_message_counter++;  // Number of messages in buffer
     mavlink_msg_to_send_buffer(mavlink_message_buf, mav_message);   // Get over the wire representation of message
     // Copy message bytes into buffer
@@ -244,8 +244,8 @@ int main(int argc, char *argv[]) {
 // -------------------------------
 // Setting up network interface
 // -------------------------------
-    db_socket raw_interfaces_rc[DB_MAX_ADAPTERS] = {0};
-    db_socket raw_interfaces_telem[DB_MAX_ADAPTERS] = {0};
+    db_socket_t raw_interfaces_rc[DB_MAX_ADAPTERS] = {0};
+    db_socket_t raw_interfaces_telem[DB_MAX_ADAPTERS] = {0};
     for (int i = 0; i < num_inf; ++i) {
         raw_interfaces_rc[i] = open_db_socket(adapters[i], comm_id, db_mode, bitrate_op, DB_DIREC_GROUND, DB_PORT_RC,
                                               frame_type);
@@ -339,7 +339,7 @@ int main(int argc, char *argv[]) {
 
     // create our data pointer directly inside the buffer (monitor_framebuffer) that is sent over the socket
     struct data_uni *raw_buffer = get_hp_raw_buffer(cont_adhere_80211);
-    struct uav_rc_status_update_message *rc_status_update_data = (struct uav_rc_status_update_message *) raw_buffer;
+    struct uav_rc_status_update_message_t *rc_status_update_data = (struct uav_rc_status_update_message_t *) raw_buffer;
     memset(raw_buffer->bytes, 0, DATA_UNI_LENGTH);
 
     printf(GRN "DB_CONTROL_AIR: Ready for data! Enabled diversity on %i adapters"RESET"\n", num_inf);

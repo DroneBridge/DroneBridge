@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
     int number_cards = db_gnd_status_t->wifi_adapter_cnt;
 
     // set up long range receiving socket
-    db_socket raw_interfaces_status[DB_MAX_ADAPTERS] = {0};
+    db_socket_t raw_interfaces_status[DB_MAX_ADAPTERS] = {0};
     for (int i = 0; i < num_inf_status; i++) {
         raw_interfaces_status[i] = open_db_socket(adapters[i], comm_id, db_mode, 6, DB_DIREC_DRONE, DB_PORT_STATUS,
                 DB_FRAMETYPE_DEFAULT);
@@ -183,8 +183,8 @@ int main(int argc, char *argv[]) {
                         if (prev_seq_num_status != seq_num_status) {
                             prev_seq_num_status = seq_num_status;
                             // process payload (currently only one type of raw status frame is supported: RC_AIR --> STATUS_GROUND)
-                            // must be a uav_rc_status_update_message
-                            struct uav_rc_status_update_message *rc_status_message = (struct uav_rc_status_update_message *) message_buff;
+                            // must be a uav_rc_status_update_message_t
+                            struct uav_rc_status_update_message_t *rc_status_message = (struct uav_rc_status_update_message_t *) message_buff;
                             db_sys_status_message.rssi_drone = rc_status_message->rssi_rc_uav;
                             db_sys_status_message.recv_pack_sec = rc_status_message->recv_pack_sec;
                             db_rc_status_t->adapter[0].current_signal_dbm = db_sys_status_message.rssi_drone;

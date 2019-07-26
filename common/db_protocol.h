@@ -89,7 +89,7 @@ struct data_uni{
 	uint8_t bytes[DATA_UNI_LENGTH];
 };
 // Sent by control module on air side - received by status module on ground station
-struct uav_rc_status_update_message {
+struct uav_rc_status_update_message_t {
     int8_t rssi_rc_uav;
     uint8_t recv_pack_sec;
     uint8_t cpu_usage_uav;
@@ -116,7 +116,7 @@ struct db_80211_header {
 	uint8_t undefined[2];
 };
 // DroneBridge raw protocol v2 header
-struct db_raw_v2_header {
+struct db_raw_v2_header_t {
 	uint8_t fcf_duration[4];
 	uint8_t direction;
 	uint8_t comm_id;

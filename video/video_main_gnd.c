@@ -517,7 +517,7 @@ int main(int argc, char *argv[]) {
     db_gnd_status->tx_restart_cnt = 0;
 
     for (int j = 0; j < num_interfaces; ++j) {
-        db_socket db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO, DB_FRAMETYPE_DATA);
+        db_socket_t db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO, DB_FRAMETYPE_DATA);
         interfaces[j].selectable_fd = db_sock.db_socket;
         strcpy(db_gnd_status->adapter[j].name, adapters[j]);
         fprintf(stderr, "\t%s\n", db_gnd_status->adapter[j].name);

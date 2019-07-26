@@ -41,7 +41,7 @@ bool en_rc_overwrite = false;
 struct data_uni *monitor_databuffer;
 
 // DroneBridge raw interfaces. One per adapter
-db_socket raw_interfaces_rc[DB_MAX_ADAPTERS] = {0};
+db_socket_t raw_interfaces_rc[DB_MAX_ADAPTERS] = {0};
 
 // could do this with two for-loops but hardcoded is faster and number of aux channels won't change anyways
 void generate_msp(unsigned short *newJoystickData) {

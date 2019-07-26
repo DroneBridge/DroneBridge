@@ -51,7 +51,7 @@ uint8_t comm_id, frame_type, db_vid_seqnum = 0;
 unsigned int num_interfaces = 0, num_data_block = 8, num_fec_block = 4, pack_size = 1024, bitrate_op = 11, vid_adhere_80211;
 db_uav_status_t *db_uav_status;
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
-db_socket raw_sockets[DB_MAX_ADAPTERS];
+db_socket_t raw_sockets[DB_MAX_ADAPTERS];
 struct timespec start_time, end_time;
 
 volatile int recorder_running = 1;

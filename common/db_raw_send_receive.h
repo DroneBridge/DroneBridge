@@ -26,21 +26,21 @@
 
 // That is the buffer that will be sent over the socket. Create a pointer to a part of this array and fill it with your
 // data, like e.g.:
-// struct uav_rc_status_update_message *rc_status_update_data = (struct uav_rc_status_update_message *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
+// struct uav_rc_status_update_message_t *rc_status_update_data = (struct uav_rc_status_update_message_t *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
 extern uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH];
 
 typedef struct {
-    int db_socket;
+    int db_socket;  // socket file descriptor
     struct sockaddr_ll db_socket_addr;
-} db_socket;
+} db_socket_t;
 
 void set_bitrate(int bitrate_option);
-db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
-                                   uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type);
+db_socket_t open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
+                           uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type);
 uint8_t update_seq_num(uint8_t *old_seq_num);
 struct data_uni * get_hp_raw_buffer(int adhere_to_80211_header);
-int send_packet_div(db_socket *a_db_socket, uint8_t payload[], uint8_t dest_port, u_int16_t payload_length,
-        uint8_t new_seq_num, int adhere_80211_header);
-int send_packet_hp_div(db_socket *a_db_socket, uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num);
+int send_packet_div(db_socket_t *a_db_socket, uint8_t payload[], uint8_t dest_port, u_int16_t payload_length,
+                    uint8_t new_seq_num, int adhere_80211_header);
+int send_packet_hp_div(db_socket_t *a_db_socket, uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num);
 
 #endif //CONTROL_DB_RAW_SEND_H

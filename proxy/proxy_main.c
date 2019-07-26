@@ -185,7 +185,7 @@ int main(int argc, char *argv[]) {
     process_command_line_args(argc, argv);
 
     // set up long range sockets
-    db_socket raw_interfaces[DB_MAX_ADAPTERS] = {0};
+    db_socket_t raw_interfaces[DB_MAX_ADAPTERS] = {0};
     for (int i = 0; i < num_interfaces; ++i) {
         raw_interfaces[i] = open_db_socket(adapters[i], comm_id, db_mode, bitrate_op, DB_DIREC_DRONE, DB_PORT_PROXY,
                                            frame_type);

@@ -67,7 +67,7 @@ int db_raw_offset = 0; // offset between payload and DB raw header. Needed when 
 // init packet structure
 uint8_t monitor_framebuffer[RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + DATA_UNI_LENGTH] = {0};
 struct radiotap_header *rth = (struct radiotap_header *) monitor_framebuffer;
-struct db_raw_v2_header *db_raw_header = (struct db_raw_v2_header *) (monitor_framebuffer + RADIOTAP_LENGTH);
+struct db_raw_v2_header_t *db_raw_header = (struct db_raw_v2_header_t *) (monitor_framebuffer + RADIOTAP_LENGTH);
 
 /**
  * Set the transmission bit rate in the radiotap header. Only works with ralink cards.
@@ -175,10 +175,10 @@ int conf_monitor(int sockfd, uint8_t comm_id, int bitrate_option, uint8_t send_d
  * @param frame_type The type of raw frame being sent: 1=RTS, 2=DATA
  * @return the socket file descriptor or -1 if something went wrong
  */
-db_socket open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
-                             uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type){
+db_socket_t open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int bitrate_option,
+                           uint8_t send_direction, uint8_t receive_new_port, uint8_t frame_type){
     mode = trans_mode;
-    db_socket new_socket;
+    db_socket_t new_socket;
     int socket_fd;
     if (mode == 'w') {
         // TODO: ignore for now. I will be UDP in future.
@@ -267,7 +267,7 @@ struct data_uni * get_hp_raw_buffer(int adhere_to_80211_header){
  *                               802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!
  * @return: 0 on success or -1 on failure
  */
-int send_packet_div(db_socket *a_db_socket, uint8_t payload[], uint8_t dest_port, u_int16_t payload_length,
+int send_packet_div(db_socket_t *a_db_socket, uint8_t payload[], uint8_t dest_port, u_int16_t payload_length,
                     uint8_t new_seq_num, int adhere_80211_header){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & (uint8_t) 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> (uint8_t) 8) & (uint8_t) 0xFF);
@@ -302,7 +302,7 @@ int send_packet_div(db_socket *a_db_socket, uint8_t payload[], uint8_t dest_port
  * @param new_seq_num Specify the sequence number of the packet
  * @return 0 on success or -1 on failure
  */
-int send_packet_hp_div(db_socket *a_db_socket, uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num){
+int send_packet_hp_div(db_socket_t *a_db_socket, uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num){
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & (uint8_t) 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> (uint8_t) 8) & (uint8_t) 0xFF);
     db_raw_header->port = dest_port;

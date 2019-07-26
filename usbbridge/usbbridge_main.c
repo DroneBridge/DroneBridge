@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include "linux_aoa.h"
 
 
@@ -40,10 +41,15 @@ int main(int argc, char *argv[]) {
     db_accessory_t accessory;
     init_db_accessory(&accessory); // blocking
 
+    uint8_t data[DATA_LENGTH] = {5};
+    db_usb_msg_t *usb_msg = db_usb_get_direct_buffer();
+    memcpy(usb_msg->payload, data, DATA_LENGTH);
+    usb_msg->pay_lenght = 256;
     for (int i = 0; i < 100; i++) {
-        send_debug(&accessory);
-        receive_debug(&accessory);
-        // send_data_db_proto(&accessory, data, DATA_LENGTH, 0x09);
+        // db_usb_send(&accessory, data, DATA_LENGTH, 0x09);
+        db_usb_send_zc(&accessory);
+        // db_usb_send_debug(&accessory);
+        // db_usb_receive_debug(&accessory);
     }
 
     exit_close_aoa_device(&accessory);

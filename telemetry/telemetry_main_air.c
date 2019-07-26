@@ -319,8 +319,8 @@ int main(int argc, char *argv[]) {
     int ltm_frame_buffer_pos = 0;
 
     setup_serial_port();
-    db_socket tel_db_socket = open_db_socket(if_name_telemetry, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND,
-            DB_PORT_TELEMETRY, frame_type);
+    db_socket_t tel_db_socket = open_db_socket(if_name_telemetry, comm_id, db_mode, bitrate_op, DB_DIREC_GROUND,
+                                               DB_PORT_TELEMETRY, frame_type);
 
     int fixed_telem_type = 1; // 0=LTM, 1=MAVLink/pass through
     int ltm_frame_size = 0;

@@ -81,19 +81,21 @@ typedef struct accessory_t {
     char *serial;
 } db_accessory_t;
 
-typedef struct db_usb_msg {
+typedef struct db_usb_msg_t {
     char ident[3];
     uint8_t port;
     uint16_t pay_lenght;
     uint8_t payload[DB_AOA_MAX_PAY_LENGTH];
-
-} __attribute__((packed)) db_usb_msg ;
+} __attribute__((packed)) db_usb_msg_t ;
 
 
 int init_db_accessory(db_accessory_t *db_acc);
-void send_data_db_proto(db_accessory_t *db_acc, uint8_t data[], uint16_t data_length, uint8_t port);
-void send_debug(db_accessory_t *db_acc);
-void receive_debug(db_accessory_t *db_acc);
+int db_usb_send(db_accessory_t *db_acc, uint8_t data[], uint16_t data_length, uint8_t port);
+void db_usb_send_debug(db_accessory_t *db_acc);
+void db_usb_receive_debug(db_accessory_t *db_acc);
+struct db_usb_msg_t *db_usb_get_direct_buffer();
+int db_usb_send_zc(db_accessory_t *db_acc);
+int db_usb_receive(db_accessory_t *db_acc, uint8_t buffer[], uint16_t buffer_size);
 void exit_close_aoa_device(db_accessory_t *db_acc);
 
 #endif //DRONEBRIDGE_LINUX_AOA_H
