@@ -511,12 +511,16 @@ int main(int argc, char *argv[]) {
     init_outputs();
     db_gnd_status = db_gnd_status_memory_open();
     db_gnd_status->wifi_adapter_cnt = (uint32_t) num_interfaces;
+    db_gnd_status->received_packet_cnt = 0;
+    db_gnd_status->received_block_cnt = 0;
+    db_gnd_status->damaged_block_cnt = 0;
+    db_gnd_status->tx_restart_cnt = 0;
 
     for (int j = 0; j < num_interfaces; ++j) {
         db_socket db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO, DB_FRAMETYPE_DATA);
-        interfaces[j].selectable_fd = db_sock.db_socket;// open_receive_socket(adapters[j], 'm', comm_id, DB_DIREC_GROUND, DB_PORT_VIDEO);
-        strncpy(db_gnd_status->adapter[j].name, adapters[j], IFNAMSIZ);
-        fprintf(stderr, "%s\n", db_gnd_status->adapter[j].name);
+        interfaces[j].selectable_fd = db_sock.db_socket;
+        strcpy(db_gnd_status->adapter[j].name, adapters[j]);
+        fprintf(stderr, "\t%s\n", db_gnd_status->adapter[j].name);
         db_gnd_status->adapter[j].received_packet_cnt = 0;
         db_gnd_status->adapter[j].wrong_crc_cnt = 0;
         db_gnd_status->adapter[j].current_signal_dbm = -100;

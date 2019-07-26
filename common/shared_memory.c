@@ -34,18 +34,18 @@ db_gnd_status_t *db_gnd_status_memory_open(void) {
         if(fd > 0) {
             break;
         }
-        printf("db_video_rx_memory_open: Waiting for groundstation video to be started ... %s\n", strerror(errno));
+        printf("db_gnd_status_t: Waiting for ground station video to be started ... %s\n", strerror(errno));
         usleep((__useconds_t) 1e5);
     }
 
     if (ftruncate(fd, sizeof(db_gnd_status_t)) == -1) {
-        perror("db_video_rx_memory_open: ftruncate");
+        perror("db_gnd_status_t: ftruncate");
         exit(1);
     }
 
     void *retval = mmap(NULL, sizeof(db_gnd_status_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (retval == MAP_FAILED) {
-        perror("db_video_rx_memory_open: mmap");
+        perror("db_gnd_status_t: mmap");
         exit(1);
     }
     return (db_gnd_status_t*)retval;
@@ -58,7 +58,7 @@ db_rc_status_t *db_rc_status_memory_open(void) {
         if(fd > 0) {
             break;
         }
-        printf("db_rc_status_memory_open: Waiting for groundstation video to be started ... %s\n", strerror(errno));
+        printf("db_rc_status_memory_open: Waiting for ground station video to be started ... %s\n", strerror(errno));
         usleep((__useconds_t) 1e5);
     }
 

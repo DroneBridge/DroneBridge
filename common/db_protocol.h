@@ -53,7 +53,7 @@ typedef u32 __le32;
 
 #define DEFAULT_DB_MODE         'm'
 #define DEFAULT_DB_IF           "18a6f716a511"
-#define DEFAULT_V2_COMMID		0xc7
+#define DEFAULT_V2_COMMID		0xc8
 
 #define DB_FRAMETYPE_RTS        1
 #define DB_FRAMETYPE_DATA       2
