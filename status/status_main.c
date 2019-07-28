@@ -102,11 +102,11 @@ int main(int argc, char *argv[]) {
     uint8_t tcp_message_buff[TCP_STATUS_BUFF_SIZE];
     int tcp_clients[MAX_TCP_CLIENTS] = {0};
 
-    DB_RC_MESSAGE db_rc_status_message;
+    db_rc_msg_t db_rc_status_message;
     db_rc_status_message.ident[0] = '$';
     db_rc_status_message.ident[1] = 'D';
     db_rc_status_message.message_id = 2;
-    DB_SYSTEM_STATUS_MESSAGE db_sys_status_message;
+    db_system_status_msg_t db_sys_status_message;
     db_sys_status_message.ident[0] = '$';
     db_sys_status_message.ident[1] = 'D';
     db_sys_status_message.message_id = 1;
@@ -270,12 +270,12 @@ int main(int argc, char *argv[]) {
             // ---------------
             // send DB system status message
             // ---------------
-            send_to_all_tcp_clients(tcp_clients, (uint8_t *) &db_sys_status_message, sizeof(DB_SYSTEM_STATUS_MESSAGE));
+            send_to_all_tcp_clients(tcp_clients, (uint8_t *) &db_sys_status_message, sizeof(db_system_status_msg_t));
             // ---------------
             // send DB RC-status message
             // ---------------
             memcpy(db_rc_status_message.channels, rc_values->ch, 2 * NUM_CHANNELS);
-            send_to_all_tcp_clients(tcp_clients, (uint8_t *) &db_rc_status_message, sizeof(DB_RC_MESSAGE));
+            send_to_all_tcp_clients(tcp_clients, (uint8_t *) &db_rc_status_message, sizeof(db_rc_msg_t));
 
             gettimeofday(&timecheck, NULL);
             start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;

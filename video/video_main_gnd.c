@@ -25,6 +25,8 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include "fec.h"
 #include "video_lib.h"
 #include "../common/shared_memory.h"
@@ -37,13 +39,13 @@
 #define MAX_PACKET_LENGTH 4192
 #define MAX_USER_PACKET_LENGTH 1450
 #define MAX_DATA_OR_FEC_PACKETS_PER_BLOCK 32
-
+#define MAX_UNIX_CLIENTS 10
 #define DEBUG 0
 #define debug_print(fmt, ...) \
             do { if (DEBUG) fprintf(stderr, fmt, __VA_ARGS__); } while (0)
 
 int num_interfaces = 0;
-int dest_port_video;
+int dest_port_video, unix_sock;
 uint8_t comm_id, num_data_block, num_fec_block;
 uint8_t lr_buffer[MAX_DB_DATA_LENGTH] = {0};
 bool pass_through, udp_enabled = true;
@@ -51,8 +53,9 @@ volatile bool keeprunning = true;
 int param_block_buffers = 1;
 int pack_size = MAX_USER_PACKET_LENGTH;
 db_gnd_status_t *db_gnd_status = NULL;
-int max_block_num = -1, udp_socket, shID = -1;
+int max_block_num = -1, udp_socket;
 struct sockaddr_in client_video_addr;
+struct sockaddr_un unix_socket_addr;
 long long prev_time = 0;
 long long now = 0;
 int bytes_written = 0;
@@ -84,7 +87,7 @@ void init_outputs() {
     if (udp_enabled) {
         udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
         client_video_addr.sin_family = AF_INET;
-        client_video_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+        client_video_addr.sin_addr.s_addr = inet_addr(DB_AP_CLIENT_IP);
         client_video_addr.sin_port = htons(dest_port_video);
     }
 }
@@ -97,17 +100,23 @@ void init_outputs() {
  * @param fec_decoded Indicator if the data also contains FEC packets. True if pure DATA packets (and fully decoded FEC)
  */
 void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
+    // We assume the consumer is faster than the producer and that it will always be able to send
+    if(sendto(unix_sock, data, message_length, 0, (struct sockaddr *)&unix_socket_addr,
+            sizeof(struct sockaddr_un)) < 0) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK)
+            perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
+        else
+            fprintf(stderr, RED "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n" RESET);
+    }
     if (udp_enabled) {
-        if (!fixed_ip)
-            client_video_addr.sin_addr.s_addr = inet_addr(get_ip_from_ipchecker(shID));
         if (sendto(udp_socket, data, message_length, 0, (struct sockaddr *) &client_video_addr,
                    sizeof(client_video_addr)) < message_length)
-            fprintf(stderr, RED "Not all data sent via UDP\n" RESET);
+            perror(RED "DB_VIDEO_GND: Not all data sent via UDP\n" RESET);
     }
     if (fec_decoded) {
         // only output decoded fec packets to stdout so that video player can read data stream directly
         if (write(STDOUT_FILENO, data, message_length) < 0)
-            fprintf(stderr, RED "Error writing to stdout %s\n" RESET, strerror(errno));
+            fprintf(stderr, RED "DB_VIDEO_GND: Error writing to stdout %s\n" RESET, strerror(errno));
     }
 
     // TODO: setup a TCP server and send to connected clients
@@ -151,8 +160,8 @@ void block_buffer_list_reset(block_buffer_t *block_buffer_list, int block_buffer
  * @param block_buffer_list: An array of block_buffer_t structs
  */
 void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, block_buffer_t *block_buffer_list) {
-    int block_num;
-    int packet_num;
+    uint block_num;
+    uint packet_num;
     int i;
 
     db_video_packet_t *db_video_packet = (db_video_packet_t *) data;
@@ -381,7 +390,7 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
         }
         if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *) lr_buffer, radiotap_length,
                                              NULL) != 0) {
-            fprintf(stderr, RED " Could not init radiotap header\n");
+            fprintf(stderr, RED "DB_VIDEO_GND: Could not init radiotap header\n");
             return;
         }
         while ((ieee80211_radiotap_iterator_next(&rti)) == 0) {
@@ -501,14 +510,12 @@ int main(int argc, char *argv[]) {
     }
 
     fec_init();
-    if (!fixed_ip)
-        shID = init_shared_memory_ip();
-    else if (fixed_ip && udp_enabled) {
+    init_outputs();
+    if (fixed_ip && udp_enabled) {
         fprintf(stderr, "DB_VIDEO_GND: Sending to %s\n", overwrite_ip);
         client_video_addr.sin_addr.s_addr = inet_addr(overwrite_ip);
     }
 
-    init_outputs();
     db_gnd_status = db_gnd_status_memory_open();
     db_gnd_status->wifi_adapter_cnt = (uint32_t) num_interfaces;
     db_gnd_status->received_packet_cnt = 0;
@@ -516,6 +523,7 @@ int main(int argc, char *argv[]) {
     db_gnd_status->damaged_block_cnt = 0;
     db_gnd_status->tx_restart_cnt = 0;
 
+    // init DroneBridge raw sockets to listen for incoming data
     for (int j = 0; j < num_interfaces; ++j) {
         db_socket_t db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO, DB_FRAMETYPE_DATA);
         interfaces[j].selectable_fd = db_sock.db_socket;
@@ -525,6 +533,17 @@ int main(int argc, char *argv[]) {
         db_gnd_status->adapter[j].wrong_crc_cnt = 0;
         db_gnd_status->adapter[j].current_signal_dbm = -100;
     }
+    // init UNIX domain master socket to which local clients can connect & get video data in an UDP like fashion
+    unix_sock = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (unix_sock < 0) {
+        fprintf(stderr, "DB_VIDEO_GND: Failed opening UNIX domain socket");
+        exit(-1);
+    }
+    unix_sock = set_socket_nonblocking(unix_sock);
+    unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
+    memset(&unix_socket_addr, 0x00, sizeof(unix_socket_addr));
+    unix_socket_addr.sun_family = AF_UNIX;
+    strncpy(unix_socket_addr.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH, sizeof(unix_socket_addr.sun_path));
 
     //block buffers contain both the block_num as well as packet buffers for a block.
     block_buffer_list = malloc(sizeof(block_buffer_t) * param_block_buffers);
@@ -561,6 +580,8 @@ int main(int argc, char *argv[]) {
     for (int g = 0; i < num_interfaces; ++i) {
         close(interfaces[g].selectable_fd);
     }
+    unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
+    close(unix_sock);
     if (udp_enabled) close(udp_socket);
     return (0);
 }

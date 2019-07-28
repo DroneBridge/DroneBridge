@@ -58,7 +58,7 @@ typedef u32 __le32;
 #define DB_FRAMETYPE_RTS        1
 #define DB_FRAMETYPE_DATA       2
 #define DB_FRAMETYPE_BEACON     3
-#define DB_FRAMETYPE_DEFAULT    DB_FRAMETYPE_RTS
+#define DB_FRAMETYPE_DEFAULT    DB_FRAMETYPE_DATA
 
 #define NUM_CHANNELS            14      // max number of channels sent over DroneBridge control module (ground)
 #define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge RC protocol
@@ -84,10 +84,14 @@ typedef u32 __le32;
 #define DB_MAVLINK_SYS_ID	69
 #define	MAX_PENUMBRA_INTERFACES 8
 
+#define DB_UNIX_DOMAIN_VIDEO_PATH   "/tmp/db_video_out"
+#define DB_AP_CLIENT_IP             "192.168.2.1"   // default IP address of GCS connected via WiFi AP
+
 
 struct data_uni{
 	uint8_t bytes[DATA_UNI_LENGTH];
 };
+
 // Sent by control module on air side - received by status module on ground station
 struct uav_rc_status_update_message_t {
     int8_t rssi_rc_uav;
@@ -101,20 +105,7 @@ struct uav_rc_status_update_message_t {
 struct radiotap_header {
 	uint8_t bytes[RADIOTAP_LENGTH];
 };
-// DroneBridge raw protocol v1 header (deprecated)
-struct db_80211_header {
-	uint8_t frame_control_field[4];
-	uint8_t odd;
-	uint8_t direction_dstmac;
-	uint8_t comm_id[4];
-	uint8_t src_mac_bytes[6];
-	uint8_t version_bytes;
-	uint8_t port_bytes;
-	uint8_t direction_bytes;
-	uint8_t payload_length_bytes[2];
-	uint8_t crc_bytes;
-	uint8_t undefined[2];
-};
+
 // DroneBridge raw protocol v2 header
 struct db_raw_v2_header_t {
 	uint8_t fcf_duration[4];
@@ -136,12 +127,12 @@ typedef struct {
 	uint32_t lost_packets_wbc;
 	uint32_t kbitrate_wbc;
 	uint8_t voltage_status;		// bit 0: if 1 GNDPi is on low voltage; bit 1: if 1 AirPi is on low voltage
-} __attribute__((packed)) DB_SYSTEM_STATUS_MESSAGE;
+} __attribute__((packed)) db_system_status_msg_t;
 
 typedef struct {
 	uint8_t ident[2];
 	uint8_t message_id; // 2 for RC status; 3 for RC overwrite
 	uint16_t channels[NUM_CHANNELS];
-} __attribute__((packed)) DB_RC_MESSAGE;
+} __attribute__((packed)) db_rc_msg_t;
 
 #endif // DB_PROTOCOL_H_INCLUDED

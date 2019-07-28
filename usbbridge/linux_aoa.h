@@ -95,7 +95,7 @@ void db_usb_send_debug(db_accessory_t *db_acc);
 void db_usb_receive_debug(db_accessory_t *db_acc);
 struct db_usb_msg_t *db_usb_get_direct_buffer();
 int db_usb_send_zc(db_accessory_t *db_acc);
-int db_usb_receive(db_accessory_t *db_acc, uint8_t buffer[], uint16_t buffer_size);
+int db_usb_receive(db_accessory_t *db_acc, uint8_t buffer[], uint16_t buffer_size, int timeout);
 void exit_close_aoa_device(db_accessory_t *db_acc);
 
 #endif //DRONEBRIDGE_LINUX_AOA_H
