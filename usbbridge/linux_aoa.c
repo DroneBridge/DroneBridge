@@ -29,8 +29,11 @@
 uint8_t raw_usb_msg_buff[DB_AOA_MAX_MSG_LENGTH] = {0};
 db_usb_msg_t *usb_msg = (db_usb_msg_t *) raw_usb_msg_buff;
 
-uint16_t max_packet_size = 512 - DB_AOA_HEADER_LENGTH;
+uint16_t db_usb_max_packet_size = 512 - DB_AOA_HEADER_LENGTH;
 
+u_int16_t get_db_usb_max_packet_size() {
+    return db_usb_max_packet_size;
+}
 
 bool is_accessory_device(libusb_device *device, db_accessory_t *accessory) {
     struct libusb_device_descriptor desc = {0};
@@ -83,8 +86,8 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
             if (ret != 0)
                 fprintf(stderr, "AOA_USB: ERROR - getting active config desc. %s\n", libusb_error_name(ret));
             fprintf(stderr, "AOA_USB:\tGot %i interfaces\n", config_descriptor->bNumInterfaces);
-            max_packet_size = config_descriptor->interface[0].altsetting->endpoint[0].wMaxPacketSize - DB_AOA_HEADER_LENGTH;
-            fprintf(stderr, "AOA_USB:\tMax packet size is %i bytes\n", max_packet_size);
+            db_usb_max_packet_size = config_descriptor->interface[0].altsetting->endpoint[0].wMaxPacketSize - DB_AOA_HEADER_LENGTH;
+            fprintf(stderr, "AOA_USB:\tMax packet size is %i bytes\n", db_usb_max_packet_size);
 
             ret = libusb_claim_interface(accessory->handle, 0);
             if (ret != 0)
@@ -284,7 +287,7 @@ void db_usb_receive_debug(db_accessory_t *db_acc) {
     uint16_t data_length = 512;
     uint8_t data[512] = {0};
     int ret = libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_IN, data, data_length, &num_trans, 1000);
-    if (ret != 0)
+    if (ret != 0 && num_trans <= 0)
         fprintf(stderr, "AOA_USB: ERROR - receiving data: %s\n", libusb_error_name(ret));
     else
         fprintf(stderr, "AOA_USB: Got some debug data %i\n", num_trans);
@@ -346,7 +349,7 @@ int db_usb_send(db_accessory_t *db_acc, uint8_t data[], uint16_t data_length, ui
  * @return libusb return value - 0 or TIMEOUT on success or <0 on failure
  */
 int db_usb_send_zc(db_accessory_t *db_acc) {
-    if (usb_msg->pay_lenght < max_packet_size) {
+    if (usb_msg->pay_lenght < db_usb_max_packet_size) {
         int num_trans;
         return libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_OUT, raw_usb_msg_buff,
                                        (usb_msg->pay_lenght + DB_AOA_HEADER_LENGTH), &num_trans, 1000);

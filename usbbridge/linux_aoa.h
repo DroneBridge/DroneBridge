@@ -65,7 +65,6 @@
 
 extern uint8_t raw_usb_msg_buff[DB_AOA_MAX_MSG_LENGTH];
 
-
 typedef struct accessory_t {
     struct libusb_device_handle *handle;
     struct libusb_transfer *transfer;
@@ -88,7 +87,7 @@ typedef struct db_usb_msg_t {
     uint8_t payload[DB_AOA_MAX_PAY_LENGTH];
 } __attribute__((packed)) db_usb_msg_t ;
 
-
+u_int16_t get_db_usb_max_packet_size();
 int init_db_accessory(db_accessory_t *db_acc);
 int db_usb_send(db_accessory_t *db_acc, uint8_t data[], uint16_t data_length, uint8_t port);
 void db_usb_send_debug(db_accessory_t *db_acc);

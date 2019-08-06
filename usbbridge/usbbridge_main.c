@@ -33,17 +33,62 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/poll.h>
+#include <errno.h>
 #include "linux_aoa.h"
 #include "../common/db_protocol.h"
+#include "../common/ccolors.h"
 
+
+#define TCP_BUFF_SIZ    4096
+#define USB_BUFFER_SIZ  1024
 
 bool keeprunning = true;
+bool video_module_activated = false;
+bool communication_module_activated = false;
+bool proxy_module_activated = false;
+bool status_module_activated = false;
 
-#define DATA_LENGTH     256
-#define TCP_BUFF_SIZ    4096
+uint8_t usb_in_data[USB_BUFFER_SIZ];
+
 
 void intHandler(int dummy) {
     keeprunning = false;
+}
+
+int process_command_line_args(int argc, char *argv[]) {
+    opterr = 0;
+    int c;
+    while ((c = getopt(argc, argv, "v:c:p:s:?")) != -1) {
+        switch (c) {
+            case 'v':
+                if (*optarg == 'Y')
+                    video_module_activated = true;
+                break;
+            case 'c':
+                if (*optarg == 'Y')
+                    communication_module_activated = true;
+                break;
+            case 'p':
+                if (*optarg == 'Y')
+                    proxy_module_activated = true;
+                break;
+            case 's':
+                if (*optarg == 'Y')
+                    status_module_activated = true;
+                break;
+            case '?':
+                printf("Transforms the device into an android accessory. Reads data from DroneBridge modules and "
+                       "passes it on to the DroneBridge for android app via USB."
+                       "\n\t-v Set to Y to listen for video module data"
+                       "\n\t-c Set to Y to listen for communication module data"
+                       "\n\t-p Set to Y to listen for proxy module data"
+                       "\n\t-s Set to Y to listen for status module data");
+                break;
+            default:
+                abort();
+        }
+    }
+    return 0;
 }
 
 int open_configure_unix_socket() {
@@ -85,116 +130,291 @@ int open_local_tcp_socket(int port) {
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     servaddr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0) {
-        perror("DB_USB: Error connection with the server failed");
-        close(sockfd);
-        exit(-1);
+    bool connected = false;
+    while (!connected) {
+        if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0) {
+            printf(RED "DB_USB: Error connection with local server on port %i failed: %s"RESET"\n", port, strerror(errno));
+            usleep(1e6);
+        } else
+            connected = true;
     }
     return sockfd;
 }
 
+void callback_usb_async_complete(struct libusb_transfer *xfr) {
+    switch(xfr->status) {
+        case LIBUSB_TRANSFER_COMPLETED:
+            printf("Transfered %i!\n", xfr->actual_length);
+            // xfr->buffer
+            break;
+        case LIBUSB_TRANSFER_CANCELLED:
+            printf("Transfer cancelled\n");
+            break;
+        case LIBUSB_TRANSFER_NO_DEVICE:
+            printf("No device!\n");
+            break;
+        case LIBUSB_TRANSFER_TIMED_OUT:
+            // printf("Timed out!\n");
+            break;
+        case LIBUSB_TRANSFER_ERROR:
+            printf("Transfer error!\n");
+            break;
+        case LIBUSB_TRANSFER_STALL:
+            printf("Transfer stall!\n");
+            break;
+        case LIBUSB_TRANSFER_OVERFLOW:
+            printf("Transfer overflow!\n");
+            // Various type of errors here
+            break;
+    }
+    libusb_free_transfer(xfr);
+}
+
+void db_read_usb_async(struct accessory_t *accessory) {
+    struct libusb_transfer *xfr = libusb_alloc_transfer(0);
+    libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_IN, usb_in_data, USB_BUFFER_SIZ,
+                              callback_usb_async_complete, NULL,10);
+    if(libusb_submit_transfer(xfr) < 0)
+    {
+        printf("Error\n");
+        libusb_free_transfer(xfr);
+    }
+}
+
+void db_write_usb_async(uint8_t payload_data[], struct accessory_t *accessory, db_usb_msg_t* usb_msg, uint16_t data_length,
+                        uint8_t port) {
+    usb_msg->port = port;
+    uint16_t max_pack_size = get_db_usb_max_packet_size();
+    if (data_length < max_pack_size) {
+        usb_msg->pay_lenght = data_length;
+        memcpy(usb_msg->payload, payload_data, data_length);
+
+        struct libusb_transfer *xfr = libusb_alloc_transfer(0);
+        libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, raw_usb_msg_buff,
+                                  (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,10);
+        if(libusb_submit_transfer(xfr) < 0)
+        {
+            printf("Error\n");
+            libusb_free_transfer(xfr);
+        }
+    } else { // split data
+        uint16_t sent_data_length = 0;
+        while(data_length < sent_data_length) {
+            if ((sent_data_length - data_length) > max_pack_size) {
+                usb_msg->pay_lenght = max_pack_size;
+                memcpy(usb_msg->payload, &payload_data[sent_data_length], max_pack_size);
+                struct libusb_transfer *xfr = libusb_alloc_transfer(0);
+
+                libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, raw_usb_msg_buff,
+                                          (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,10);
+                if(libusb_submit_transfer(xfr) < 0)
+                {
+                    printf("Error\n");
+                    libusb_free_transfer(xfr);
+                }
+
+                sent_data_length += usb_msg->pay_lenght; // (num_trans - DB_AOA_HEADER_LENGTH);
+            } else {
+                usb_msg->pay_lenght = data_length - sent_data_length;
+                memcpy(usb_msg->payload, &payload_data[sent_data_length], max_pack_size);
+
+                struct libusb_transfer *xfr = libusb_alloc_transfer(0);
+                libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, raw_usb_msg_buff,
+                                          (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,10);
+                if(libusb_submit_transfer(xfr) < 0)
+                {
+                    printf("Error\n");
+                    libusb_free_transfer(xfr);
+                }
+            }
+        }
+    }
+
+
+    usb_msg->port = port;
+    usb_msg->pay_lenght = data_length;
+
+    struct libusb_transfer *xfr = libusb_alloc_transfer(0);
+    libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, raw_usb_msg_buff,
+            (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,10);
+    if(libusb_submit_transfer(xfr) < 0)
+    {
+        printf("Error\n");
+        libusb_free_transfer(xfr);
+    }
+}
+
 int main(int argc, char *argv[]) {
-    int video_unix_socket = open_configure_unix_socket();
-    int proxy_sock = open_local_tcp_socket(APP_PORT_PROXY);
-    int status_sock = open_local_tcp_socket(APP_PORT_STATUS);
-    int communication_sock = open_local_tcp_socket(APP_PORT_COMM);
+    db_usb_msg_t *usb_msg = db_usb_get_direct_buffer();
+
+    int video_unix_socket = -1, proxy_sock = -1, status_sock = -1, communication_sock = -1;
+    if (video_module_activated)
+        video_unix_socket = open_configure_unix_socket();
+    if (proxy_module_activated)
+        proxy_sock = open_local_tcp_socket(APP_PORT_PROXY);
+    if (status_module_activated)
+        status_sock = open_local_tcp_socket(APP_PORT_STATUS);
+    if (communication_module_activated)
+        communication_sock = open_local_tcp_socket(APP_PORT_COMM);
 
     db_accessory_t accessory;
     init_db_accessory(&accessory); // blocking
     struct timeval tv;
-//    struct libusb_pollfd usb_fds = **libusb_get_pollfds(NULL);
-//    struct pollfd fds[5];
-//    memset(fds, 0 , sizeof(fds));
-//    fds[0].fd = video_unix_socket;
-//    fds[0].events = POLLIN;
-//    fds[1].fd = proxy_sock;
-//    fds[1].events = POLLIN;
-//    fds[2].fd = status_sock;
-//    fds[2].events = POLLIN;
-//    fds[3].fd = communication_sock;
-//    fds[3].events = POLLIN;
+    struct timeval tv_libusb_events;
+    struct libusb_pollfd ** usb_fds;
 
-    db_usb_msg_t *usb_msg = db_usb_get_direct_buffer();
     uint8_t tcp_buffer[TCP_BUFF_SIZ];
-
-    struct timeval time;
-    gettimeofday(&time, NULL);
-    long start = (long) time.tv_sec * 1000 + (long) time.tv_usec / 1000;
-    long rightnow;
-
-    // TODO: use async libusb API
     fd_set readset; ssize_t tcp_received;
+    tv_libusb_events.tv_sec = 0; tv_libusb_events.tv_usec = 0;
+    usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
+
+
     while (keeprunning) {
-        tv.tv_sec = 0; tv.tv_usec = 500;
+        struct pollfd poll_fds[20];
+        uint8_t count = 0;
+        int usb_fd_count;
+        for (usb_fd_count = 0; usb_fds[usb_fd_count]; usb_fd_count++) {
+            poll_fds[usb_fd_count].fd = usb_fds[usb_fd_count]->fd;
+            poll_fds[usb_fd_count].events = usb_fds[usb_fd_count]->events;
+            count++;
+        }
+        if (video_module_activated) {
+            poll_fds[count].fd = video_unix_socket;
+            poll_fds[count].events = POLLIN;
+            count++;
+        }
+        if (proxy_module_activated) {
+            poll_fds[count].fd = proxy_sock;
+            poll_fds[count].events = POLLIN;
+            count++;
+        }
+        if (status_module_activated) {
+            poll_fds[count].fd = status_sock;
+            poll_fds[count].events = POLLIN;
+            count++;
+        }
+        if (communication_module_activated) {
+            poll_fds[count].fd = communication_sock;
+            poll_fds[count].events = POLLIN;
+            count++;
+        }
+
+        int ret = poll(poll_fds, count,10);
+        if (ret == -1) {
+            perror ("poll");
+            return -1;
+        } else if (ret == 0) {
+            // TODO: handle timeout
+            continue;
+        } else {
+            // check usb for new data
+            int i = 0;
+            for (; i < usb_fd_count; i++) {
+                if (poll_fds[i].revents & POLLIN) {
+                    libusb_handle_events_timeout(NULL, &tv_libusb_events);
+                    db_read_usb_async(&accessory);
+                }
+            }
+            // check sockets for new data
+            for (; i < count; i++) {
+                if (poll_fds[i].revents & POLLIN) {
+                    if (video_module_activated && poll_fds[i].fd == video_unix_socket) {
+                        tcp_received = recv(video_unix_socket, tcp_buffer, TCP_BUFF_SIZ, 0);
+                        // TODO: send via USB
+                    } else if (proxy_module_activated && poll_fds[i].fd == proxy_sock) {
+                        tcp_received = recv(proxy_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
+                        // TODO: send via USB
+                    } else if (status_module_activated && poll_fds[i].fd == status_sock) {
+                        tcp_received = recv(status_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
+                        // TODO: send via USB
+                    } else if (communication_module_activated && poll_fds[i].fd == communication_sock) {
+                        tcp_received = recv(communication_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
+                        // TODO: send via USB
+                    }
+                }
+            }
+        }
+
+
+/*        tv.tv_sec = 0; tv.tv_usec = 10;
+
         FD_ZERO(&readset);
-        int max_sd = video_unix_socket;
-        FD_SET(video_unix_socket, &readset);
+        if (video_module_activated) {
+            max_sd = video_unix_socket;
+            FD_SET(video_unix_socket, &readset);
+        }
+        if (proxy_module_activated) {
+            FD_SET(proxy_sock, &readset);
+            if (proxy_sock > max_sd)
+                max_sd = proxy_sock;
+        }
+        if (status_module_activated) {
+            FD_SET(status_sock, &readset);
+            if (status_sock > max_sd)
+                max_sd = status_sock;
+        }
+        if (communication_module_activated) {
+            FD_SET(communication_sock, &readset);
+            if (communication_sock > max_sd)
+                max_sd = communication_sock;
+        }
 
-        FD_SET(proxy_sock, &readset);
-        if (proxy_sock > max_sd)
-            max_sd = proxy_sock;
+        for (int i = 0; usb_fds[i]; i++) {
+            if (usb_fds[i]->events == POLLIN) { // only use read descriptors
+                FD_SET(usb_fds[i]->fd, &readset);
+                if (usb_fds[i]->fd > max_sd)
+                    max_sd = usb_fds[i]->fd;
+            }
+        }
 
-        FD_SET(status_sock, &readset);
-        if (status_sock > max_sd)
-            max_sd = status_sock;
-
-        FD_SET(communication_sock, &readset);
-        if (communication_sock > max_sd)
-            max_sd = communication_sock;
-
-        int select_return = select(max_sd + 1, &readset, NULL, NULL, &tv);
+        int select_return = select(max_sd + 1, &readset, NULL, NULL, &tv); // only triggers once!
         if (select_return == -1) {
             perror("DB_VIDEO_GND: select() returned error: ");
         } else if (select_return > 0) {
-            if (FD_ISSET(video_unix_socket, &readset)) {
+            libusb_handle_events_timeout(NULL, &tv_libusb_events);
+
+            if (video_module_activated && FD_ISSET(video_unix_socket, &readset)) {
                 tcp_received = recv(video_unix_socket, tcp_buffer, TCP_BUFF_SIZ, 0);
                 db_usb_send(&accessory, tcp_buffer, tcp_received, DB_PORT_VIDEO);
             }
-            if (FD_ISSET(proxy_sock, &readset)) {
+            if (proxy_module_activated && FD_ISSET(proxy_sock, &readset)) {
                 tcp_received = recv(proxy_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
                 db_usb_send(&accessory, tcp_buffer, tcp_received, DB_PORT_PROXY);
             }
-            if (FD_ISSET(status_sock, &readset)) {
+            if (status_module_activated && FD_ISSET(status_sock, &readset)) {
                 tcp_received = recv(status_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
                 db_usb_send(&accessory, tcp_buffer, tcp_received, DB_PORT_STATUS);
             }
-            if (FD_ISSET(communication_sock, &readset)) {
+            if (communication_module_activated && FD_ISSET(communication_sock, &readset)) {
                 tcp_received = recv(communication_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
                 db_usb_send(&accessory, tcp_buffer, tcp_received, DB_PORT_COMM);
             }
+            for (int i = 0; usb_fds[i] != NULL; i++) {
+                if (FD_ISSET(usb_fds[i]->fd, &readset)) {
+                    libusb_handle_events_timeout(NULL, &tv_libusb_events);
+                    unsigned char *data;
+                    data = malloc(512);
+                    struct libusb_transfer *xfr = libusb_alloc_transfer(0);
+                    libusb_fill_bulk_transfer(xfr, accessory.handle, AOA_ACCESSORY_EP_IN, data,512,
+                                              callbackUSBTransferComplete, NULL,1);
+                    if(libusb_submit_transfer(xfr) < 0)
+                    {
+                        printf("Error\n");
+                        libusb_free_transfer(xfr);
+                        free(data);
+                    }
+                    free(data);
+                }
+            }
         } else {
-            // timeout
+            libusb_handle_events_timeout(NULL, &tv_libusb_events);
+            // db_usb_receive_debug(&accessory);
             // TODO send ping to phone to get it out of the read loop to be able to write stuff
-        }
-        gettimeofday(&time, NULL);
-        rightnow = (long) time.tv_sec * 1000 + (long) time.tv_usec / 1000;
-        if ((rightnow - start) >= 200) {
-            db_usb_receive(&accessory, tcp_buffer, TCP_BUFF_SIZ, 1);
-            // TODO: parse message and process it
-            start = (long) time.tv_sec * 1000 + (long) time.tv_usec / 1000;
-        }
-
-//        libusb_get_next_timeout(NULL, &tv);
-//        int rc = poll(fds, 5, tv.tv_usec*1000);
-//
-//        if (poll() indicated activity on libusb file descriptors)
-//            libusb_handle_events_timeout(ctx, &zero_tv);
-        // handle events from other sources here
+        }*/
     }
 
-// clean up and exit
-
-//    uint8_t data[DATA_LENGTH] = {5};
-//    db_usb_msg_t *usb_msg = db_usb_get_direct_buffer();
-//    memcpy(usb_msg->payload, data, DATA_LENGTH);
-//    usb_msg->pay_lenght = 256;
-//    for (int i = 0; i < 100; i++) {
-//        // db_usb_send(&accessory, data, DATA_LENGTH, 0x09);
-//        db_usb_send_zc(&accessory);
-//        // db_usb_send_debug(&accessory);
-//        // db_usb_receive_debug(&accessory);
-//    }
-
+    // clean up and exit
+    libusb_free_pollfds((const struct libusb_pollfd **) usb_fds);
     exit_close_aoa_device(&accessory);
     close(video_unix_socket);
     close(proxy_sock);

@@ -720,7 +720,7 @@ void draw_rc_signal(int8_t rc_signal, int rc_pack_per_sec, float pos_x, float po
 
     Text(getWidth(pos_x) - width_value - width_symbol, getHeight(pos_y) - height_text, buffer, myfont,
          text_scale * 0.6);
-    TextEnd(getWidth(pos_x) - width_value - getWidth(0.3) * scale, getHeight(pos_y), "", osdicons, text_scale * 0.7);
+    TextEnd(getWidth(pos_x) - width_value, getHeight(pos_y), "", osdicons, text_scale * 0.7);
 }
 
 
