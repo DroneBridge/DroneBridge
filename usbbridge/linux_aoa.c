@@ -273,7 +273,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
 void db_usb_send_debug(db_accessory_t *db_acc) {
     int num_trans;
     uint16_t data_length = 64;
-    uint8_t data[64] = {6};
+    uint8_t data[64] = {0};
     int ret = libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_OUT, data, data_length, &num_trans, 1000);
     if (ret != 0 && ret != LIBUSB_ERROR_TIMEOUT)  // ignore timeout since it is normal when sending to AOA?!
         fprintf(stderr, "AOA_USB: ERROR - sending data (%i sent): %i %s\n", num_trans, ret, libusb_error_name(ret));

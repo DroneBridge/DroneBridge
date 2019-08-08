@@ -58,10 +58,9 @@
 #define DB_AOA_DESC             "For gnd station to app communication via USB"
 #define DB_AOA_SER              "0.6"
 
-#define DB_AOA_MAX_MSG_LENGTH   1023
+#define DB_AOA_MAX_MSG_LENGTH   1536
 #define DB_AOA_HEADER_LENGTH    6
-#define DB_AOA_MAX_PAY_LENGTH   1017
-
+#define DB_AOA_MAX_PAY_LENGTH   DB_AOA_MAX_MSG_LENGTH - DB_AOA_HEADER_LENGTH
 
 extern uint8_t raw_usb_msg_buff[DB_AOA_MAX_MSG_LENGTH];
 

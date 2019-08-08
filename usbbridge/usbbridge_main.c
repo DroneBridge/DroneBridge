@@ -26,7 +26,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <zconf.h>
@@ -37,19 +36,31 @@
 #include "linux_aoa.h"
 #include "../common/db_protocol.h"
 #include "../common/ccolors.h"
+#include "db_usb.h"
 
 
 #define TCP_BUFF_SIZ    4096
 #define USB_BUFFER_SIZ  1024
+#define MAX_WRITE_TIMEOUT   200  // max time [ms] that the USBBridge is allowed to not send data to the GCS. Send wake to stop blocking android accessory api
 
 bool keeprunning = true;
 bool video_module_activated = false;
 bool communication_module_activated = false;
 bool proxy_module_activated = false;
 bool status_module_activated = false;
+int video_unix_socket = -1, proxy_sock = -1, status_sock = -1, communication_sock = -1;
 
 uint8_t usb_in_data[USB_BUFFER_SIZ];
+int usb_parser_state = DB_USB_PARSER_SEARCHING_HEADER;
+uint16_t db_usb_parser_payload_size = 0;
+uint16_t usb_parser_buff_size = 0;
+uint8_t *db_usb_parser_buffer;
+uint8_t db_usb_parser_port = 0;
 
+struct timeval timecheck;
+
+struct libusb_pollfd ** usb_fds;
+bool device_connected = false;
 
 void intHandler(int dummy) {
     keeprunning = false;
@@ -141,42 +152,195 @@ int open_local_tcp_socket(int port) {
     return sockfd;
 }
 
+long get_time() {
+    gettimeofday(&timecheck, NULL);
+    return (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
+}
+
+void usb_fd_added(int fd, short events, void *user_data){
+    printf("DB_USB: Adding new file descriptor to poll\n");
+    int i = 0;
+    for(; usb_fds[i]; i++) {}
+    usb_fds[i]->fd = fd;
+    usb_fds[i]->events = events;
+}
+
+void usb_fd_removed(int fd, void *user_data) {
+    printf("DB_USB: Removing file descriptor from poll\n");
+    for(int i = 0; usb_fds[i]; i++) {
+        if (usb_fds[i]->fd == fd) {
+            usb_fds[i] = NULL;
+            break;
+        }
+    }
+}
+
+void db_usb_route_data_tcp(uint8_t payload[], uint8_t port, uint16_t payload_size) {
+    switch (port) {
+        case DB_PORT_VIDEO:
+            fprintf(stderr, "DB_USB: Error video module does not accept incoming data!\n");
+            break;
+        case DB_PORT_PROXY:
+            if (proxy_module_activated) {
+                if (send(proxy_sock, payload, payload_size, 0) < 0)
+                    perror("DB_USB: Error sending to proxy module");
+            }
+            break;
+        case DB_PORT_STATUS:
+            if (status_module_activated) {
+                if (send(status_sock, payload, payload_size, 0) < 0)
+                    perror("DB_USB: Error sending to status module");
+            }
+            break;
+        case DB_PORT_COMM:
+            if (communication_module_activated) {
+                if (send(communication_sock, payload, payload_size, 0) < 0)
+                    perror("DB_USB: Error sending to communication module");
+            }
+            break;
+        case DB_USB_PORT_TIMEOUT_WAKE:
+            break;
+        default:
+            fprintf(stderr, "DB_USB: Unknown destination port. Use DB RAW protocol ports!\n");
+            break;
+    }
+}
+
+/**
+ * Incoming data from GCS. Forward to sockets if complete
+ * @param buffer USB buffer
+ * @param length length of USB buffer
+ */
+void process_db_usb_proto(unsigned char buffer[], int length) {
+    if (usb_parser_state == DB_USB_PARSER_SEARCHING_HEADER && length >= DB_AOA_HEADER_LENGTH) {
+        // check for header
+        if (buffer[0] == 'D' && buffer[1] == 'B' && buffer[2] == DB_USB_PROTO_VERSION) {
+            db_usb_parser_port = buffer[3];
+            db_usb_parser_payload_size = buffer[4] | (buffer[5] << 8);
+            if (db_usb_parser_payload_size > DATA_UNI_LENGTH) {
+                fprintf(stderr, "DB_USB: Specified payload too big for raw protocol (%i > %i). Ignoring\n",
+                        db_usb_parser_payload_size, DATA_UNI_LENGTH);
+                return;
+            }
+            if ((length - DB_AOA_HEADER_LENGTH) == db_usb_parser_payload_size) {
+                // payload is not split in between packets -> ready for processing. zero copy operation
+                db_usb_route_data_tcp(&buffer[DB_AOA_HEADER_LENGTH], db_usb_parser_port, db_usb_parser_payload_size);
+            } else {
+                // payload data incomplete -> wait for next packet
+                usb_parser_buff_size += (length - DB_AOA_HEADER_LENGTH);
+                db_usb_parser_buffer = (uint8_t *) malloc(db_usb_parser_payload_size * sizeof(uint8_t));
+                memcpy(db_usb_parser_buffer, &buffer[DB_AOA_HEADER_LENGTH], (length - DB_AOA_HEADER_LENGTH));
+                usb_parser_state = DB_USB_PARSER_AWAITING_PAYLOAD;
+            }
+        }
+    } else if (usb_parser_state == DB_USB_PARSER_AWAITING_PAYLOAD) {
+//        printf("%i %i %i\n", usb_parser_buff_size, length, db_usb_parser_payload_size);
+        // check if packet completes payload
+        if ((usb_parser_buff_size + length) == db_usb_parser_payload_size) {
+            // Copy and process buffer
+            memcpy(db_usb_parser_buffer, &buffer[usb_parser_buff_size], length);
+            usb_parser_buff_size += length;
+            db_usb_route_data_tcp(db_usb_parser_buffer, db_usb_parser_port, db_usb_parser_payload_size);
+            free(db_usb_parser_buffer);
+            usb_parser_buff_size = 0;
+            usb_parser_state = DB_USB_PARSER_SEARCHING_HEADER;
+        } else if ((usb_parser_buff_size + length) < db_usb_parser_payload_size) {
+            // append data to buffer. Still waiting for new data to complete payload
+            memcpy(db_usb_parser_buffer, &buffer[usb_parser_buff_size], length);
+            usb_parser_buff_size += length;
+        } else if ((usb_parser_buff_size + length) > db_usb_parser_payload_size) {
+            free(db_usb_parser_buffer);
+            usb_parser_buff_size = 0;
+            usb_parser_state = DB_USB_PARSER_SEARCHING_HEADER;
+            fprintf(stderr, "DB_USB: DB USB protocol does not allow packets containing payload of two msgs!\n");
+        }
+    }
+}
+
 void callback_usb_async_complete(struct libusb_transfer *xfr) {
     switch(xfr->status) {
         case LIBUSB_TRANSFER_COMPLETED:
-            printf("Transfered %i!\n", xfr->actual_length);
+            switch (xfr->endpoint) {
+                case AOA_ACCESSORY_EP_IN:
+                    printf("DB_USB: Received %i\n", xfr->actual_length);
+                    process_db_usb_proto(xfr->buffer, xfr->actual_length);
+                    break;
+                case AOA_ACCESSORY_EP_OUT:
+                    printf("DB_USB: Transferred %i\n", xfr->actual_length);
+                    break;
+            }
             // xfr->buffer
             break;
         case LIBUSB_TRANSFER_CANCELLED:
-            printf("Transfer cancelled\n");
+            printf("DB_USB: Transfer cancelled\n");
             break;
         case LIBUSB_TRANSFER_NO_DEVICE:
-            printf("No device!\n");
+            printf("DB_USB: No device!\n");
+            device_connected = false;
             break;
         case LIBUSB_TRANSFER_TIMED_OUT:
-            // printf("Timed out!\n");
+            // printf("DB_USB: Timed out!\n");
             break;
         case LIBUSB_TRANSFER_ERROR:
-            printf("Transfer error!\n");
+            printf("DB_USB: Transfer error!\n");
             break;
         case LIBUSB_TRANSFER_STALL:
-            printf("Transfer stall!\n");
+            printf("DB_USB: Transfer stall!\n");
             break;
         case LIBUSB_TRANSFER_OVERFLOW:
-            printf("Transfer overflow!\n");
+            printf("DB_USB: Transfer overflow!\n");
             // Various type of errors here
             break;
     }
     libusb_free_transfer(xfr);
 }
 
+/**
+ * Used to unblock the android accessory stream read API. Otherwise device might block forever and not be able to send
+ * @param accessory
+ * @param usb_msg
+ */
+void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t* usb_msg, long *last_write) {
+    if (!device_connected)
+        return;
+    printf("DB_USB: Sending timeout wake\n");
+    usb_msg->pay_lenght = 1;
+    usb_msg->port = DB_USB_PORT_TIMEOUT_WAKE;
+    usb_msg->payload[0] = 0;
+    struct libusb_transfer *xfr = libusb_alloc_transfer(0);
+    libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, (unsigned char *) usb_msg,
+                              (1 + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL, 1000);
+    if(libusb_submit_transfer(xfr) < 0)
+    {
+        perror("DB_USB: Error submitting timeout wake transfer");
+        device_connected = false;
+        libusb_free_transfer(xfr);
+    }
+    *last_write = get_time();
+}
+
 void db_read_usb_async(struct accessory_t *accessory) {
     struct libusb_transfer *xfr = libusb_alloc_transfer(0);
     libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_IN, usb_in_data, USB_BUFFER_SIZ,
-                              callback_usb_async_complete, NULL,10);
+                              callback_usb_async_complete, NULL,100);
     if(libusb_submit_transfer(xfr) < 0)
     {
-        printf("Error\n");
+        perror("DB_USB: Error submitting transfer");
+        device_connected = false;
+        libusb_free_transfer(xfr);
+    }
+}
+
+void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t* usb_msg, uint16_t data_length, uint8_t port) {
+    usb_msg->pay_lenght = data_length;
+    usb_msg->port = port;
+    struct libusb_transfer *xfr = libusb_alloc_transfer(0);
+    libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, (unsigned char *) usb_msg,
+                              (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL, 1000);
+    if(libusb_submit_transfer(xfr) < 0)
+    {
+        perror("DB_USB: Error submitting transfer");
+        device_connected = false;
         libusb_free_transfer(xfr);
     }
 }
@@ -194,7 +358,8 @@ void db_write_usb_async(uint8_t payload_data[], struct accessory_t *accessory, d
                                   (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,10);
         if(libusb_submit_transfer(xfr) < 0)
         {
-            printf("Error\n");
+            perror("DB_USB: Error submitting transfer");
+            device_connected = false;
             libusb_free_transfer(xfr);
         }
     } else { // split data
@@ -209,7 +374,8 @@ void db_write_usb_async(uint8_t payload_data[], struct accessory_t *accessory, d
                                           (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,10);
                 if(libusb_submit_transfer(xfr) < 0)
                 {
-                    printf("Error\n");
+                    perror("DB_USB: Error submitting transfer");
+                    device_connected = false;
                     libusb_free_transfer(xfr);
                 }
 
@@ -223,7 +389,8 @@ void db_write_usb_async(uint8_t payload_data[], struct accessory_t *accessory, d
                                           (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,10);
                 if(libusb_submit_transfer(xfr) < 0)
                 {
-                    printf("Error\n");
+                    perror("DB_USB: Error submitting transfer");
+                    device_connected = false;
                     libusb_free_transfer(xfr);
                 }
             }
@@ -239,15 +406,16 @@ void db_write_usb_async(uint8_t payload_data[], struct accessory_t *accessory, d
             (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,10);
     if(libusb_submit_transfer(xfr) < 0)
     {
-        printf("Error\n");
+        perror("DB_USB: Error submitting transfer");
+        device_connected = false;
         libusb_free_transfer(xfr);
     }
 }
 
 int main(int argc, char *argv[]) {
     db_usb_msg_t *usb_msg = db_usb_get_direct_buffer();
+    long last_write = 0;
 
-    int video_unix_socket = -1, proxy_sock = -1, status_sock = -1, communication_sock = -1;
     if (video_module_activated)
         video_unix_socket = open_configure_unix_socket();
     if (proxy_module_activated)
@@ -259,18 +427,38 @@ int main(int argc, char *argv[]) {
 
     db_accessory_t accessory;
     init_db_accessory(&accessory); // blocking
-    struct timeval tv;
+    device_connected = true;
     struct timeval tv_libusb_events;
-    struct libusb_pollfd ** usb_fds;
 
     uint8_t tcp_buffer[TCP_BUFF_SIZ];
-    fd_set readset; ssize_t tcp_received;
+    ssize_t tcp_num_recv;
     tv_libusb_events.tv_sec = 0; tv_libusb_events.tv_usec = 0;
     usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
+    libusb_set_pollfd_notifiers(NULL, usb_fd_added, usb_fd_removed, NULL);
 
+//    for (int j = 0; j < 10; ++j) {
+//        uint8_t data[128] = {5};
+//        db_usb_msg_t *usb_msg = db_usb_get_direct_buffer();
+//        memcpy(usb_msg->payload, data, 128);
+//        usb_msg->pay_lenght = 128;
+//        // db_usb_send(&accessory, data, 128, 0x09);
+//        // db_usb_send_zc(&accessory);
+//        db_usb_send_debug(&accessory);
+//        // db_usb_receive_debug(&accessory);
+//
+//        // db_usb_write_async_zc(&accessory, usb_msg, 128, 3);
+//    }
+////    db_usb_send_debug(&accessory);
+////    db_usb_send_debug(&accessory);
+////    db_usb_send_debug(&accessory);
+//    return 1;
 
     while (keeprunning) {
+//        if (!device_connected)
+//            init_db_accessory(&accessory); // blocking
+
         struct pollfd poll_fds[20];
+
         uint8_t count = 0;
         int usb_fd_count;
         for (usb_fd_count = 0; usb_fds[usb_fd_count]; usb_fd_count++) {
@@ -299,12 +487,12 @@ int main(int argc, char *argv[]) {
             count++;
         }
 
-        int ret = poll(poll_fds, count,10);
+        int ret = poll(poll_fds, count, MAX_WRITE_TIMEOUT);
         if (ret == -1) {
             perror ("poll");
             return -1;
         } else if (ret == 0) {
-            // TODO: handle timeout
+            send_timeout_wake(&accessory, usb_msg, &last_write);
             continue;
         } else {
             // check usb for new data
@@ -319,98 +507,28 @@ int main(int argc, char *argv[]) {
             for (; i < count; i++) {
                 if (poll_fds[i].revents & POLLIN) {
                     if (video_module_activated && poll_fds[i].fd == video_unix_socket) {
-                        tcp_received = recv(video_unix_socket, tcp_buffer, TCP_BUFF_SIZ, 0);
-                        // TODO: send via USB
+                        tcp_num_recv = recv(video_unix_socket, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
+                        db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_VIDEO);
+                        last_write = get_time();
                     } else if (proxy_module_activated && poll_fds[i].fd == proxy_sock) {
-                        tcp_received = recv(proxy_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
-                        // TODO: send via USB
+                        tcp_num_recv = recv(proxy_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
+                        db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_PROXY);
+                        last_write = get_time();
                     } else if (status_module_activated && poll_fds[i].fd == status_sock) {
-                        tcp_received = recv(status_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
-                        // TODO: send via USB
+                        tcp_num_recv = recv(status_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
+                        db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_STATUS);
+                        last_write = get_time();
                     } else if (communication_module_activated && poll_fds[i].fd == communication_sock) {
-                        tcp_received = recv(communication_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
-                        // TODO: send via USB
+                        tcp_num_recv = recv(communication_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
+                        db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_COMM);
+                        last_write = get_time();
                     }
                 }
             }
-        }
-
-
-/*        tv.tv_sec = 0; tv.tv_usec = 10;
-
-        FD_ZERO(&readset);
-        if (video_module_activated) {
-            max_sd = video_unix_socket;
-            FD_SET(video_unix_socket, &readset);
-        }
-        if (proxy_module_activated) {
-            FD_SET(proxy_sock, &readset);
-            if (proxy_sock > max_sd)
-                max_sd = proxy_sock;
-        }
-        if (status_module_activated) {
-            FD_SET(status_sock, &readset);
-            if (status_sock > max_sd)
-                max_sd = status_sock;
-        }
-        if (communication_module_activated) {
-            FD_SET(communication_sock, &readset);
-            if (communication_sock > max_sd)
-                max_sd = communication_sock;
-        }
-
-        for (int i = 0; usb_fds[i]; i++) {
-            if (usb_fds[i]->events == POLLIN) { // only use read descriptors
-                FD_SET(usb_fds[i]->fd, &readset);
-                if (usb_fds[i]->fd > max_sd)
-                    max_sd = usb_fds[i]->fd;
+            if ((get_time() - last_write) >= MAX_WRITE_TIMEOUT) {
+                send_timeout_wake(&accessory, usb_msg, &last_write);
             }
         }
-
-        int select_return = select(max_sd + 1, &readset, NULL, NULL, &tv); // only triggers once!
-        if (select_return == -1) {
-            perror("DB_VIDEO_GND: select() returned error: ");
-        } else if (select_return > 0) {
-            libusb_handle_events_timeout(NULL, &tv_libusb_events);
-
-            if (video_module_activated && FD_ISSET(video_unix_socket, &readset)) {
-                tcp_received = recv(video_unix_socket, tcp_buffer, TCP_BUFF_SIZ, 0);
-                db_usb_send(&accessory, tcp_buffer, tcp_received, DB_PORT_VIDEO);
-            }
-            if (proxy_module_activated && FD_ISSET(proxy_sock, &readset)) {
-                tcp_received = recv(proxy_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
-                db_usb_send(&accessory, tcp_buffer, tcp_received, DB_PORT_PROXY);
-            }
-            if (status_module_activated && FD_ISSET(status_sock, &readset)) {
-                tcp_received = recv(status_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
-                db_usb_send(&accessory, tcp_buffer, tcp_received, DB_PORT_STATUS);
-            }
-            if (communication_module_activated && FD_ISSET(communication_sock, &readset)) {
-                tcp_received = recv(communication_sock, tcp_buffer, TCP_BUFF_SIZ, 0);
-                db_usb_send(&accessory, tcp_buffer, tcp_received, DB_PORT_COMM);
-            }
-            for (int i = 0; usb_fds[i] != NULL; i++) {
-                if (FD_ISSET(usb_fds[i]->fd, &readset)) {
-                    libusb_handle_events_timeout(NULL, &tv_libusb_events);
-                    unsigned char *data;
-                    data = malloc(512);
-                    struct libusb_transfer *xfr = libusb_alloc_transfer(0);
-                    libusb_fill_bulk_transfer(xfr, accessory.handle, AOA_ACCESSORY_EP_IN, data,512,
-                                              callbackUSBTransferComplete, NULL,1);
-                    if(libusb_submit_transfer(xfr) < 0)
-                    {
-                        printf("Error\n");
-                        libusb_free_transfer(xfr);
-                        free(data);
-                    }
-                    free(data);
-                }
-            }
-        } else {
-            libusb_handle_events_timeout(NULL, &tv_libusb_events);
-            // db_usb_receive_debug(&accessory);
-            // TODO send ping to phone to get it out of the read loop to be able to write stuff
-        }*/
     }
 
     // clean up and exit
@@ -420,6 +538,7 @@ int main(int argc, char *argv[]) {
     close(proxy_sock);
     close(status_sock);
     close(communication_sock);
+    libusb_set_pollfd_notifiers(NULL, NULL, NULL, NULL);
     unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
     return 0;
 }

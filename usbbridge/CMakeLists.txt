@@ -8,7 +8,7 @@ find_package(PkgConfig)
 pkg_check_modules(libusb-1.0 REQUIRED libusb-1.0)
 
 add_subdirectory(../common db_common)
-set(SOURCE_FILES usbbridge_main.c linux_aoa.h linux_aoa.c)
+set(SOURCE_FILES usbbridge_main.c linux_aoa.h linux_aoa.c db_usb.h)
 
 add_executable(usbbridge ${SOURCE_FILES})
 target_link_libraries(usbbridge db_common ${libusb-1.0_LIBRARIES})
