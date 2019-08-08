@@ -86,7 +86,7 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
             if (ret != 0)
                 fprintf(stderr, "AOA_USB: ERROR - getting active config desc. %s\n", libusb_error_name(ret));
             fprintf(stderr, "AOA_USB:\tGot %i interfaces\n", config_descriptor->bNumInterfaces);
-            db_usb_max_packet_size = config_descriptor->interface[0].altsetting->endpoint[0].wMaxPacketSize - DB_AOA_HEADER_LENGTH;
+            db_usb_max_packet_size = config_descriptor->interface[0].altsetting->endpoint[0].wMaxPacketSize - DB_AOA_HEADER_LENGTH - 1;
             fprintf(stderr, "AOA_USB:\tMax packet size is %i bytes\n", db_usb_max_packet_size);
 
             ret = libusb_claim_interface(accessory->handle, 0);
@@ -194,9 +194,6 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
  * @return
  */
 int init_db_accessory(db_accessory_t *db_acc) {
-    usb_msg->ident[0] = 0x44;
-    usb_msg->ident[0] = 0x42;
-    usb_msg->ident[0] = 0x01;
     if (check_for_present_aoa_dev(db_acc) < 1) {
         int found_dev = discover_compatible_devices(db_acc);
         while (!found_dev) {
