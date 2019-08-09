@@ -89,8 +89,6 @@ typedef struct db_usb_msg_t {
 u_int16_t get_db_usb_max_packet_size();
 int init_db_accessory(db_accessory_t *db_acc);
 int db_usb_send(db_accessory_t *db_acc, uint8_t data[], uint16_t data_length, uint8_t port);
-void db_usb_send_debug(db_accessory_t *db_acc);
-void db_usb_receive_debug(db_accessory_t *db_acc);
 struct db_usb_msg_t *db_usb_get_direct_buffer();
 int db_usb_send_zc(db_accessory_t *db_acc);
 int db_usb_receive(db_accessory_t *db_acc, uint8_t buffer[], uint16_t buffer_size, int timeout);

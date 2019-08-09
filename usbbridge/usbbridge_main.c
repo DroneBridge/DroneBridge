@@ -375,6 +375,7 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t* usb_msg,
 }
 
 int main(int argc, char *argv[]) {
+    process_command_line_args(argc, argv);
     db_usb_msg_t *usb_msg = db_usb_get_direct_buffer();
     usb_msg->ident[0] = 'D'; usb_msg->ident[1] = 'B'; usb_msg->ident[2] = DB_USB_PROTO_VERSION;
     long last_write = 0;
