@@ -23,9 +23,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <signal.h>
 #include "linux_aoa.h"
 
-
+bool do_exit = false;
 uint8_t raw_usb_msg_buff[DB_AOA_MAX_MSG_LENGTH] = {0};
 db_usb_msg_t *usb_msg = (db_usb_msg_t *) raw_usb_msg_buff;
 
@@ -184,6 +185,10 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
     return 0;
 }
 
+void signal_callback(int signum){
+    do_exit = true;
+}
+
 /**
  * Init function for all USB communication
  * Blocking call.
@@ -191,16 +196,18 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
  * In case of no open device it will try to find a supported device (android phone) amongst the connected USB devices &
  * put the device into android accessory mode
  * @param db_acc
- * @return
+ * @return -1 on kill or failure
  */
 int init_db_accessory(db_accessory_t *db_acc) {
+    signal(SIGINT, signal_callback);
     if (check_for_present_aoa_dev(db_acc) < 1) {
         int found_dev = discover_compatible_devices(db_acc);
-        while (!found_dev) {
+        while (!found_dev && !do_exit) {
             usleep(1000000);
             found_dev = discover_compatible_devices(db_acc);
         }
-
+        if (do_exit)
+            return -1;
         fprintf(stderr, "AOA_USB: \tSending manufacturer identification: %s\n", DB_AOA_MANUFACTURER);
         if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR, AOA_SEND_IDENT, 0,
                                     AOA_STRING_MAN_ID, (uint8_t *) DB_AOA_MANUFACTURER, strlen(DB_AOA_MANUFACTURER) + 1,
@@ -369,7 +376,7 @@ void exit_close_aoa_device(db_accessory_t *db_acc) {
         if ((ret = libusb_release_interface(db_acc->handle, 0)) != 0)
             fprintf(stderr, "AOA_USB: ERROR - releasing interface: %s\n", libusb_error_name(ret));
         libusb_close(db_acc->handle);
-        fprintf(stderr, "AOA_USB: Devices closed!\n");
+        printf("AOA_USB: Devices closed!\n");
     }
     libusb_exit(NULL);
 }

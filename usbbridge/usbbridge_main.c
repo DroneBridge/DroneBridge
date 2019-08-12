@@ -33,6 +33,7 @@
 #include <arpa/inet.h>
 #include <sys/poll.h>
 #include <errno.h>
+#include <signal.h>
 #include "linux_aoa.h"
 #include "../common/db_protocol.h"
 #include "../common/ccolors.h"
@@ -149,6 +150,7 @@ int open_local_tcp_socket(int port) {
         } else
             connected = true;
     }
+    printf("DB_USB: Openened TCP socket\n");
     return sockfd;
 }
 
@@ -266,7 +268,7 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
                     process_db_usb_proto(xfr->buffer, xfr->actual_length);
                     break;
                 case AOA_ACCESSORY_EP_OUT:
-                    printf("DB_USB: Transferred %i\n", xfr->actual_length);
+                    // printf("DB_USB: Transferred %i\n", xfr->actual_length);
                     break;
             }
             // xfr->buffer
@@ -353,10 +355,11 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t* usb_msg,
             device_connected = false;
             libusb_free_transfer(xfr);
         }
-    } else {  // split into multiple transmissions
+    } else {  // split into multiple transmissions. Only send header once
         uint16_t sent_data_length = 0;
+        usb_msg->pay_lenght = data_length;
         while(sent_data_length < data_length) {
-            usb_msg->pay_lenght = ((data_length - sent_data_length) > max_pack_size) ? max_pack_size : (data_length - sent_data_length);
+            // usb_msg->pay_lenght = ((data_length - sent_data_length) > max_pack_size) ? max_pack_size : (data_length - sent_data_length);
 
             struct libusb_transfer *xfr = libusb_alloc_transfer(0);
             libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, &raw_usb_msg_buff[sent_data_length],
@@ -375,10 +378,25 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t* usb_msg,
 }
 
 int main(int argc, char *argv[]) {
+    struct sigaction action;
+    memset(&action, 0, sizeof(struct sigaction));
+    action.sa_handler = intHandler;
+    sigaction(SIGTERM, &action, NULL);
+    sigaction(SIGINT, &action, NULL);
+
     process_command_line_args(argc, argv);
     db_usb_msg_t *usb_msg = db_usb_get_direct_buffer();
-    usb_msg->ident[0] = 'D'; usb_msg->ident[1] = 'B'; usb_msg->ident[2] = DB_USB_PROTO_VERSION;
+    usb_msg->ident[0] = 'D';
+    usb_msg->ident[1] = 'B';
+    usb_msg->ident[2] = DB_USB_PROTO_VERSION;
     long last_write = 0;
+
+    db_accessory_t accessory;
+    if (init_db_accessory(&accessory) == -1) { // blocking
+        keeprunning = false;
+        device_connected = false;
+    } else
+        device_connected = true;
 
     if (video_module_activated)
         video_unix_socket = open_configure_unix_socket();
@@ -389,9 +407,6 @@ int main(int argc, char *argv[]) {
     if (communication_module_activated)
         communication_sock = open_local_tcp_socket(APP_PORT_COMM);
 
-    db_accessory_t accessory;
-    init_db_accessory(&accessory); // blocking
-    device_connected = true;
     struct timeval tv_libusb_events;
 
     ssize_t tcp_num_recv;
@@ -399,7 +414,12 @@ int main(int argc, char *argv[]) {
     usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
     libusb_set_pollfd_notifiers(NULL, usb_fd_added, usb_fd_removed, NULL);
 
+//    int numba = 615;
+//    char val[] = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor end!!";
+//    memcpy(usb_msg->payload, val, numba);
     while (keeprunning) {
+
+//        db_usb_write_async_zc(&accessory, usb_msg, numba, DB_PORT_PROXY);
         if (!device_connected) {
             libusb_set_pollfd_notifiers(NULL, NULL, NULL, NULL);
             libusb_free_pollfds((const struct libusb_pollfd **) usb_fds);
@@ -445,7 +465,7 @@ int main(int argc, char *argv[]) {
         int ret = poll(poll_fds, count, MAX_WRITE_TIMEOUT);
         if (ret == -1) {
             perror ("poll");
-            return -1;
+            keeprunning = false;
         } else if (ret == 0) {
             send_timeout_wake(&accessory, usb_msg, &last_write);
             continue;
@@ -487,13 +507,19 @@ int main(int argc, char *argv[]) {
     }
 
     // clean up and exit
+    printf("DB_USB: Closing sockets\n");
     libusb_free_pollfds((const struct libusb_pollfd **) usb_fds);
-    exit_close_aoa_device(&accessory);
+    shutdown(video_unix_socket, SHUT_RDWR);
+    shutdown(proxy_sock, SHUT_RDWR);
+    shutdown(status_sock, SHUT_RDWR);
+    shutdown(communication_sock, SHUT_RDWR);
     close(video_unix_socket);
     close(proxy_sock);
     close(status_sock);
     close(communication_sock);
     libusb_set_pollfd_notifiers(NULL, NULL, NULL, NULL);
+    exit_close_aoa_device(&accessory);
     unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
+    printf("DB_USB: Terminated\n");
     return 0;
 }
