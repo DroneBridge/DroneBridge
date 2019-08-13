@@ -178,6 +178,7 @@ void usb_fd_removed(int fd, void *user_data) {
 }
 
 void db_usb_route_data_tcp(uint8_t payload[], uint8_t port, uint16_t payload_size) {
+    printf("Got some data (%i) form GCS: %s\n", payload_size, payload);
     switch (port) {
         case DB_PORT_VIDEO:
             fprintf(stderr, "DB_USB: Error video module does not accept incoming data!\n");
@@ -281,7 +282,7 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
             device_connected = false;
             break;
         case LIBUSB_TRANSFER_TIMED_OUT:
-            // printf("DB_USB: Timed out!\n");
+//            printf("DB_USB: Timed out!\n");
             break;
         case LIBUSB_TRANSFER_ERROR:
             printf("DB_USB: Transfer error!\n");
@@ -305,7 +306,7 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
 void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t* usb_msg, long *last_write) {
     if (!device_connected)
         return;
-    printf("DB_USB: Sending timeout wake\n");
+//    printf("DB_USB: Sending timeout wake\n");
     usb_msg->pay_lenght = 1;
     usb_msg->port = DB_USB_PORT_TIMEOUT_WAKE;
     usb_msg->payload[0] = 0;
@@ -321,6 +322,11 @@ void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t* usb_msg, lon
     *last_write = get_time();
 }
 
+/**
+ * Init async read
+ *
+ * @param accessory
+ */
 void db_read_usb_async(struct accessory_t *accessory) {
     struct libusb_transfer *xfr = libusb_alloc_transfer(0);
     libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_IN, usb_in_data, USB_BUFFER_SIZ,
@@ -359,8 +365,6 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t* usb_msg,
         uint16_t sent_data_length = 0;
         usb_msg->pay_lenght = data_length;
         while(sent_data_length < data_length) {
-            // usb_msg->pay_lenght = ((data_length - sent_data_length) > max_pack_size) ? max_pack_size : (data_length - sent_data_length);
-
             struct libusb_transfer *xfr = libusb_alloc_transfer(0);
             libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, &raw_usb_msg_buff[sent_data_length],
                     (usb_msg->pay_lenght + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,1000);
@@ -385,12 +389,13 @@ int main(int argc, char *argv[]) {
     sigaction(SIGINT, &action, NULL);
 
     process_command_line_args(argc, argv);
+
     db_usb_msg_t *usb_msg = db_usb_get_direct_buffer();
     usb_msg->ident[0] = 'D';
     usb_msg->ident[1] = 'B';
     usb_msg->ident[2] = DB_USB_PROTO_VERSION;
     long last_write = 0;
-
+    
     db_accessory_t accessory;
     if (init_db_accessory(&accessory) == -1) { // blocking
         keeprunning = false;
@@ -414,22 +419,21 @@ int main(int argc, char *argv[]) {
     usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
     libusb_set_pollfd_notifiers(NULL, usb_fd_added, usb_fd_removed, NULL);
 
-//    int numba = 615;
-//    char val[] = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor end!!";
-//    memcpy(usb_msg->payload, val, numba);
     while (keeprunning) {
-
-//        db_usb_write_async_zc(&accessory, usb_msg, numba, DB_PORT_PROXY);
         if (!device_connected) {
-            libusb_set_pollfd_notifiers(NULL, NULL, NULL, NULL);
-            libusb_free_pollfds((const struct libusb_pollfd **) usb_fds);
+            //libusb_free_pollfds((const struct libusb_pollfd **) usb_fds);
+            //libusb_set_pollfd_notifiers(NULL, NULL, NULL, NULL);
             exit_close_aoa_device(&accessory);
 
+            usb_msg = db_usb_get_direct_buffer();
+            usb_msg->ident[0] = 'D';
+            usb_msg->ident[1] = 'B';
+            usb_msg->ident[2] = DB_USB_PROTO_VERSION;
+            last_write = 0;
             init_db_accessory(&accessory); // blocking
+            usb_parser_state = DB_USB_PARSER_SEARCHING_HEADER;
 
-            usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
             device_connected = true;
-            libusb_set_pollfd_notifiers(NULL, usb_fd_added, usb_fd_removed, NULL);
         }
 
         struct pollfd poll_fds[20];
