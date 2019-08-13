@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     char interface[IFNAMSIZ];
     strcpy(interface, argv[1]);
 
-    db_socket socket = open_db_socket(interface, 16, 'm', 11, DB_DIREC_GROUND, 10, (uint8_t) atoi(argv[2]));
+    db_socket_t socket = open_db_socket(interface, 16, 'm', 11, DB_DIREC_GROUND, 10, (uint8_t) atoi(argv[2]));
 
     uint8_t payload[payload_size];
     memset(payload, 1, payload_size);

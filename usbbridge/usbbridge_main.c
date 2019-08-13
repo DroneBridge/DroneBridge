@@ -395,7 +395,7 @@ int main(int argc, char *argv[]) {
     usb_msg->ident[1] = 'B';
     usb_msg->ident[2] = DB_USB_PROTO_VERSION;
     long last_write = 0;
-    
+
     db_accessory_t accessory;
     if (init_db_accessory(&accessory) == -1) { // blocking
         keeprunning = false;

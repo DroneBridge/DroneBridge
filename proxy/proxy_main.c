@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <zconf.h>
-#include <netdb.h>
 #include <arpa/inet.h>
 #include <signal.h>
 #include <time.h>
@@ -31,7 +30,6 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
 #include "../common/db_raw_send_receive.h"
