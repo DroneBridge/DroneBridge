@@ -16,7 +16,7 @@ GROUND = 'GROUND'
 UAV = 'AIR'
 GND_STRING_TAG = 'DroneBridge GND: '
 UAV_STRING_TAG = 'DroneBridge UAV: '
-DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "root", "DroneBridge")
+DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "home", "pi", "DroneBridge")
 
 
 def parse_arguments():
@@ -70,10 +70,6 @@ def start_gnd_modules():
     frametype = determine_frametype(cts_protection, get_interface())  # TODO: scan for WiFi traffic on all interfaces
 
     # ----------- start modules ------------------------
-    print(f"{GND_STRING_TAG} Starting ip checker module...")
-    Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_ip_checker.py')],
-          shell=False, stdin=None, stdout=None, stderr=None)
-
     if en_comm == 'Y':
         print(f"{GND_STRING_TAG} Starting communication module...")
         comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py'), "-m", "m",
@@ -116,6 +112,10 @@ def start_gnd_modules():
         print(f"{GND_STRING_TAG} Starting video player...")
         Popen([get_video_player(fps)], stdin=db_video_receive.stdout, stdout=None, stderr=None, close_fds=True,
               shell=False)
+
+    print(GND_STRING_TAG + "Starting USBBridge module...")
+    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'usbbridge', 'usbbridge'), "-v", en_video, "-c", en_comm, "-p", "Y",
+           "-s", "Y"], shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
 
 def start_uav_modules():

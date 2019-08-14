@@ -17,5 +17,5 @@ This plugin works on UAS and ground station.
 
 ## Installation
 
-Copy this folder into the ```/boot/plugins``` directory of your DroneBridge image.
+Copy this folder into the ```/DroneBridge/plugins``` directory of your DroneBridge image.
 ```plugins``` directory can be found in the same place as the config files!

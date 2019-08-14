@@ -127,7 +127,7 @@ FILE* open_telemetry_log_file() {
 
     time_t now = time(NULL);
     timenow = localtime(&now);
-    strftime(filename, sizeof(filename), "/boot/log/DB_TELEMETRY_%F_%H%M", timenow);
+    strftime(filename, sizeof(filename), "/DroneBridge/log/DB_TELEMETRY_%F_%H%M", timenow);
     if (file_exists(filename)) {
         for (int i = 0; i < 10; i++) {
             char str[12];

@@ -10,8 +10,8 @@
 ### END INIT INFO
 
 declare -a DBModuleNames=("osd" "video_air" "video_gnd" "db_pi_player" "db_pi_player_30" "db_pi_player_48"
-"db_pi_player_240" "db_status" "db_proxy" "control_air" "control_ground" "db_ip_checker.py" "db_communication_air.py"
-"db_communication_gnd.py" "init_wifi.py" "start_db_modules.py")
+"db_pi_player_240" "db_status" "db_proxy" "control_air" "control_ground" "db_communication_air.py"
+"db_communication_gnd.py" "init_wifi.py" "start_db_modules.py" "usbbridge")
 
 RED='\033[0;31m'
 GRN='\033[1;32m'
@@ -22,7 +22,7 @@ function start_osd() {
   echo
   dos2unix -n /boot/osdconfig.txt /boot/osdconfig.txt
   echo
-  cd /root/DroneBridge/osd
+  cd /home/pi/DroneBridge/osd
   echo Building OSD:
   make -j2 || {
     echo -e "${RED}ERROR: Could not build OSD, check osdconfig.txt!${NC}"
@@ -64,13 +64,13 @@ function init_dronebridge() {
 
   if [[ "$CAM" == "0" ]]; then
     echo "Welcome to DroneBridge v0.6 Beta (GND) - "
-    python3.7 /root/DroneBridge/startup/init_wifi.py -g
-    python3.7 /root/DroneBridge/startup/start_db_modules.py -g
+    python3.7 /home/pi/DroneBridge/startup/init_wifi.py -g
+    python3.7 /home/pi/DroneBridge/startup/start_db_modules.py -g
     start_osd
   else
     echo "Welcome to DroneBridge v0.6 Beta (UAV) - "
-    python3.7 /root/DroneBridge/startup/init_wifi.py
-    python3.7 /root/DroneBridge/startup/start_db_modules.py
+    python3.7 /home/pi/DroneBridge/startup/init_wifi.py
+    python3.7 /home/pi/DroneBridge/startup/start_db_modules.py
   fi
 }
 

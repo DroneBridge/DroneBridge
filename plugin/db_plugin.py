@@ -18,7 +18,7 @@ def main():
     else:
         command_section = 'uav'
 
-    plugin_dirs_list = next(os.walk(os.path.abspath(os.path.join(os.sep, 'boot', 'plugins'))))[1]
+    plugin_dirs_list = next(os.walk(os.path.abspath(os.path.join(os.sep, 'DroneBridge', 'plugins'))))[1]
     for plugin_dir in plugin_dirs_list:
         config = configparser.ConfigParser()
         config.optionxform = str

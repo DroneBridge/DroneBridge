@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     }
 
     int32_t width, height;
-    char filepath[] = {"/root/DroneBridge/splash/db_splash.jpg"};
+    char filepath[] = {"/home/pi/DroneBridge/splash/db_splash.jpg"};
 
     InitShapes(&width, &height);            // Graphics initialization
 

@@ -2,7 +2,7 @@ import configparser
 import os
 from pathlib import Path
 
-PATH_CONFIG_FILE = os.path.join(os.sep, "boot", "DroneBridgeConfig.ini")
+PATH_CONFIG_FILE = os.path.join(os.sep, "DroneBridge", "DroneBridgeConfig.ini")
 PI3_WIFI_NIC = 'intwifi0'
 HOTSPOT_NIC = 'wifihotspot0'
 
@@ -25,7 +25,7 @@ def read_dronebridge_config():
 def get_bit_rate(datarate_index):
     """
     Convert the data rate index given in the config file to the respective numeric data rate.
-    Eg. datarate_index 1 = 6Mbps
+
     :param datarate_index: data rate in Mbps
     :return: A string specifying the data rate
     """
@@ -48,11 +48,8 @@ def get_bit_rate(datarate_index):
     elif datarate_index == 24:
         return '24'
     elif datarate_index == 36:
-        return '24'
+        return '36'
     elif datarate_index == 54:
-        return '24'
+        return '54'
     else:
         return '6'
-
-# kill video player from shell:
-# ps -ef | nice grep "hello_video.bin.48" | nice grep -v grep | awk '{print $2}' | xargs kill -9

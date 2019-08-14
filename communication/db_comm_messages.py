@@ -27,9 +27,8 @@ from DBCommProt import DBCommProt
 from DroneBridge import DBDir
 
 tag = 'DB_COMM_MESSAGE: '
-PATH_DRONEBRIDGE_SETTINGS = "/boot/DroneBridgeConfig.ini"
-PATH_WBC_SETTINGS = "/boot/wifibroadcast-1.txt"
-PATH_DB_VERSION = "/boot/db_version.txt"
+PATH_DRONEBRIDGE_SETTINGS = "/DroneBridge/DroneBridgeConfig.ini"
+PATH_DB_VERSION = "/DroneBridge/db_version.txt"
 
 # Used with general settings requests
 wbc_settings_blacklist = ["TXMODE", "MAC_RX[0]", "FREQ_RX[0]", "MAC_RX[1]", "FREQ_RX[1]", "MAC_RX[2]", "FREQ_RX[2]",

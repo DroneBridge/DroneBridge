@@ -31,7 +31,6 @@
 #include "video_lib.h"
 #include "../common/shared_memory.h"
 #include "../common/db_raw_receive.h"
-#include "../common/db_get_ip.h"
 #include "../common/ccolors.h"
 #include "../common/radiotap/radiotap_iter.h"
 #include "../common/db_raw_send_receive.h"
