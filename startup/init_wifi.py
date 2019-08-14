@@ -12,7 +12,10 @@ from subprocess import Popen, DEVNULL
 
 from common_helpers import read_dronebridge_config, get_bit_rate, HOTSPOT_NIC, PI3_WIFI_NIC
 
-PATH_DB_VERSION = os.path.join(os.sep, "boot", "db_version.txt")
+DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "home", "pi", "DroneBridge")
+PATH_DB_VERSION = os.path.join(os.sep, "DroneBridge", "db_version.txt")
+DRONEBRIDGE_SETTINGS_PATH = os.path.join(os.sep, "DroneBridge")
+
 SUPPORTED_DRIVERS = ['rt2800usb', 'ath9k_htc']
 EXPERIMENTAL_DRIVERS = ['rtl8812au', 'rtl8814au', 'rtl8188eus']
 COMMON = 'COMMON'
@@ -195,8 +198,10 @@ def setup_hotspot(interface):
         card = pyw.getcard(HOTSPOT_NIC)
         pyw.up(card)
         pyw.inetset(card, '192.168.2.1')
-        Popen(["udhcpd -I 192.168.2.1 /etc/udhcpd-wifi.conf"], shell=True, close_fds=True, stdout=DEVNULL)
-        Popen(["dos2unix -n /boot/apconfig.txt /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
+        Popen(["udhcpd -I 192.168.2.1 " + os.path.join(DRONEBRIDGE_BIN_PATH, "udhcpd-wifi.conf")], shell=True,
+              close_fds=True, stdout=DEVNULL)
+        Popen(["dos2unix -n " + os.path.join(DRONEBRIDGE_SETTINGS_PATH, "apconfig.txt") + " /tmp/apconfig.txt"],
+              shell=True, close_fds=True, stdout=DEVNULL)
         Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
         print(CColors.OKGREEN + "Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 " + CColors.ENDC)
     else:
@@ -206,7 +211,8 @@ def setup_hotspot(interface):
 def setup_eth_hotspot():
     print("Setting up ethernet hotspot")
     Popen(["ifconfig eth0 192.168.1.1 up"], shell=True)
-    Popen(["udhcpd -I 192.168.1.1 /etc/udhcpd-eth.conf"], shell=True, close_fds=True, stdout=DEVNULL)
+    Popen(["udhcpd -I 192.168.1.1 " + os.path.join(DRONEBRIDGE_BIN_PATH, "udhcpd-eth.conf")], shell=True,
+          close_fds=True, stdout=DEVNULL)
 
 
 def setup_eth_dhcp():
