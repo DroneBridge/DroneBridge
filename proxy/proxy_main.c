@@ -159,14 +159,15 @@ int open_osd_fifo() {
     int tries = 0;
     char fifoname[100];
     sprintf(fifoname, "/root/telemetryfifo1");
-    int tempfifo_osd = open(fifoname, O_WRONLY | O_NONBLOCK);
+    // we do only write but O_RDWR allows to open without receiver in non-blocking mode
+    int tempfifo_osd = open(fifoname, O_RDWR | O_NONBLOCK);
     // try to open FIFO to OSD for a couple of times. OSD might not start because of no HDMI devide connected -> no FIFO
     while (tempfifo_osd == -1 && tries < MAX_TIRES_OSD_FIFO_OPEN) {
         perror(YEL "DB_PROXY_GROUND: Unable to open OSD FIFO. OSD make sure OSD is running" RESET);
         printf("DB_PROXY_GROUND: Creating FIFO %s\n", fifoname);
         if (mkfifo(fifoname, 0777) < 0)
             perror("Cannot create FIFO");
-        tempfifo_osd = open(fifoname, O_WRONLY | O_NONBLOCK);
+        tempfifo_osd = open(fifoname, O_RDWR | O_NONBLOCK);
         tries++;
         usleep((__useconds_t) 3e6);
     }

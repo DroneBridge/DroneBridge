@@ -3,7 +3,7 @@
  Copyright (c) 2012, Broadcom Europe Ltd
  modified by Samuel Brucksch https://github.com/SamuelBrucksch/wifibroadcast_osd
  modified by Rodizio
- modifued by Wolfgang Christl
+ modified by Wolfgang Christl (seeul8er)
 
  Uses https://github.com/paeryn/openvg library with enhanced font loading
 

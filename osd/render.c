@@ -81,7 +81,7 @@ void setfillstroke() {
 
 
 void render_init() {
-    char filename[100] = "/boot/osdfonts/";
+    char filename[100] = "/DroneBridge/osdfonts/";
     InitShapes(&width, &height);
 
     strcat(filename, FONT);
@@ -91,7 +91,7 @@ void render_init() {
         exit(1);
     }
 
-    osdicons = LoadTTFFile("/boot/osdfonts/osdicons.ttf");
+    osdicons = LoadTTFFile("/DroneBridge/osdfonts/osdicons.ttf");
     if (!osdicons) {
         fputs("ERROR: Failed to load osdicons.ttf font!", stderr);
         exit(1);
