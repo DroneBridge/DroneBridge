@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include "proxy_main.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
 #include "../common/db_raw_send_receive.h"
@@ -46,7 +47,6 @@ char db_mode, write_to_osdfifo;
 uint8_t comm_id = DEFAULT_V2_COMMID, frame_type;
 int bitrate_op, prox_adhere_80211, num_interfaces;
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
-const int max_tel_msg_log_size = MAVLINK_MAX_PACKET_LEN + sizeof(uint64_t);
 uint8_t tel_msg_log_buff[MAVLINK_MAX_PACKET_LEN + sizeof(uint64_t)];
 
 void intHandler(int dummy) {
@@ -60,7 +60,7 @@ static inline uint64_t getSystemTimeUsecs()
     return ((uint64_t)tv.tv_sec) * 1000000 + tv.tv_usec;
 }
 
-int process_command_line_args(int argc, char *argv[]) {
+void process_command_line_args(int argc, char *argv[]) {
     db_mode = DEFAULT_DB_MODE;
     write_to_osdfifo = 'Y';
     opterr = 0;
@@ -121,28 +121,28 @@ bool file_exists(char fname[]) {
         return false;
 }
 
-FILE* open_telemetry_log_file() {
-    char filename[100];
+struct log_file_t open_telemetry_log_file() {
+    struct log_file_t log_file;
     struct tm *timenow;
 
     time_t now = time(NULL);
     timenow = localtime(&now);
-    strftime(filename, sizeof(filename), "/DroneBridge/log/DB_TELEMETRY_%F_%H%M", timenow);
-    if (file_exists(filename)) {
+    strftime(log_file.file_name, sizeof(log_file.file_name), "/DroneBridge/log/DB_TELEMETRY_%F_%H%M", timenow);
+    if (file_exists(log_file.file_name)) {
         for (int i = 0; i < 10; i++) {
             char str[12];
             sprintf(str, "_%d", i);
-            strcat(filename, str);
-            if (!file_exists(filename))
+            strcat(log_file.file_name, str);
+            if (!file_exists(log_file.file_name))
                 break;
         }
     }
-    FILE *fptr = fopen(filename, "a");
-    if(fptr == NULL)
+    log_file.file_pntr = fopen(log_file.file_name, "a");
+    if(log_file.file_pntr == NULL)
         perror(RED "DB_PROXY_GROUND: Error opening log file!" RESET);
     else
-        printf("DB_PROXY_GROUND: Opened telemetry log: %s\n", filename);
-    return fptr;
+        printf("DB_PROXY_GROUND: Opened telemetry log: %s\n", log_file.file_name);
+    return log_file;
 }
 
 int log_telem_to_file(FILE *file_pnt, uint8_t tel_bytes[], int tel_bytes_length) {
@@ -206,8 +206,7 @@ int main(int argc, char *argv[]) {
     int tcp_addrlen = sizeof(tcp_server_info.servaddr);
 
     // open log file for messages incoming from long range link
-    FILE *log_file;
-    log_file = open_telemetry_log_file();
+    struct log_file_t log_file = open_telemetry_log_file();
 
     struct data_uni *data_uni_to_drone = get_hp_raw_buffer(prox_adhere_80211);
     uint8_t seq_num = 0, seq_num_proxy = 0, last_recv_seq_num = 0;
@@ -252,7 +251,7 @@ int main(int argc, char *argv[]) {
                         payload_length = get_db_payload(lr_buffer, l, tcp_buffer, &seq_num_proxy, &radiotap_length);
                         if (seq_num_proxy != last_recv_seq_num) {
                             last_recv_seq_num = seq_num_proxy;
-                            log_telem_to_file(log_file, tcp_buffer, payload_length);
+                            log_telem_to_file(log_file.file_pntr, tcp_buffer, payload_length);
                             send_to_all_tcp_clients(tcp_clients, tcp_buffer, payload_length);
                             if (fifo_osd != -1 && write_to_osdfifo == 'Y') {
                                 ssize_t written = write(fifo_osd, tcp_buffer, payload_length);
@@ -316,9 +315,14 @@ int main(int argc, char *argv[]) {
     close(tcp_server_info.sock_fd);
     if (fifo_osd > 0)
         close(fifo_osd);
-    if (log_file != NULL) {
-        fflush(log_file);
-        fclose(log_file);
+    if (log_file.file_pntr != NULL) {
+        fflush(log_file.file_pntr);
+        fclose(log_file.file_pntr);
+        // delete log file if empty
+        struct stat st;
+        stat(log_file.file_name, &st);
+        if (st.st_size <= 1)
+            remove(log_file.file_name);
     }
     return 0;
 }

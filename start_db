@@ -5,7 +5,7 @@
 # Required-Stop:
 # Default-Start: 3 5
 # Default-Stop: 3 5
-# Short-Description: DroneBridge start script
+# Short-Description: DroneBridge startup script
 # Description:  Helper & auto start script for DroneBridge. Placed in /etc/init.d/ to handle DroneBridge on system boot
 ### END INIT INFO
 

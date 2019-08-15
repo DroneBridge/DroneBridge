@@ -150,7 +150,7 @@ int open_local_tcp_socket(int port) {
         } else
             connected = true;
     }
-    printf("DB_USB: Openened TCP socket\n");
+    printf("DB_USB: Opened TCP socket\n");
     return sockfd;
 }
 
@@ -419,6 +419,7 @@ int main(int argc, char *argv[]) {
     usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
     libusb_set_pollfd_notifiers(NULL, usb_fd_added, usb_fd_removed, NULL);
 
+    printf("DB_USB: Started\n");
     while (keeprunning) {
         if (!device_connected) {
             //libusb_free_pollfds((const struct libusb_pollfd **) usb_fds);

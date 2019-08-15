@@ -153,8 +153,14 @@ int supports_aoa(libusb_device *usb_dev, db_accessory_t *db_acc) {
 }
 
 
+void signal_callback(int signum){
+    do_exit = true;
+}
+
+
 /**
- * Discover USB devices that support android accessory
+ * Discover USB devices that support android accessory.
+ *
  * @param db_acc
  * @return
  */
@@ -185,10 +191,6 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
     return 0;
 }
 
-void signal_callback(int signum){
-    do_exit = true;
-}
-
 /**
  * Init function for all USB communication
  * Blocking call.
@@ -199,7 +201,12 @@ void signal_callback(int signum){
  * @return -1 on kill or failure
  */
 int init_db_accessory(db_accessory_t *db_acc) {
-    signal(SIGINT, signal_callback);
+    struct sigaction action;
+    memset(&action, 0, sizeof(struct sigaction));
+    action.sa_handler = signal_callback;
+    sigaction(SIGTERM, &action, NULL);
+    sigaction(SIGINT, &action, NULL);
+
     if (check_for_present_aoa_dev(db_acc) < 1) {
         int found_dev = discover_compatible_devices(db_acc);
         while (!found_dev && !do_exit) {
