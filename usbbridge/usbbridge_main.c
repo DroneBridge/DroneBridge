@@ -38,6 +38,7 @@
 #include "../common/db_protocol.h"
 #include "../common/ccolors.h"
 #include "db_usb.h"
+#include "../common/db_common.h"
 
 
 #define TCP_BUFF_SIZ    4096
@@ -89,7 +90,7 @@ int process_command_line_args(int argc, char *argv[]) {
                     status_module_activated = true;
                 break;
             case '?':
-                printf("Transforms the device into an android accessory. Reads data from DroneBridge modules and "
+                LOG_SYS_STD(LOG_INFO, "Transforms the device into an android accessory. Reads data from DroneBridge modules and "
                        "passes it on to the DroneBridge for android app via USB."
                        "\n\t-v Set to Y to listen for video module data"
                        "\n\t-c Set to Y to listen for communication module data"
@@ -143,14 +144,14 @@ int open_local_tcp_socket(int port) {
     servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     servaddr.sin_port = htons(port);
     bool connected = false;
-    while (!connected) {
+    while (!connected && keeprunning) {
         if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0) {
-            printf(RED "DB_USB: Error connection with local server on port %i failed: %s"RESET"\n", port, strerror(errno));
+            LOG_SYS_STD(LOG_INFO, RED "DB_USB: Error connection with local server on port %i failed: %s"RESET"\n", port, strerror(errno));
             usleep(1e6);
         } else
             connected = true;
     }
-    printf("DB_USB: Opened TCP socket\n");
+    LOG_SYS_STD(LOG_INFO, "DB_USB: Opened TCP socket\n");
     return sockfd;
 }
 
@@ -160,7 +161,7 @@ long get_time() {
 }
 
 void usb_fd_added(int fd, short events, void *user_data){
-    printf("DB_USB: Adding new file descriptor to poll\n");
+    LOG_SYS_STD(LOG_INFO, "DB_USB: Adding new file descriptor to poll\n");
     int i = 0;
     for(; usb_fds[i]; i++) {}
     usb_fds[i]->fd = fd;
@@ -168,7 +169,7 @@ void usb_fd_added(int fd, short events, void *user_data){
 }
 
 void usb_fd_removed(int fd, void *user_data) {
-    printf("DB_USB: Removing file descriptor from poll\n");
+    LOG_SYS_STD(LOG_INFO, "DB_USB: Removing file descriptor from poll\n");
     for(int i = 0; usb_fds[i]; i++) {
         if (usb_fds[i]->fd == fd) {
             usb_fds[i] = NULL;
@@ -178,10 +179,10 @@ void usb_fd_removed(int fd, void *user_data) {
 }
 
 void db_usb_route_data_tcp(uint8_t payload[], uint8_t port, uint16_t payload_size) {
-    printf("Got some data (%i) form GCS: %s\n", payload_size, payload);
+    LOG_SYS_STD(LOG_INFO, "Got some data (%i) form GCS: %s\n", payload_size, payload);
     switch (port) {
         case DB_PORT_VIDEO:
-            fprintf(stderr, "DB_USB: Error video module does not accept incoming data!\n");
+            LOG_SYS_STD(LOG_ERR, "DB_USB: Error video module does not accept incoming data!\n");
             break;
         case DB_PORT_PROXY:
             if (proxy_module_activated) {
@@ -204,7 +205,7 @@ void db_usb_route_data_tcp(uint8_t payload[], uint8_t port, uint16_t payload_siz
         case DB_USB_PORT_TIMEOUT_WAKE:
             break;
         default:
-            fprintf(stderr, "DB_USB: Unknown destination port. Use DB RAW protocol ports!\n");
+            LOG_SYS_STD(LOG_ERR, "DB_USB: Unknown destination port. Use DB RAW protocol ports!\n");
             break;
     }
 }
@@ -221,7 +222,7 @@ void process_db_usb_proto(unsigned char buffer[], int length) {
             db_usb_parser_port = buffer[3];
             db_usb_parser_payload_size = buffer[4] | (buffer[5] << 8);
             if (db_usb_parser_payload_size > DATA_UNI_LENGTH) {
-                fprintf(stderr, "DB_USB: Specified payload too big for raw protocol (%i > %i). Ignoring\n",
+                LOG_SYS_STD(LOG_ERR, "DB_USB: Specified payload too big for raw protocol (%i > %i). Ignoring\n",
                         db_usb_parser_payload_size, DATA_UNI_LENGTH);
                 return;
             }
@@ -237,7 +238,7 @@ void process_db_usb_proto(unsigned char buffer[], int length) {
             }
         }
     } else if (usb_parser_state == DB_USB_PARSER_AWAITING_PAYLOAD) {
-//        printf("%i %i %i\n", usb_parser_buff_size, length, db_usb_parser_payload_size);
+//        LOG_SYS_STD(LOG_INFO, "%i %i %i\n", usb_parser_buff_size, length, db_usb_parser_payload_size);
         // check if packet completes payload
         if ((usb_parser_buff_size + length) == db_usb_parser_payload_size) {
             // Copy and process buffer
@@ -255,7 +256,7 @@ void process_db_usb_proto(unsigned char buffer[], int length) {
             free(db_usb_parser_buffer);
             usb_parser_buff_size = 0;
             usb_parser_state = DB_USB_PARSER_SEARCHING_HEADER;
-            fprintf(stderr, "DB_USB: DB USB protocol does not allow packets containing payload of two msgs!\n");
+            LOG_SYS_STD(LOG_ERR, "DB_USB: DB USB protocol does not allow packets containing payload of two msgs!\n");
         }
     }
 }
@@ -265,33 +266,33 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
         case LIBUSB_TRANSFER_COMPLETED:
             switch (xfr->endpoint) {
                 case AOA_ACCESSORY_EP_IN:
-                    printf("DB_USB: Received %i\n", xfr->actual_length);
+                    LOG_SYS_STD(LOG_INFO, "DB_USB: Received %i\n", xfr->actual_length);
                     process_db_usb_proto(xfr->buffer, xfr->actual_length);
                     break;
                 case AOA_ACCESSORY_EP_OUT:
-                    // printf("DB_USB: Transferred %i\n", xfr->actual_length);
+                    // LOG_SYS_STD(LOG_INFO, "DB_USB: Transferred %i\n", xfr->actual_length);
                     break;
             }
             // xfr->buffer
             break;
         case LIBUSB_TRANSFER_CANCELLED:
-            printf("DB_USB: Transfer cancelled\n");
+            LOG_SYS_STD(LOG_INFO, "DB_USB: Transfer cancelled\n");
             break;
         case LIBUSB_TRANSFER_NO_DEVICE:
-            printf("DB_USB: No device!\n");
+            LOG_SYS_STD(LOG_INFO, "DB_USB: No device!\n");
             device_connected = false;
             break;
         case LIBUSB_TRANSFER_TIMED_OUT:
-//            printf("DB_USB: Timed out!\n");
+//            LOG_SYS_STD(LOG_INFO, "DB_USB: Timed out!\n");
             break;
         case LIBUSB_TRANSFER_ERROR:
-            printf("DB_USB: Transfer error!\n");
+            LOG_SYS_STD(LOG_INFO, "DB_USB: Transfer error!\n");
             break;
         case LIBUSB_TRANSFER_STALL:
-            printf("DB_USB: Transfer stall!\n");
+            LOG_SYS_STD(LOG_INFO, "DB_USB: Transfer stall!\n");
             break;
         case LIBUSB_TRANSFER_OVERFLOW:
-            printf("DB_USB: Transfer overflow!\n");
+            LOG_SYS_STD(LOG_INFO, "DB_USB: Transfer overflow!\n");
             // Various type of errors here
             break;
     }
@@ -306,7 +307,7 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
 void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t* usb_msg, long *last_write) {
     if (!device_connected)
         return;
-//    printf("DB_USB: Sending timeout wake\n");
+//    LOG_SYS_STD(LOG_INFO, "DB_USB: Sending timeout wake\n");
     usb_msg->pay_lenght = 1;
     usb_msg->port = DB_USB_PORT_TIMEOUT_WAKE;
     usb_msg->payload[0] = 0;
@@ -419,11 +420,9 @@ int main(int argc, char *argv[]) {
     usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
     libusb_set_pollfd_notifiers(NULL, usb_fd_added, usb_fd_removed, NULL);
 
-    printf("DB_USB: Started\n");
+    LOG_SYS_STD(LOG_INFO, "DB_USB: Started\n");
     while (keeprunning) {
         if (!device_connected) {
-            //libusb_free_pollfds((const struct libusb_pollfd **) usb_fds);
-            //libusb_set_pollfd_notifiers(NULL, NULL, NULL, NULL);
             exit_close_aoa_device(&accessory);
 
             usb_msg = db_usb_get_direct_buffer();
@@ -512,7 +511,7 @@ int main(int argc, char *argv[]) {
     }
 
     // clean up and exit
-    printf("DB_USB: Closing sockets\n");
+    LOG_SYS_STD(LOG_INFO, "DB_USB: Closing sockets\n");
     libusb_free_pollfds((const struct libusb_pollfd **) usb_fds);
     shutdown(video_unix_socket, SHUT_RDWR);
     shutdown(proxy_sock, SHUT_RDWR);
@@ -525,6 +524,6 @@ int main(int argc, char *argv[]) {
     libusb_set_pollfd_notifiers(NULL, NULL, NULL, NULL);
     exit_close_aoa_device(&accessory);
     unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
-    printf("DB_USB: Terminated\n");
+    LOG_SYS_STD(LOG_INFO, "DB_USB: Terminated\n");
     return 0;
 }

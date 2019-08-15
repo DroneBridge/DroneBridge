@@ -10,6 +10,7 @@ else()
     include_directories(${SHARED_LIB_INCLUDE_DIR})
 
     set(LIB_SRCS
+            db_common.h
             db_protocol.h
             db_get_ip.c
             db_get_ip.h

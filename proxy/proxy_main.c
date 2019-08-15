@@ -37,6 +37,7 @@
 #include "../common/ccolors.h"
 #include "../common/tcp_server.h"
 #include "../common/mavlink/c_library_v2/mavlink_types.h"
+#include "../common/db_common.h"
 
 #define TCP_BUFFER_SIZE (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH)
 #define MAX_TCP_CLIENTS 10
@@ -96,7 +97,7 @@ void process_command_line_args(int argc, char *argv[]) {
                 prox_adhere_80211 = (int) strtol(optarg, NULL, 10);
                 break;
             case '?':
-                printf("DroneBridge Proxy module is used to do any UDP <-> DB_CONTROL_AIR routing. UDP IP given by "
+                LOG_SYS_STD(LOG_INFO, "DroneBridge Proxy module is used to do any UDP <-> DB_CONTROL_AIR routing. UDP IP given by "
                        "IP-checker module. Use"
                        "\n\t-n [network_IF_proxy_module] "
                        "\n\t-m [w|m] DroneBridge mode - wifi - monitor mode (default: m) (wifi not supported yet!)"
@@ -141,7 +142,7 @@ struct log_file_t open_telemetry_log_file() {
     if(log_file.file_pntr == NULL)
         perror(RED "DB_PROXY_GROUND: Error opening log file!" RESET);
     else
-        printf("DB_PROXY_GROUND: Opened telemetry log: %s\n", log_file.file_name);
+        LOG_SYS_STD(LOG_INFO, "DB_PROXY_GROUND: Opened telemetry log: %s\n", log_file.file_name);
     return log_file;
 }
 
@@ -164,7 +165,7 @@ int open_osd_fifo() {
     // try to open FIFO to OSD for a couple of times. OSD might not start because of no HDMI devide connected -> no FIFO
     while (tempfifo_osd == -1 && tries < MAX_TIRES_OSD_FIFO_OPEN) {
         perror(YEL "DB_PROXY_GROUND: Unable to open OSD FIFO. OSD make sure OSD is running" RESET);
-        printf("DB_PROXY_GROUND: Creating FIFO %s\n", fifoname);
+        LOG_SYS_STD(LOG_INFO, "DB_PROXY_GROUND: Creating FIFO %s\n", fifoname);
         if (mkfifo(fifoname, 0777) < 0)
             perror("Cannot create FIFO");
         tempfifo_osd = open(fifoname, O_RDWR | O_NONBLOCK);
@@ -172,7 +173,7 @@ int open_osd_fifo() {
         usleep((__useconds_t) 3e6);
     }
     if (tempfifo_osd == -1)
-        printf(YEL "DB_PROXY_GROUND: Error opening FIFO. Giving up. OSD might not be running because of no HDMI DEV"
+        LOG_SYS_STD(LOG_ERR, YEL "DB_PROXY_GROUND: Error opening FIFO. Giving up. OSD might not be running because of no HDMI DEV"
         RESET "\n" );
     return tempfifo_osd;
 }
@@ -214,7 +215,7 @@ int main(int argc, char *argv[]) {
     uint8_t tcp_buffer[TCP_BUFFER_SIZE];
     size_t payload_length = 0;
 
-    printf(GRN "DB_PROXY_GROUND: started! Enabled diversity on %i adapters." RESET "\n", num_interfaces);
+    LOG_SYS_STD(LOG_INFO, GRN "DB_PROXY_GROUND: started! Enabled diversity on %i adapters." RESET "\n", num_interfaces);
     while (keeprunning) {
         select_timeout.tv_sec = 5;
         select_timeout.tv_usec = 0;
@@ -260,7 +261,7 @@ int main(int argc, char *argv[]) {
                             }
                         }
                     } else
-                        printf(RED "DB_PROXY_GROUND: Long range socket received an error: %s\n" RESET, strerror(err));
+                        LOG_SYS_STD(LOG_ERR, RED "DB_PROXY_GROUND: Long range socket received an error: %s\n" RESET, strerror(err));
                 }
             }
             // handle incoming tcp connection requests on master TCP socket
@@ -270,7 +271,7 @@ int main(int argc, char *argv[]) {
                                              (socklen_t *) &tcp_addrlen)) < 0) {
                     perror("DB_PROXY_GROUND: Accepting new tcp connection failed");
                 }
-                printf("DB_PROXY_GROUND: New connection (%s:%d)\n", inet_ntoa(tcp_server_info.servaddr.sin_addr),
+                LOG_SYS_STD(LOG_INFO, "DB_PROXY_GROUND: New connection (%s:%d)\n", inet_ntoa(tcp_server_info.servaddr.sin_addr),
                        ntohs(tcp_server_info.servaddr.sin_port));
                 //add new socket to array of sockets
                 for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
@@ -288,7 +289,7 @@ int main(int argc, char *argv[]) {
                         //Somebody disconnected , get his details and print
                         getpeername(current_client_sock, (struct sockaddr *) &tcp_server_info.servaddr,
                                     (socklen_t *) &tcp_addrlen);
-                        printf("DB_PROXY_GROUND: Client disconnected (%s:%d)\n",
+                        LOG_SYS_STD(LOG_INFO, "DB_PROXY_GROUND: Client disconnected (%s:%d)\n",
                                inet_ntoa(tcp_server_info.servaddr.sin_addr),
                                ntohs(tcp_server_info.servaddr.sin_port));
                         close(current_client_sock);

@@ -23,16 +23,13 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <zconf.h>
-#include <netdb.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <signal.h>
 #include <stdbool.h>
-#include <errno.h>
 #include <memory.h>
 #include <sys/time.h>
-#include "../common/db_get_ip.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
 #include "../common/shared_memory.h"
@@ -40,6 +37,7 @@
 #include "../common/db_utils.h"
 #include "../common/tcp_server.h"
 #include "../common/db_raw_send_receive.h"
+#include "../common/db_common.h"
 
 #define TCP_STATUS_BUFF_SIZE 2048
 #define MAX_TCP_CLIENTS 10
@@ -145,7 +143,7 @@ int main(int argc, char *argv[]) {
     struct tcp_server_info status_tcp_server_info = create_tcp_server_socket(APP_PORT_STATUS);
     int tcp_addrlen = sizeof(status_tcp_server_info.servaddr);
 
-    printf(GRN "DB_STATUS_GND: started!" RESET "\n");
+    LOG_SYS_STD(LOG_INFO, GRN "DB_STATUS_GND: started!" RESET "\n");
     gettimeofday(&timecheck, NULL);
     start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
     while (keeprunning) {
@@ -204,7 +202,7 @@ int main(int argc, char *argv[]) {
                                              (socklen_t *) &tcp_addrlen)) < 0) {
                     perror("DB_STATUS_GND: Accepting new tcp connection failed");
                 }
-                printf("DB_STATUS_GND: New connection (%s:%d)\n", inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
+                LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: New connection (%s:%d)\n", inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
                        ntohs(status_tcp_server_info.servaddr.sin_port));
                 //add new socket to array of sockets
                 for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
@@ -222,7 +220,7 @@ int main(int argc, char *argv[]) {
                         //Somebody disconnected , get his details and print
                         getpeername(current_client_sock, (struct sockaddr *) &status_tcp_server_info.servaddr,
                                     (socklen_t *) &tcp_addrlen);
-                        printf("DB_STATUS_GND: Client disconnected (%s:%d)\n",
+                        LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: Client disconnected (%s:%d)\n",
                                inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
                                ntohs(status_tcp_server_info.servaddr.sin_port));
                         close(current_client_sock);
@@ -237,7 +235,7 @@ int main(int argc, char *argv[]) {
                                 rc_overwrite_values->timestamp = timestamp;
                                 break;
                             default:
-                                printf(RED "Unknown status message received from GCS" RESET "\n");
+                                LOG_SYS_STD(LOG_WARNING, RED "Unknown status message received from GCS" RESET "\n");
                                 break;
                         }
                     }

@@ -32,13 +32,14 @@
 #include "rc_ground.h"
 #include "../common/ccolors.h"
 #include "opentx.h"
+#include "../common/db_common.h"
 
 int detect_RC(int new_Joy_IF) {
     int fd;
     char interface_joystick[500];
     char path[] = "/dev/input/js";
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
-    printf(YEL "DB_CONTROL_GND: Waiting for a RC to be detected on: %s" RESET "\n", interface_joystick);
+    LOG_SYS_STD(LOG_INFO, YEL "DB_CONTROL_GND: Waiting for a RC to be detected on: %s" RESET "\n", interface_joystick);
     do {
         usleep(250000);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
@@ -127,18 +128,18 @@ int main(int argc, char *argv[]) {
 
     open_rc_shm();
 
-    printf(GRN "DB_CONTROL_GND: started!" RESET "\n");
+    LOG_SYS_STD(LOG_INFO, GRN "DB_CONTROL_GND: started!" RESET "\n");
     int sock_fd = detect_RC(Joy_IF);
     if (ioctl(sock_fd, JSIOCGNAME(sizeof(RC_name)), RC_name) < 0)
         strncpy(RC_name, "Unknown", sizeof(RC_name));
     close(sock_fd); // We reopen in the RC specific file. Only opened in here to get the name of the controller
-    printf(GRN "DB_CONTROL_GND: Detected \"%s\"" RESET "\n", RC_name);
+    LOG_SYS_STD(LOG_INFO, GRN "DB_CONTROL_GND: Detected \"%s\"" RESET "\n", RC_name);
     if (strcmp(i6S_descriptor, RC_name) == 0) {
-        printf("DB_CONTROL_GND: Choosing i6S-Config\n");
+        LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Choosing i6S-Config\n");
         strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
         i6S(Joy_IF, calibrate_comm);
     } else {
-        printf("DB_CONTROL_GND: Choosing OpenTX-Config\n");
+        LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Choosing OpenTX-Config\n");
         strcpy(calibrate_comm, DEFAULT_OPENTX_CALIBRATION);
         opentx(Joy_IF, calibrate_comm);
     }

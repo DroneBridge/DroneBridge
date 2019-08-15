@@ -38,6 +38,7 @@
 #include "../common/ccolors.h"
 #include "../common/db_utils.h"
 #include "../common/radiotap/radiotap_iter.h"
+#include "../common/db_common.h"
 
 
 #define ETHER_TYPE        0x88ab
@@ -261,9 +262,9 @@ int main(int argc, char *argv[]) {
     do {
         socket_control_serial = open(telem_inf, O_RDWR | O_NOCTTY | O_SYNC);
         if (socket_control_serial == -1) {
-            printf(YEL"DB_CONTROL_AIR: Error - Unable to open UART for MSP/MAVLink.  Ensure it is not in use by another "
+            LOG_SYS_STD(LOG_WARNING, YEL"DB_CONTROL_AIR: Error - Unable to open UART for MSP/MAVLink.  Ensure it is not in use by another "
                    "application and the FC is connected\n");
-            printf("DB_CONTROL_AIR: retrying ..."RESET"\n");
+            LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: retrying ..."RESET"\n");
             sleep(1);
         }
     } while (socket_control_serial == -1);
@@ -292,8 +293,8 @@ int main(int argc, char *argv[]) {
         do {
             socket_rc_serial = open(sumd_interface, O_WRONLY | O_NOCTTY | O_SYNC);
             if (socket_rc_serial == -1) {
-                printf(RED "DB_CONTROL_AIR: Error - Unable to open UART for SUMD RC.  Ensure it is not in use by another"
-                       " application and the FC is connected. Retrying ... "RESET"\n");
+                LOG_SYS_STD(LOG_WARNING, RED "DB_CONTROL_AIR: Error - Unable to open UART for SUMD RC.  Ensure it is not "
+                                          "in use by another application and the FC is connected. Retrying ... "RESET"\n");
                 sleep(1);
             }
         } while (socket_rc_serial == -1);
@@ -342,7 +343,7 @@ int main(int argc, char *argv[]) {
     struct uav_rc_status_update_message_t *rc_status_update_data = (struct uav_rc_status_update_message_t *) raw_buffer;
     memset(raw_buffer->bytes, 0, DATA_UNI_LENGTH);
 
-    printf(GRN "DB_CONTROL_AIR: Ready for data! Enabled diversity on %i adapters"RESET"\n", num_inf);
+    LOG_SYS_STD(LOG_INFO, GRN "DB_CONTROL_AIR: Ready for data! Enabled diversity on %i adapters"RESET"\n", num_inf);
     gettimeofday(&timecheck, NULL);
     start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
     start_rc = start;
@@ -388,7 +389,8 @@ int main(int argc, char *argv[]) {
                                 errsv = errno;
                                 tcdrain(rc_serial_socket);
                                 if (sentbytes <= 0) {
-                                    printf(RED "RC NOT WRITTEN because of error: %s"RESET"\n", strerror(errsv));
+                                    LOG_SYS_STD(LOG_WARNING, RED "RC NOT WRITTEN because of error: %s"RESET"\n",
+                                            strerror(errsv));
                                 }
                                 // TODO: check if necessary. It shouldn't as we use blocking UART socket
                                 // tcflush(rc_serial_socket, TCOFLUSH);
@@ -413,7 +415,8 @@ int main(int argc, char *argv[]) {
                             errsv = errno;
                             tcdrain(socket_control_serial);
                             if (sentbytes < command_length) {
-                                printf(RED"MSP/MAVLink NOT WRITTEN because of error: %s"RESET"\n", strerror(errsv));
+                                LOG_SYS_STD(LOG_WARNING, RED"MSP/MAVLink NOT WRITTEN because of error: %s"RESET"\n",
+                                        strerror(errsv));
                             }
                             // TODO: check if necessary. It shouldn't as we use blocking UART socket
                             // tcflush(socket_control_serial, TCOFLUSH);
@@ -531,6 +534,6 @@ int main(int argc, char *argv[]) {
     }
     close(socket_control_serial);
     close(rc_serial_socket);
-    printf("DB_CONTROL_AIR: Sockets closed!\n");
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: Sockets closed!\n");
     return 1;
 }

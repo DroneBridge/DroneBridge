@@ -24,7 +24,9 @@
 #include <string.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <syslog.h>
 #include "linux_aoa.h"
+#include "../common/db_common.h"
 
 bool do_exit = false;
 uint8_t raw_usb_msg_buff[DB_AOA_MAX_MSG_LENGTH] = {0};
@@ -75,9 +77,10 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
             int ret = libusb_open(device, &accessory->handle);
             if (ret != 0 || accessory->handle == NULL) {
                 fprintf(stderr, "AOA_USB: ERROR - Unable to open connected device in android accessory mode: %s\n", libusb_error_name(ret));
+                libusb_free_device_list(device_list, 1);
                 return -1;
             }
-            fprintf(stdout, "AOA_USB: Detected device in accessory mode: %4.4x:%4.4x\n", AOA_ACCESSORY_VID, accessory->pid);
+            LOG_SYS_STD(LOG_INFO, "AOA_USB: Detected device in accessory mode: %4.4x:%4.4x\n", AOA_ACCESSORY_VID, accessory->pid);
 
 //            if ((ret = libusb_set_configuration(accessory->handle, 0)) != 0)
 //                fprintf(stderr, "--> Error setting device configuration %s\n", libusb_error_name(ret));
@@ -86,9 +89,9 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
             ret = libusb_get_active_config_descriptor(device, &config_descriptor);
             if (ret != 0)
                 fprintf(stderr, "AOA_USB: ERROR - getting active config desc. %s\n", libusb_error_name(ret));
-            fprintf(stdout, "AOA_USB:\tGot %i interfaces\n", config_descriptor->bNumInterfaces);
+            LOG_SYS_STD(LOG_INFO, "AOA_USB:\tGot %i interfaces\n", config_descriptor->bNumInterfaces);
             db_usb_max_packet_size = config_descriptor->interface[0].altsetting->endpoint[0].wMaxPacketSize - DB_AOA_HEADER_LENGTH - 1;
-            fprintf(stdout, "AOA_USB:\tMax packet size is %i bytes\n", db_usb_max_packet_size);
+            LOG_SYS_STD(LOG_INFO, "AOA_USB:\tMax packet size is %i bytes\n", db_usb_max_packet_size);
 
             ret = libusb_claim_interface(accessory->handle, 0);
             if (ret != 0)
@@ -99,6 +102,7 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
             return 1;
         }
     }
+    libusb_free_device_list(device_list, 1);
     fprintf(stderr, "AOA_USB: No device in accessory mode found\n");
     return 0;
 }
@@ -146,7 +150,7 @@ int supports_aoa(libusb_device *usb_dev, db_accessory_t *db_acc) {
     } else {
         db_acc->aoa_version = ((buffer[1] << 8) | buffer[0]);
         db_acc->handle = dev_handle;
-        fprintf(stderr, "AOA_USB: Found device that supports AOA %d.0!\n", db_acc->aoa_version);
+        LOG_SYS_STD(LOG_INFO, "AOA_USB: Found device that supports AOA %d.0!\n", db_acc->aoa_version);
         usleep(10000);
         return 1;
     }
@@ -169,7 +173,7 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
     libusb_device *found_device = NULL;
     ssize_t cnt = libusb_get_device_list(NULL, &device_list);
 
-    fprintf(stdout, "AOA_USB: Checking %zi USB devices\n", cnt);
+    LOG_SYS_STD(LOG_INFO, "AOA_USB: Checking %zi USB devices\n", cnt);
     for (ssize_t i = 0; i < cnt; i++) {
         libusb_device *device = device_list[i];
         if (supports_aoa(device, db_acc)) {
@@ -203,6 +207,7 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
 int init_db_accessory(db_accessory_t *db_acc) {
     struct sigaction action;
     memset(&action, 0, sizeof(struct sigaction));
+    memset(db_acc, 0, sizeof(db_accessory_t));
     action.sa_handler = signal_callback;
     sigaction(SIGTERM, &action, NULL);
     sigaction(SIGINT, &action, NULL);
@@ -216,46 +221,46 @@ int init_db_accessory(db_accessory_t *db_acc) {
         if (do_exit)
             return -1;
         // SETUP_ACC:
-        fprintf(stdout, "AOA_USB: \tSending manufacturer identification: %s\n", DB_AOA_MANUFACTURER);
+        LOG_SYS_STD(LOG_INFO, "AOA_USB: \tSending manufacturer identification: %s\n", DB_AOA_MANUFACTURER);
         if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR, AOA_SEND_IDENT, 0,
                                     AOA_STRING_MAN_ID, (uint8_t *) DB_AOA_MANUFACTURER, strlen(DB_AOA_MANUFACTURER) + 1,
                                     0) < 0) {
             fprintf(stderr, "\x1B[31m" "--> Error sending manufacturer information to android device \x1B[0m \n");
         }
         usleep(10000);
-        fprintf(stdout, "AOA_USB: \tSending model identification: %s\n", DB_AOA_MODEL_NAME);
+        LOG_SYS_STD(LOG_INFO, "AOA_USB: \tSending model identification: %s\n", DB_AOA_MODEL_NAME);
         if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR, AOA_SEND_IDENT, 0,
                                     AOA_STRING_MOD_ID, (uint8_t *) DB_AOA_MODEL_NAME, strlen(DB_AOA_MODEL_NAME) + 1,
                                     0) < 0) {
             fprintf(stderr, "\x1B[31m" "AOA_USB: ERROR - sending model information to android device \x1B[0m \n");
         }
         usleep(10000);
-        fprintf(stdout, "AOA_USB:\tSending description: %s\n", DB_AOA_DESC);
+        LOG_SYS_STD(LOG_INFO, "AOA_USB:\tSending description: %s\n", DB_AOA_DESC);
         if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR, AOA_SEND_IDENT, 0,
                                     AOA_STRING_DSC_ID, (uint8_t *) DB_AOA_DESC, strlen(DB_AOA_DESC) + 1, 0) < 0) {
             fprintf(stderr, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
         }
         usleep(10000);
-        fprintf(stdout, "AOA_USB:\tSending version information: %s\n", DB_AOA_VERSION);
+        LOG_SYS_STD(LOG_INFO, "AOA_USB:\tSending version information: %s\n", DB_AOA_VERSION);
         if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR, AOA_SEND_IDENT, 0,
                                     AOA_STRING_VER_ID, (uint8_t *) DB_AOA_VERSION, strlen(DB_AOA_VERSION) + 1, 0) < 0) {
             fprintf(stderr, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
         }
         usleep(10000);
-        fprintf(stdout, "AOA_USB:\tSending URL identification: %s\n", DB_AOA_URL);
+        LOG_SYS_STD(LOG_INFO, "AOA_USB:\tSending URL identification: %s\n", DB_AOA_URL);
         if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR, AOA_SEND_IDENT, 0,
                                     AOA_STRING_URL_ID, (uint8_t *) DB_AOA_URL, strlen(DB_AOA_URL) + 1, 0) < 0) {
             fprintf(stderr, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
         }
         usleep(10000);
-        fprintf(stdout, "AOA_USB:\tSending serial number: %s\n", DB_AOA_VERSION);
+        LOG_SYS_STD(LOG_INFO, "AOA_USB:\tSending serial number: %s\n", DB_AOA_VERSION);
         if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR, AOA_SEND_IDENT, 0,
                                     AOA_STRING_SER_ID, (uint8_t *) DB_AOA_SER, strlen(DB_AOA_SER) + 1, 0) < 0) {
             fprintf(stderr, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
         }
         usleep(10000);
 
-        fprintf(stdout, "AOA_USB: Enabling accessory mode on device\n");
+        LOG_SYS_STD(LOG_INFO, "AOA_USB: Enabling accessory mode on device\n");
         if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR,
                                     AOA_START_ACCESSORY,
                                     0, 0, NULL, 0, 0) < 0) {
@@ -280,56 +285,6 @@ int init_db_accessory(db_accessory_t *db_acc) {
         }
     }
     return 1;
-}
-
-/**
- * A function to send data over the USB interface using the DroneBridge USB message format. Uses memcpy. Splits payload
- * in multiple messages if bigger than allowed max data length
- * @param db_acc
- * @return: 0 on success or LIB_USB_ERROR on error
- */
-int db_usb_send(db_accessory_t *db_acc, uint8_t data[], uint16_t data_length, uint8_t port) {
-    int num_trans;
-//    if (data_length < max_packet_size) {
-        usb_msg->port = port;
-        usb_msg->pay_lenght = data_length;
-        memcpy(usb_msg->payload, data, data_length);
-        int ret = libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_OUT, raw_usb_msg_buff,
-                (data_length + DB_AOA_HEADER_LENGTH), &num_trans, 1000);
-        if(num_trans != (data_length + DB_AOA_HEADER_LENGTH))
-            fprintf(stderr, "AOA_USB: ERROR - Did not send all data (%i/%i)\n", (data_length + DB_AOA_HEADER_LENGTH), num_trans);
-        else
-            return ret;
-/*    } else { // split data
-        usb_msg->port = port;
-        uint16_t sent_data_length = 0;
-
-        while(data_length < sent_data_length) {
-            if ((sent_data_length - data_length) > max_packet_size) {
-                usb_msg->pay_lenght = max_packet_size;
-                memcpy(usb_msg->payload, &data[sent_data_length], max_packet_size);
-                int ret = libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_OUT, raw_usb_msg_buff,
-                                               (usb_msg->pay_lenght + DB_AOA_HEADER_LENGTH), &num_trans, 1000);
-                if (ret < 0)
-                    fprintf(stderr, "AOA_USB: ERROR - Sending data %s", libusb_error_name(ret));
-                sent_data_length += (num_trans - DB_AOA_HEADER_LENGTH);
-            } else {
-                usb_msg->pay_lenght = data_length - sent_data_length;
-                memcpy(usb_msg->payload, &data[sent_data_length], max_packet_size);
-                int ret = libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_OUT, raw_usb_msg_buff,
-                                               (usb_msg->pay_lenght + DB_AOA_HEADER_LENGTH), &num_trans, 1000);
-                if (ret < 0) {
-                    if ((num_trans - DB_AOA_HEADER_LENGTH) != usb_msg->pay_lenght)
-                        fprintf(stderr, "AOA_USB: ERROR - Did not send all data (%i/%i)\n",
-                                (data_length + DB_AOA_HEADER_LENGTH), num_trans);
-                    else
-                        fprintf(stderr, "AOA_USB: ERROR - Sending data %s", libusb_error_name(ret));
-                }
-                return ret;
-            }
-        }
-    }*/
-    return -1;
 }
 
 /**
