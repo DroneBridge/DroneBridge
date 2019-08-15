@@ -41,7 +41,6 @@
 #include "../common/db_common.h"
 
 
-#define TCP_BUFF_SIZ    4096
 #define USB_BUFFER_SIZ  1024
 #define MAX_WRITE_TIMEOUT   200  // max time [ms] that the USBBridge is allowed to not send data to the GCS. Send wake to stop blocking android accessory api
 
@@ -468,7 +467,7 @@ int main(int argc, char *argv[]) {
 
         int ret = poll(poll_fds, count, MAX_WRITE_TIMEOUT);
         if (ret == -1) {
-            perror ("poll");
+            perror ("DB_USB: poll");
             keeprunning = false;
         } else if (ret == 0) {
             send_timeout_wake(&accessory, usb_msg, &last_write);
