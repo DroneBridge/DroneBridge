@@ -112,24 +112,6 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
 
 
 /**
- * Init libusb and open present android accessory devices.
- * @param accessory android accessory struct
- * @return
- *      1 in case we have an already opened accessory inited
- *      -1 in case of failure
- *      0 in case no device was found that is already in accessory mode
- */
-int check_for_present_aoa_dev(db_accessory_t *accessory) {
-    int ret = libusb_init(NULL);
-    if (ret != 0) {
-        fprintf(stderr, "AOA_USB: ERROR - Could not init libusb: %d\n", ret);
-        return -1;
-    }
-    return connect_to_device_in_accessory_mode(accessory);
-}
-
-
-/**
  * Checks if specified device supports android open accessory protocol
  * @param usb_dev
  * @param db_acc
@@ -212,7 +194,7 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
  * In case of no open device it will try to find a supported device (android phone) amongst the connected USB devices &
  * put the device into android accessory mode
  * @param db_acc
- * @return -1 on kill or failure
+ * @return -1 on kill or failure, 1 on already connected
  */
 int init_db_accessory(db_accessory_t *db_acc) {
     struct sigaction action;
@@ -222,11 +204,17 @@ int init_db_accessory(db_accessory_t *db_acc) {
     sigaction(SIGTERM, &action, NULL);
     sigaction(SIGINT, &action, NULL);
 
-    if (check_for_present_aoa_dev(db_acc) < 1) {
-        int found_dev = discover_compatible_devices(db_acc);
+    int ret = libusb_init(NULL);
+    if (ret != 0) {
+        fprintf(stderr, "AOA_USB: ERROR - Could not init libusb: %d\n", ret);
+        return -1;
+    }
+
+    if (connect_to_device_in_accessory_mode(db_acc) < 1) {
+        // No device in accessory mode connected. Search
         while (!abort_aoa_init) {
             usleep(1000000);
-            found_dev = discover_compatible_devices(db_acc);
+            int found_dev = discover_compatible_devices(db_acc);
             if (found_dev) {
                 if (abort_aoa_init) return -1;
                 LOG_SYS_STD(LOG_INFO, "AOA_USB: \tSending manufacturer identification: %s\n", DB_AOA_MANUFACTURER);
@@ -300,6 +288,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
                 }
                 libusb_close(db_acc->handle);
 
+                usleep(100000);
                 // Connect to accessory
                 int tries = 10;
                 while (tries--) {
@@ -314,38 +303,6 @@ int init_db_accessory(db_accessory_t *db_acc) {
         }
     }
     return 1;
-}
-
-/**
- * Zero copy sending of usb message buffer. Get buffer using db_usb_get_direct_buffer() and fill it
- * @param db_acc DroneBridge android accessory
- * @return libusb return value - 0 or TIMEOUT on success or <0 on failure
- */
-int db_usb_send_zc(db_accessory_t *db_acc) {
-    if (usb_msg->pay_lenght < db_usb_max_packet_size) {
-        int num_trans;
-        return libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_OUT, raw_usb_msg_buff,
-                                    (usb_msg->pay_lenght + DB_AOA_HEADER_LENGTH), &num_trans, 1000);
-    } else
-        fprintf(stderr, "AOA_USB: ERROR - Supplied payload is too big for send buffer\n");
-    return -100;
-}
-
-/**
- * Receive data from android accessory
- * @param db_acc DroneBridge android accessory
- * @param buffer Receive buffer to be filled with data
- * @param buffer_size Size of supplied receive buffer
- * @param timeout Receive timeout
- * @return Number of received bytes on success or libusb error (< 0)
- */
-int db_usb_receive(db_accessory_t *db_acc, uint8_t buffer[], uint16_t buffer_size, int timeout) {
-    int num_trans;
-    int ret = libusb_bulk_transfer(db_acc->handle, AOA_ACCESSORY_EP_IN, buffer, buffer_size, &num_trans, timeout);
-    if (ret != 0)
-        return ret; //fprintf(stderr, "AOA_USB: ERROR - receiving data: %s\n", libusb_error_name(ret));
-    else
-        return num_trans;
 }
 
 
