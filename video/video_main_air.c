@@ -37,6 +37,7 @@
 #include "../common/db_raw_send_receive.h"
 #include "../common/shared_memory.h"
 #include "../common/ccolors.h"
+#include "../common/db_common.h"
 
 #define MAX_PACKET_LENGTH (DATA_UNI_LENGTH + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH)
 #define MAX_DATA_OR_FEC_PACKETS_PER_BLOCK 32
@@ -226,25 +227,25 @@ int main(int argc, char *argv[]) {
     int param_min_packet_length = 24;
 
     if (num_interfaces == 0) {
-        printf(RED "DB_VIDEO_GND: No interface specified. Aborting" RESET);
+        LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: No interface specified. Aborting\n");
         abort();
     }
 
     if (pack_size > DATA_UNI_LENGTH) {
-        fprintf(stderr, RED "DB_VIDEO_GND; Packet length is limited to %d bytes (you requested %d bytes)\n" RESET,
+        LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND; Packet length is limited to %d bytes (you requested %d bytes)\n" RESET,
                 DATA_UNI_LENGTH, pack_size);
         abort();
     }
 
     if (param_min_packet_length > pack_size) {
-        fprintf(stderr,
+        LOG_SYS_STD(LOG_ERR,
                 RED "DB_VIDEO_GND; Minimum packet length is higher than maximum packet length (%d > %d)\n" RESET,
                 param_min_packet_length, pack_size);
         abort();
     }
 
     if (num_data_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK || num_fec_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK) {
-        fprintf(stderr,
+        LOG_SYS_STD(LOG_ERR,
                 RED "DB_VIDEO_GND: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n" RESET,
                 MAX_DATA_OR_FEC_PACKETS_PER_BLOCK, num_data_block, num_fec_block);
         abort();
@@ -270,7 +271,7 @@ int main(int argc, char *argv[]) {
                                         frame_type);
         strncpy(db_uav_status->adapter[k].name, adapters[k], IFNAMSIZ);
     }
-    printf(GRN "DB_VIDEO_AIR: started!" RESET "\n");
+    LOG_SYS_STD(LOG_INFO, GRN "DB_VIDEO_AIR: started!" RESET "\n");
     while (keeprunning) {
         // get a packet buffer from list
         packet_buffer_t *pb = input.pb_list + input.curr_pb;
@@ -285,7 +286,7 @@ int main(int argc, char *argv[]) {
             abort();
         }
         if (inl == 0) { // EOF
-            fprintf(stderr, "\nWarning: Lost connection to stdin. Please make sure that a data source is connected");
+            LOG_SYS_STD(LOG_ERR, "\nWarning: Lost connection to stdin. Please make sure that a data source is connected");
             usleep((__useconds_t) 5e5);
             continue;
         }
@@ -301,11 +302,10 @@ int main(int argc, char *argv[]) {
                 // always transmit/FEC encode packets of length pack_size, even if payload (data_length) is less
                 transmit_block(input.pb_list, &(input.seq_nr),
                                pack_size); // input.pb_list is video_packet_data_t[num_fec + num_data]
-                if (db_uav_status->injected_block_cnt % 50) {
-                    printf("\ttried to inject %i packets, failed %i, injection time/packet %ius, FEC encoding time %ius         \r",
+                if (db_uav_status->injected_block_cnt % 500) {
+                    LOG_SYS_STD(LOG_INFO, "\ttried to inject %i packets, failed %i, injection time/packet %ius, FEC encoding time %ius         \r",
                            db_uav_status->injected_packet_cnt, db_uav_status->injection_fail_cnt,
                            db_uav_status->injection_time_packet, db_uav_status->encoding_time);
-                    fflush(stderr);
                 }
 
                 input.curr_pb = 0;
@@ -315,6 +315,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("ERROR: Broken socket!\n");
+    LOG_SYS_STD(LOG_INFO, "DB_VIDEO_AIR: Terminated!\n");
     return (0);
 }

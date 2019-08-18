@@ -21,10 +21,13 @@ import binascii
 import os
 # import RPi.GPIO as gp
 from subprocess import call
+from syslog import LOG_ERR
+
 import evdev
 
 from DBCommProt import DBCommProt
 from DroneBridge import DBDir
+from db_helpers import db_log
 
 tag = 'DB_COMM_MESSAGE: '
 PATH_DRONEBRIDGE_SETTINGS = "/DroneBridge/DroneBridgeConfig.ini"
@@ -84,7 +87,7 @@ def process_db_comm_protocol(loaded_json: json, comm_direction: DBDir) -> bytes:
         else:
             message = new_error_response_message('unsupported message type', DBCommProt.DB_ORIGIN_UAV.value,
                                                  loaded_json['id'])
-        print("DB_COMM_PROTO: Unknown message type")
+        db_log("DB_COMM_PROTO: Unknown message type", ident=LOG_ERR)
     return message
 
 
@@ -108,7 +111,7 @@ def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
         else:
             complete_response = read_dronebridge_settings(complete_response, False, None)
     elif loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
-        print("ERROR: WBC settings read unsupported!")
+        db_log("ERROR: WBC settings read unsupported!", ident=LOG_ERR)
         return new_error_response_message("WBC settings read unsupported", origin, loaded_json['id'])
     response = json.dumps(complete_response)
     crc32 = binascii.crc32(str.encode(response))
@@ -163,7 +166,7 @@ def change_settings_db(loaded_json: json) -> bool:
             file.flush()
             os.fsync(file.fileno())
     except Exception as ex:
-        print(f"Error writing DroneBridge settings: {ex}")
+        db_log(f"Error writing DroneBridge settings: {ex}", ident=LOG_ERR)
         return False
     return True
 
@@ -174,7 +177,7 @@ def change_settings(loaded_json: json, origin: int) -> bytes:
     if loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_DB.value:
         worked = change_settings_db(loaded_json)
     elif loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
-        print("Error: WBC settings change not supported")
+        db_log("Error: WBC settings change not supported", ident=LOG_ERR)
         worked = False
     if worked:
         return new_settingschangesuccess_message(origin, loaded_json['id'])
@@ -297,10 +300,10 @@ def normalize_jscal_axis(device="/dev/input/js0"):
             correction_coeff_max = int(536854528 / (maximum - center_value))
             calibration_string = calibration_string + ",1,0," + str(center_value) + "," + str(center_value) + "," \
                                  + str(correction_coeff_min) + "," + str(correction_coeff_max)
-        print("Calibrating:")
-        print(calibration_string)
+        db_log("Calibrating:")
+        db_log(calibration_string)
         call(["jscal", device, "-s", calibration_string])
-        print("Saving calibration")
+        db_log("Saving calibration")
         call(["jscal-store", device])
 
 
@@ -316,14 +319,14 @@ def parse_comm_message(raw_data_encoded: bytes) -> None or json:
     try:
         loaded_json = json.loads(extracted_info[0].decode())
         if not comm_crc_correct(extracted_info):  # Check CRC
-            print("Communication message: invalid CRC")
+            db_log("Communication message: invalid CRC", ident=LOG_ERR)
             return None
         return loaded_json
     except UnicodeDecodeError:
-        print("Invalid command: Could not decode json message")
+        db_log("Invalid command: Could not decode json message", ident=LOG_ERR)
         return None
     except ValueError:
-        print("ValueError on decoding json")
+        db_log("ValueError on decoding json", ident=LOG_ERR)
         return None
 
 

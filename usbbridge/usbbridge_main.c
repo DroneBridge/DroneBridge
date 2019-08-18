@@ -63,7 +63,7 @@ uint8_t db_usb_parser_port = 0;
 
 struct timeval timecheck;
 
-struct libusb_pollfd ** usb_fds;
+struct pollfd poll_fds[MAX_POLL_FDS];  // [[TCP fds with fixed length] + [USB fds of variable length]]
 bool device_connected = false;
 
 void intHandler(int dummy) {
@@ -167,23 +167,53 @@ long get_time() {
     return (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
 }
 
-// TODO: update count !
+/**
+ * Append new usb file descriptor to end of array
+ *
+ * @param fd File descriptor to add
+ * @param events poll event
+ * @param user_data poll_fd_count_t structure
+ */
 void usb_fd_added(int fd, short events, void *user_data){
-    LOG_SYS_STD(LOG_INFO, "DB_USB: Adding new file descriptor to poll\n");
-    int i = 0;
-    for(; usb_fds[i]; i++) {}
-    usb_fds[i]->fd = fd;
-    usb_fds[i]->events = events;
+    struct poll_fd_count_t *fd_cnt = ((struct poll_fd_count_t*) user_data);
+    if (fd_cnt->total_poll_fd_cnt < MAX_POLL_FDS) {
+        LOG_SYS_STD(LOG_INFO, "DB_USB: Adding new file descriptor to poll\n");
+        poll_fds[fd_cnt->total_poll_fd_cnt].fd = fd;
+        poll_fds[fd_cnt->total_poll_fd_cnt].events = events;
+        fd_cnt->usb_poll_fd_cnt++;
+        fd_cnt->total_poll_fd_cnt++;
+    } else
+        LOG_SYS_STD(LOG_ERR, "DB_USB: Cannot add new file descriptor to poll. Array is full!\n");
 }
 
-// TODO: update count !
+/**
+ * Remove file descriptor form poll array
+ *
+ * @param fd File descriptor to remove
+ * @param user_data poll_fd_count_t structure
+ */
 void usb_fd_removed(int fd, void *user_data) {
-    LOG_SYS_STD(LOG_INFO, "DB_USB: Removing file descriptor from poll\n");
-    for(int i = 0; usb_fds[i]; i++) {
-        if (usb_fds[i]->fd == fd) {
-            usb_fds[i] = NULL;
-            break;
+    struct poll_fd_count_t *fd_cnt = ((struct poll_fd_count_t*) user_data);
+    bool rearrange_from_here = false;
+    for(int i = 0; i < fd_cnt->total_poll_fd_cnt; i++) {
+        if (poll_fds[i].fd == fd) {
+            LOG_SYS_STD(LOG_INFO, "DB_USB: Removing file descriptor from poll\n");
+            poll_fds[i].fd = -1;
+            poll_fds[i].events = -1;
+            rearrange_from_here = true;
         }
+        if (rearrange_from_here) {
+            // re-arrange -> move all elements in array one down
+            if (i == (fd_cnt->total_poll_fd_cnt-1)) {
+                poll_fds[i].fd = -1;  // set last element to NULL
+                poll_fds[i].events = -1;
+            } else
+                poll_fds[i] = poll_fds[i+1];
+        }
+    }
+    if (rearrange_from_here) { // lower count if we removed something
+        fd_cnt->usb_poll_fd_cnt--;
+        fd_cnt->total_poll_fd_cnt--;
     }
 }
 
@@ -434,38 +464,37 @@ int main(int argc, char *argv[]) {
 
     ssize_t tcp_num_recv;
     tv_libusb_events.tv_sec = 0; tv_libusb_events.tv_usec = 0;
-    usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
-    libusb_set_pollfd_notifiers(NULL, usb_fd_added, usb_fd_removed, NULL);
+    struct libusb_pollfd ** usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
 
-    struct pollfd poll_fds[20];
+    poll_fd_count.total_poll_fd_cnt = 0;
+    poll_fd_count.usb_poll_fd_cnt = 0;
 
-    uint8_t count = 0;
-    int usb_fd_count;
-    for (usb_fd_count = 0; usb_fds[usb_fd_count]; usb_fd_count++) {
-        poll_fds[usb_fd_count].fd = usb_fds[usb_fd_count]->fd;
-        poll_fds[usb_fd_count].events = usb_fds[usb_fd_count]->events;
-        count++;
-    }
     if (video_module_activated) {
-        poll_fds[count].fd = video_unix_socket;
-        poll_fds[count].events = POLLIN;
-        count++;
+        poll_fds[poll_fd_count.total_poll_fd_cnt].fd = video_unix_socket;
+        poll_fds[poll_fd_count.total_poll_fd_cnt].events = POLLIN;
+        poll_fd_count.total_poll_fd_cnt++;
     }
     if (proxy_module_activated) {
-        poll_fds[count].fd = proxy_sock;
-        poll_fds[count].events = POLLIN;
-        count++;
+        poll_fds[poll_fd_count.total_poll_fd_cnt].fd = proxy_sock;
+        poll_fds[poll_fd_count.total_poll_fd_cnt].events = POLLIN;
+        poll_fd_count.total_poll_fd_cnt++;
     }
     if (status_module_activated) {
-        poll_fds[count].fd = status_sock;
-        poll_fds[count].events = POLLIN;
-        count++;
+        poll_fds[poll_fd_count.total_poll_fd_cnt].fd = status_sock;
+        poll_fds[poll_fd_count.total_poll_fd_cnt].events = POLLIN;
+        poll_fd_count.total_poll_fd_cnt++;
     }
     if (communication_module_activated) {
-        poll_fds[count].fd = communication_sock;
-        poll_fds[count].events = POLLIN;
-        count++;
+        poll_fds[poll_fd_count.total_poll_fd_cnt].fd = communication_sock;
+        poll_fds[poll_fd_count.total_poll_fd_cnt].events = POLLIN;
+        poll_fd_count.total_poll_fd_cnt++;
     }
+    for (poll_fd_count.usb_poll_fd_cnt = 0; usb_fds[poll_fd_count.usb_poll_fd_cnt]; poll_fd_count.usb_poll_fd_cnt++) {
+        poll_fds[poll_fd_count.total_poll_fd_cnt].fd = usb_fds[poll_fd_count.usb_poll_fd_cnt]->fd;
+        poll_fds[poll_fd_count.total_poll_fd_cnt].events = usb_fds[poll_fd_count.usb_poll_fd_cnt]->events;
+        poll_fd_count.total_poll_fd_cnt++;
+    }
+    libusb_set_pollfd_notifiers(NULL, usb_fd_added, usb_fd_removed, &poll_fd_count);
 
     LOG_SYS_STD(LOG_INFO, "DB_USB: Started\n");
     db_read_usb_async(&accessory);
@@ -494,65 +523,67 @@ int main(int argc, char *argv[]) {
             db_read_usb_async(&accessory);
         }
 
-        int ret = poll(poll_fds, count, MAX_WRITE_TIMEOUT);
-        if (ret == -1) {
-            perror ("DB_USB: poll");
-            keeprunning = false;
-            break;
-        } else if (ret == 0) {
-            send_timeout_wake(&accessory, usb_msg, &last_write);
-            continue;
-        } else {
-            // printf("Poll returned %i\n", poll_fds[0].revents);
-            // handle libusb events
-            int i = 0;
-            for (; i < usb_fd_count; i++) {
-                // (poll_fds[i].revents & POLLIN || poll_fds[i].revents & POLLOUT)
-                if (poll_fds[i].revents != 0) {
-                    libusb_handle_events_timeout_completed(NULL, &tv_libusb_events, NULL);
-                }
-            }
-            // check sockets for new data
-            for (; i < count; i++) {
-                if (poll_fds[i].revents & POLLIN) {
-                    if (video_module_activated && poll_fds[i].fd == video_unix_socket) {
-                        printf("Got some on video socket\n");
-                        tcp_num_recv = recv(video_unix_socket, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
-                        if (tcp_num_recv > 0) {
-                            db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_VIDEO);
-                            last_write = get_time();
-                        }
-                    } else if (proxy_module_activated && poll_fds[i].fd == proxy_sock) {
-                        printf("Got some on proxy socket\n");
-                        tcp_num_recv = recv(proxy_sock, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
-                        if (tcp_num_recv > 0) {
-                            db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_PROXY);
-                            last_write = get_time();
-                        }
-                    } else if (status_module_activated && poll_fds[i].fd == status_sock) {
-                        printf("Got some on status socket\n");
-                        tcp_num_recv = recv(status_sock, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
-                        if (tcp_num_recv > 0) {
-                            db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_STATUS);
-                            last_write = get_time();
-                        }
-                    } else if (communication_module_activated && poll_fds[i].fd == communication_sock) {
-                        tcp_num_recv = recv(communication_sock, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
-                        printf("Got some on comm socket\n");
-                        if (tcp_num_recv > 0) {
-                            db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_COMM);
-                            last_write = get_time();
+        int ret = poll(poll_fds, poll_fd_count.total_poll_fd_cnt, MAX_WRITE_TIMEOUT);
+        if (ret > 0) {
+            for (int i = 0; i < poll_fd_count.total_poll_fd_cnt; i++) {
+                if (i < (poll_fd_count.total_poll_fd_cnt - poll_fd_count.usb_poll_fd_cnt)) {
+                    // handle TCP events
+                    if (poll_fds[i].revents & POLLIN) {
+                        if (video_module_activated && poll_fds[i].fd == video_unix_socket) {
+                            printf("Got some on video socket\n");
+                            tcp_num_recv = recv(video_unix_socket, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
+                            if (tcp_num_recv > 0) {
+                                db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_VIDEO);
+                                last_write = get_time();
+                            }
+                        } else if (proxy_module_activated && poll_fds[i].fd == proxy_sock) {
+                            printf("Got some on proxy socket\n");
+                            tcp_num_recv = recv(proxy_sock, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
+                            if (tcp_num_recv > 0) {
+                                db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_PROXY);
+                                last_write = get_time();
+                            }
+                        } else if (status_module_activated && poll_fds[i].fd == status_sock) {
+                            printf("Got some on status socket\n");
+                            tcp_num_recv = recv(status_sock, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
+                            if (tcp_num_recv > 0) {
+                                db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_STATUS);
+                                last_write = get_time();
+                            }
+                        } else if (communication_module_activated && poll_fds[i].fd == communication_sock) {
+                            tcp_num_recv = recv(communication_sock, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
+                            printf("Got some on comm socket\n");
+                            if (tcp_num_recv > 0) {
+                                db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_COMM);
+                                last_write = get_time();
+                            }
+                        } else {
+                            LOG_SYS_STD(LOG_WARNING, "Got some on unknown socket %i\n", poll_fds->fd);
                         }
                     } else {
-                        printf("Got some on unknown socket %i\n", poll_fds->fd);
+                        LOG_SYS_STD(LOG_WARNING, "Strange event %i\n", poll_fds[i].revents);
                     }
                 } else {
-                    printf("Strange event %i\n", poll_fds[i].revents);
+                    // handle libusb events
+                    if (poll_fds[i].revents != 0) {
+                        libusb_handle_events_timeout_completed(NULL, &tv_libusb_events, NULL);
+                        if ((poll_fds[i].revents & POLLERR) == POLLERR || (poll_fds[i].revents & POLLHUP) == POLLHUP) {
+                            printf("%i\n", poll_fds[i].fd);
+                            usb_fd_removed(poll_fds[i].fd, &poll_fd_count);
+                        }
+                    }
                 }
             }
             if ((get_time() - last_write) >= MAX_WRITE_TIMEOUT) {
                 send_timeout_wake(&accessory, usb_msg, &last_write);
             }
+        } else if (ret == 0) {  // poll timeout
+            send_timeout_wake(&accessory, usb_msg, &last_write);
+            continue;
+        } else {  // poll error
+            perror ("DB_USB: poll error");
+            keeprunning = false;
+            break;
         }
     }
 

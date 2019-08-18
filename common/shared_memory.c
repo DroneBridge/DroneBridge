@@ -22,8 +22,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <zconf.h>
-#include <memory.h>
-#include <errno.h>
 #include "db_protocol.h"
 #include "shared_memory.h"
 
@@ -34,7 +32,7 @@ db_gnd_status_t *db_gnd_status_memory_open(void) {
         if(fd > 0) {
             break;
         }
-        printf("db_gnd_status_t: Waiting for ground station video to be started ... %s\n", strerror(errno));
+        perror("db_gnd_status_t: Waiting for ground station video to be started ... %s");
         usleep((__useconds_t) 1e5);
     }
 
@@ -58,7 +56,7 @@ db_rc_status_t *db_rc_status_memory_open(void) {
         if(fd > 0) {
             break;
         }
-        printf("db_rc_status_memory_open: Waiting for ground station video to be started ... %s\n", strerror(errno));
+        perror("db_rc_status_memory_open: Waiting for ground station video to be started ... %s");
         usleep((__useconds_t) 1e5);
     }
 
@@ -81,7 +79,7 @@ db_uav_status_t *db_uav_status_memory_open(void) {
     while(sharedmem == 0) {
         fd = shm_open("/db_uav_status_t", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd < 0) {
-            fprintf(stderr, "Could not open db_uav_status_memory_open - will try again ...\n");
+            perror("Could not open db_uav_status_memory_open - will try again ...");
         } else {
             sharedmem = 1;
         }
@@ -111,7 +109,7 @@ db_rc_values_t *db_rc_values_memory_open(void) {
         if(fd > 0) {
             break;
         }
-        printf("db_rc_values_memory_open: Waiting for init ... %s\n", strerror(errno));
+        perror("db_rc_values_memory_open: Waiting for init ... %s");
         usleep((__useconds_t) 1e5);
     }
 
@@ -143,7 +141,7 @@ db_rc_overwrite_values_t *db_rc_overwrite_values_memory_open(void) {
         if(fd > 0) {
             break;
         }
-        printf("db_rc_overwrite_values_memory_open: Waiting for init ... %s\n", strerror(errno));
+        perror("db_rc_overwrite_values_memory_open: Waiting for init ... %s");
         usleep((__useconds_t) 1e5);
     }
 

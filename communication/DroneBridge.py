@@ -23,6 +23,7 @@ from socket import socket, AF_PACKET, SOCK_RAW, htons, timeout
 from Cryptodome.Cipher import AES
 
 from bpf import attach_filter
+from db_helpers import db_log
 
 
 class DBPort(Enum):
@@ -83,7 +84,7 @@ class DroneBridge:
         :param mode: DroneBridge operating mode. Only 'm' for monitor supported for now
         :param communication_id: [0-255] to identify a communication link. Must be same on all communication partners
         :param dronebridge_port: DroneBridge port to listen for incoming packets
-        :param tag: Name printed in front of every log message
+        :param tag: Name db_loged in front of every log message
         :param db_blocking_socket: Should the opened sockets block on receiving
         :param frame_type: [1|2] for RTS|DATA. 80211 frame type used to send message. Data & RTS frames supported
         :param transmission_bitrate: Only supported by some Ralink cards. Set packet specific transmission rate
@@ -152,13 +153,13 @@ class DroneBridge:
             text, tag = cypher.encrypt_and_digest(data_bytes)
             data_bytes = cypher.nonce + tag + data_bytes
         if len(data_bytes) >= 1480:
-            print(f"{self.tag}: WARNING - Payload might be too big for a single transmission! {len(data_bytes)}>=1480")
-        payload_length_bytes = bytes(len(data_bytes).to_bytes(2, byteorder='little', signed=False))
+            db_log(f"{self.tag}: WARNING - Payload might be too big for a single transmission! {len(data_bytes)}>=1480")
         if self._seq_num == 255:
             self._seq_num = 0
         else:
             self._seq_num += 1
-        db_v2_raw_header = bytes(bytearray(self.fcf + direction + self.comm_id + port_bytes + payload_length_bytes +
+        db_v2_raw_header = bytes(bytearray(self.fcf + direction + self.comm_id + port_bytes +
+                                           bytes(len(data_bytes).to_bytes(2, byteorder='little', signed=False)) +
                                            bytes([self._seq_num])))
         if self.adhere_80211_header:
             raw_buffer = self.rth + db_v2_raw_header + DB_RAW_OFFSET_BYTES + data_bytes
@@ -189,10 +190,10 @@ class DroneBridge:
                         self.recv_seq_num = seq_num
                 return payload
             except timeout as t:
-                print(f"{self.tag}: Socket timed out. No response received from drone (monitor mode) -> {t}")
+                db_log(f"{self.tag}: Socket timed out. No response received from drone (monitor mode) -> {t}")
                 return False
             except Exception as e:
-                print(f"{self.tag}: Error receiving data form drone (monitor mode) -> {e}")
+                db_log(f"{self.tag}: Error receiving data form drone (monitor mode) -> {e}")
                 return False
 
     def set_transmission_bitrate(self, new_bitrate: int):
@@ -204,7 +205,7 @@ class DroneBridge:
         if new_bitrate in [1, 2, 6, 9, 12, 18, 24, 36, 48, 54]:
             self.rth = self.generate_radiotap_header(new_bitrate)
         else:
-            print(f"{self.tag}: Selected bitrate {new_bitrate} not supported [1, 2, 6, 9, 12, 18, 24, 36, 48, 54]")
+            db_log(f"{self.tag}: Selected bitrate {new_bitrate} not supported [1, 2, 6, 9, 12, 18, 24, 36, 48, 54]")
 
     def clear_socket_buffers(self):
         """Read all bytes available from the sockets and send the received data to nirvana"""
@@ -235,15 +236,15 @@ class DroneBridge:
         if self.use_encryption:
             nonce = packet[payload_start:(payload_start + DB_RAW_ENCRYPT_NONCE_LENGTH)]
             tag = packet[(payload_start + DB_RAW_ENCRYPT_NONCE_LENGTH):(
-                        payload_start + DB_RAW_ENCRYPT_NONCE_LENGTH + DB_RAW_ENCRYPT_MAC_LENGTH)]
+                    payload_start + DB_RAW_ENCRYPT_NONCE_LENGTH + DB_RAW_ENCRYPT_MAC_LENGTH)]
             cypher = AES.new(self.aes_key, AES.MODE_EAX, nonce)
             data_bytes = cypher.decrypt(packet[(payload_start + DB_RAW_ENCRYPT_HEADER_LENGTH):(
-                        payload_start + DB_RAW_ENCRYPT_HEADER_LENGTH + db_v2_payload_length)])
+                    payload_start + DB_RAW_ENCRYPT_HEADER_LENGTH + db_v2_payload_length)])
             try:
                 cypher.verify(tag)
                 return data_bytes, int(packet[packet[2] + 10])
             except ValueError:
-                print(f"{self.tag}: ERROR - Can not decrypt payload. Key incorrect or message corrupt")
+                db_log(f"{self.tag}: ERROR - Can not decrypt payload. Key incorrect or message corrupt")
             return b'', int(packet[packet[2] + 10])
         else:
             return packet[payload_start:(payload_start + db_v2_payload_length)], int(packet[packet[2] + 10])

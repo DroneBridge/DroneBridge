@@ -18,7 +18,6 @@
  */
 
 #include <stdio.h>
-#include <netdb.h>
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,11 +25,10 @@
 #include <sys/types.h>
 
 #include "tcp_server.h"
-#include "ccolors.h"
-
 
 /**
  * Open a TCP-Server master socket
+ *
  * @param port Port of the TCP Server
  * @return Socket file descriptor
  */
@@ -39,7 +37,7 @@ struct tcp_server_info create_tcp_server_socket(uint port) {
     struct sockaddr_in servaddr;
     socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket_fd == -1) {
-        printf(RED"TCP socket creation failed..."RESET"\n");
+        perror("TCP socket creation failed...");
         exit(0);
     }
     bzero(&servaddr, sizeof(servaddr));
@@ -55,17 +53,18 @@ struct tcp_server_info create_tcp_server_socket(uint port) {
 
     // Binding newly created socket to given IP and verification
     if ((bind(socket_fd, (struct sockaddr *) &servaddr, sizeof(servaddr))) != 0) {
-        printf(RED "TCP socket bind (port: %i) failed..."RESET"\n", port);
+        perror("TCP socket bind (port: %i) failed...");
     }
     // Allow max 5 pending connections
     if (listen(socket_fd, 5) == -1)
-        printf(RED"Error setting TCP socket to listen"RESET"\n");
+        perror("Error setting TCP socket to listen...");
     struct tcp_server_info returnval = {socket_fd, servaddr};
     return returnval;
 }
 
 /**
  * Send a message to all clients connected to the TCP server
+ *
  * @param list_client_sockets
  * @param message
  * @param message_length
@@ -75,7 +74,7 @@ void send_to_all_tcp_clients(const int list_client_sockets[], const uint8_t mess
     for (int i = 0; i < max_number_clients; i++) {
         if (list_client_sockets[i] > 0) {
             if (send(list_client_sockets[i], message, message_length, 0) != message_length) {
-                perror(RED"Sending message via TCP connection"RESET"\n");
+                perror("Sending message via TCP connection");
             }
         }
     }

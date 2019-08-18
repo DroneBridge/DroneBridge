@@ -24,7 +24,7 @@
 
 
 #define LOG_SYS_STD(ident, args...) do {\
-                                    printf(args);\
+                                    (ident == LOG_ERR || ident == LOG_NOTICE) ? fprintf(stderr, args) : printf(args);\
                                     syslog(ident, args);\
                                     } while(0)
 

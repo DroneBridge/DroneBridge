@@ -19,27 +19,18 @@ import argparse
 
 from select import select, error
 from socket import socket, AF_INET, SOCK_STREAM, SO_REUSEADDR, SOL_SOCKET
+from syslog import LOG_ERR, LOG_WARNING
 
 from CColors import CColors
 from DBCommProt import DBCommProt
 from DroneBridge import DBMode, DBPort, DBDir, DroneBridge
 from db_comm_messages import parse_comm_message, new_error_response_message, process_db_comm_protocol
-
+from db_helpers import str2bool, db_log
 
 keep_running = True
 
 
 def parse_arguments():
-    def str2bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ('yes', 'true', 't', 'y', '1'):
-            return True
-        elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-            return False
-        else:
-            raise argparse.ArgumentTypeError('Boolean value expected.')
-
     parser = argparse.ArgumentParser(description='Put this file on the ground station. The program handles settings '
                                                  'changes and routing to UAV')
     parser.add_argument('-n', action='append', dest='DB_INTERFACES',
@@ -94,8 +85,8 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
                     sendto_tcp_clients(message, _tcp_connections)
                     db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
                 else:
-                    print(f"{CColors.FAIL}Destination 2 (GND & UAV) is only supported for ping response messages "
-                          f"{CColors.ENDC}")
+                    db_log(f"{CColors.FAIL}Destination 2 (GND & UAV) is only supported for ping response messages "
+                          f"{CColors.ENDC}", ident=LOG_WARNING)
                     message = new_error_response_message('Destination 2 (GND & UAV) is unsupported for non ping msgs',
                                                          DBCommProt.DB_ORIGIN_GND.value, comm_json['id'])
                     sendto_tcp_clients(message, _tcp_connections)
@@ -106,16 +97,16 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
             elif comm_json['destination'] == DBCommProt.DB_DST_UAV.value:
                 db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
             else:
-                print("DB_COMM_GND: Unknown message type")
+                db_log("DB_COMM_GND: Unknown message type", ident=LOG_ERR)
                 error_resp = new_error_response_message('DB_COMM_GND: Unknown message type',
                                                         DBCommProt.DB_ORIGIN_GND.value, comm_json['id'])
                 sendto_tcp_clients(error_resp, _tcp_connections)
         else:
-            print("DB_COMM_GND: Corrupt message")
+            db_log("DB_COMM_GND: Corrupt message", ident=LOG_ERR)
             error_resp = new_error_response_message('DB_COMM_GND: Corrupt message', DBCommProt.DB_ORIGIN_GND.value, 0)
             sendto_tcp_clients(error_resp, _tcp_connections)
     except (UnicodeDecodeError, ValueError):
-        print("DB_COMM_GND: Command could not be processed correctly! (UnicodeDecodeError, ValueError)")
+        db_log("DB_COMM_GND: Command could not be processed correctly! (UnicodeDecodeError, ValueError)", ident=LOG_ERR)
 
 
 def sendto_tcp_clients(data_bytes: bytes, _tcp_connections: list):
@@ -125,10 +116,10 @@ def sendto_tcp_clients(data_bytes: bytes, _tcp_connections: list):
     :param data_bytes: Payload to send
     :param _tcp_connections: List of socket objects to use for sending
     """
-    print("Responding ...")
+    db_log("Responding ...")
     for connected_socket in _tcp_connections:
         if connected_socket.sendall(data_bytes) is not None:
-            print("\tShit!")
+            db_log("\tShit!", ident=LOG_ERR)
 
 
 if __name__ == "__main__":
@@ -138,7 +129,7 @@ if __name__ == "__main__":
     comm_id = bytes([parsedArgs.comm_id])
     comp_mode = parsedArgs.comp_mode
     frame_type = int(parsedArgs.frametype)
-    print("DB_COMM_GND: Communication ID: " + str(comm_id))
+    db_log("DB_COMM_GND: Communication ID: " + str(comm_id))
     db = DroneBridge(DBDir.DB_TO_GND, list_interfaces, DBMode.MONITOR, comm_id, DBPort.DB_PORT_COMMUNICATION,
                      tag="DB_COMM_GND", db_blocking_socket=False, frame_type=frame_type, compatibility_mode=comp_mode)
     # We use a stupid tcp implementation where all connected clients receive the data sent by the UAV. GCS must
@@ -149,7 +140,7 @@ if __name__ == "__main__":
     MONITOR_BUFFERSIZE = 2048
     db.clear_socket_buffers()
 
-    print(CColors.OKGREEN + "DB_COMM_GND: started!" + CColors.ENDC)
+    db_log(CColors.OKGREEN + "DB_COMM_GND: started!" + CColors.ENDC)
     while keep_running:
         read_sockets = [tcp_master]
         read_sockets.extend(db.list_lr_sockets)
@@ -161,13 +152,13 @@ if __name__ == "__main__":
                 if readable_sock is tcp_master:  # new connection
                     conn, addr = readable_sock.accept()
                     tcp_connections.append(conn)
-                    print(f"DB_COMM_GND: TCP client connected {addr}")
+                    db_log(f"DB_COMM_GND: TCP client connected {addr}")
                 elif readable_sock in tcp_connections:
                     received_data = readable_sock.recv(TCP_BUFFER_SIZE)
                     if len(received_data) == 0:
                         tcp_connections.remove(readable_sock)
                         readable_sock.close()
-                        print("DB_COMM_GND: Client disconnected")
+                        db_log("DB_COMM_GND: Client disconnected")
                     else:
                         process_comm_proto(received_data, tcp_connections)
                 elif readable_sock in db.list_lr_sockets:
@@ -177,15 +168,15 @@ if __name__ == "__main__":
                         process_comm_proto(received_data, tcp_connections)
                         prev_seq_num = seq_num
                 else:
-                    print("DB_COMM_GND: Unknown socket received something. That should not happen.")
+                    db_log("DB_COMM_GND: Unknown socket received something. That should not happen.")
             for error_tcp_sock in e:
-                print("DB_COMM_GND: A TCP socket encountered an error: " + error_tcp_sock.getpeername())
+                db_log("DB_COMM_GND: A TCP socket encountered an error: " + error_tcp_sock.getpeername(), ident=LOG_ERR)
                 tcp_connections.remove(error_tcp_sock)
                 error_tcp_sock.close()
         except error:
-            print("DB_COMM_GND: Select got an error. That should not happen.")
+            db_log("DB_COMM_GND: Select got an error. That should not happen.", ident=LOG_ERR)
     db.close_sockets()
     for connection in tcp_connections:
         connection.close()
     tcp_master.close()
-    print("DB_COMM_GND: Terminated")
+    db_log("DB_COMM_GND: Terminated")

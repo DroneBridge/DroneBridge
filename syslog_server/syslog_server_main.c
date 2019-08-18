@@ -1,7 +1,7 @@
 /*
  *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
  *
- *   Copyright 2017 Wolfgang Christl
+ *   Copyright 2019 Wolfgang Christl
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
  *
  */
 
-#ifndef STATUS_DB_GET_IP_H
-#define STATUS_DB_GET_IP_H
+#include <stdlib.h>
 
-#define IP_LENGTH 15
+#define TCP_STATUS_BUFF_SIZE 2048
+#define MAX_TCP_CLIENTS 10
 
-int init_shared_memory_ip();
-char * get_ip_from_ipchecker(int shmid);
 
-#endif //STATUS_DB_GET_IP_H
+int main(int argc, char *argv[]) {
+    exit(0);
+}

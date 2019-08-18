@@ -31,16 +31,17 @@
 #include "../common/db_protocol.h"
 #include "../common/ccolors.h"
 #include "rc_ground.h"
-#include "../common/db_raw_send_receive.h"
+#include "../common/db_common.h"
 
-static volatile int keepRunning = 1;
+static volatile int keep_running = 1;
 
 void opentx_Handler(int dummy) {
-    keepRunning = 0;
+    keep_running = 0;
 }
 
 /**
  * Look for the OpenTX controller on the given interface. Reinitialize if it was unplugged.
+ *
  * @param new_Joy_IF Number of the joystick interface
  * @param calibrate_comm The command to be executed to calibrate the OpenTX controller
  * @return The file descriptor
@@ -50,26 +51,27 @@ int initialize_opentx(int new_Joy_IF) {
     char interface_joystick[500];
     char path[] = "/dev/input/js";
     sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
-    printf("DB_CONTROL_GND: Waiting for OpenTX RC to be detected on: %s\n", interface_joystick);
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Waiting for OpenTX RC to be detected on: %s\n", interface_joystick);
     do {
         usleep(100000);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
-    } while (fd < 0 && keepRunning);
-    printf("DB_CONTROL_GND: Opened joystick interface!\n");
-    printf("DB_CONTROL_GND: Calibrating...\n");
+    } while (fd < 0 && keep_running);
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Opened joystick interface!\n");
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Calibrating...\n");
     char calibration_command[500];
     sprintf(calibration_command, "%s %s", "jscal-restore", interface_joystick);
     int returnval = system(calibration_command);
     if (returnval == 0) {
-        printf("DB_CONTROL_GND: Calibrated OpenTX RC\n");
+        LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Calibrated OpenTX RC\n");
     }else{
-        printf(RED "DB_CONTROL_GND: Could not calibrate OpenTX RC " RESET "\n");
+        LOG_SYS_STD(LOG_INFO, RED "DB_CONTROL_GND: Could not calibrate OpenTX RC " RESET "\n");
     }
     return fd;
 }
 
 /**
  * Transform the values read from the RC to values between 1000 and 2000
+ *
  * @param value The value read from the interface
  * @param adjustingValue A extra value that might add extra exponential behavior to the sticks etc.
  * @return 1000<=return_value<=2000
@@ -89,8 +91,8 @@ int opentx(int Joy_IF, char calibrate_comm[]) {
     int16_t opentx_channels[32] = {0};
 
     int fd = initialize_opentx(Joy_IF);
-    printf("DB_CONTROL_GND: DroneBridge OpenTX - starting!\n");
-    while (keepRunning) //send loop
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: DroneBridge OpenTX - starting!\n");
+    while (keep_running) //send loop
     {
         nanosleep(&tim, &tim2);
         while (read(fd, &e, sizeof(e)) > 0)   // go through all events occurred
@@ -106,10 +108,10 @@ int opentx(int Joy_IF, char calibrate_comm[]) {
         int myerror = errno;
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
-                printf(RED "DB_CONTROL_GND: Joystick was unplugged! Retrying... " RESET "\n");
+                LOG_SYS_STD(LOG_WARNING, RED "DB_CONTROL_GND: Joystick was unplugged! Retrying... " RESET "\n");
                 fd = initialize_opentx(Joy_IF);
             } else {
-                printf(RED "DB_CONTROL_GND: Error: %s" RESET " \n", strerror(myerror));
+                LOG_SYS_STD(LOG_ERR, RED "DB_CONTROL_GND: Error: %s" RESET " \n", strerror(myerror));
             }
         }
         // Channel map must be AETR1234!

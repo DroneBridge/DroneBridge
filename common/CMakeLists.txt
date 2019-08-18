@@ -12,8 +12,6 @@ else()
     set(LIB_SRCS
             db_common.h
             db_protocol.h
-            db_get_ip.c
-            db_get_ip.h
             db_raw_receive.c
             db_raw_receive.h db_raw_send_receive.c db_crc.h shared_memory.c shared_memory.h
             msp_serial.c msp_serial.h db_crc.c ccolors.h db_utils.c db_utils.h

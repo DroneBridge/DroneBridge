@@ -17,24 +17,16 @@
 
 import argparse
 import signal
+from syslog import LOG_ERR
 
 from DroneBridge import DroneBridge, DBDir, DBMode, DBPort
 from db_comm_messages import parse_comm_message, new_error_response_message, process_db_comm_protocol
+from db_helpers import db_log, str2bool
 
 keep_running = True
 
 
 def parse_arguments():
-    def str2bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ('yes', 'true', 't', 'y', '1'):
-            return True
-        elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-            return False
-        else:
-            raise argparse.ArgumentTypeError('Boolean value expected.')
-
     parser = argparse.ArgumentParser(description='Put this file on the UAV. It handles settings changes')
     parser.add_argument('-n', action='append', dest='DB_INTERFACES',
                         help='Network interfaces on which we send out packets to ground station. Should be interface '
@@ -66,7 +58,7 @@ if __name__ == "__main__":
     comm_id = bytes([parsedArgs.comm_id])
     comp_mode = parsedArgs.comp_mode
     frame_type = int(parsedArgs.frametype)
-    print("DB_COMM_AIR: Communication ID: " + str(comm_id))
+    db_log("DB_COMM_AIR: Communication ID: " + str(comm_id))
     db = DroneBridge(DBDir.DB_TO_GND, list_interfaces, DBMode.MONITOR, comm_id, DBPort.DB_PORT_COMMUNICATION,
                      tag="DB_COMM_AIR", db_blocking_socket=True, frame_type=frame_type, compatibility_mode=comp_mode)
     first_run = True
@@ -85,6 +77,7 @@ if __name__ == "__main__":
                     error_resp = new_error_response_message('DB_COMM_AIR: Corrupt message', DBDir.DB_TO_GND.value, 0000)
                     db.sendto_ground_station(error_resp, DBPort.DB_PORT_COMMUNICATION)
             except (UnicodeDecodeError, ValueError):
-                print("DB_COMM_AIR: Received message from ground station with error. Not an UTF error or ValueError")
+                db_log("DB_COMM_AIR: Received message from ground station with error. Not an UTF error or ValueError",
+                       ident=LOG_ERR)
     db.close_sockets()
-    print("DB_COMM_AIR: Terminated")
+    db_log("DB_COMM_AIR: Terminated")

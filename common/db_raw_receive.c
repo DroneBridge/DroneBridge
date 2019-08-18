@@ -28,14 +28,12 @@
 #include <linux/filter.h> // BPF
 #include <linux/if_packet.h> // sockaddr_ll
 #include <fcntl.h> // File control definitions
-#include <termios.h> // POSIX terminal control definitionss
 #include <netinet/ether.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "db_raw_receive.h"
 #include "db_protocol.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
@@ -184,49 +182,4 @@ uint16_t get_db_payload(uint8_t *receive_buffer, ssize_t receive_length, uint8_t
         memcpy(payload_buffer, &receive_buffer[*radiotap_length + DB_RAW_V2_HEADER_LENGTH + DB_RAW_OFFSET],
                payload_length);
     return payload_length;
-}
-
-/**
- * Create a socket, bind it to a network interface and set the BPF filter. All in one function
- * @param newifName The name of the interface we want the socket to bind to
- * @param new_mode The DroneBridge mode we are in (monitor or wifi (unsupported))
- * @param comm_id The communication ID to set BPF to
- * @param revc_direction packets with what kind of directions (DB_DIREC_DRONE or DB_DIREC_GROUND) are allowed to pass the
- *     filter.
- * @param new_port The port of the module using this function. See db_protocol.h (DB_PORT_CONTROLLER, DB_PORT_COMM, ...)
- * @return The socket file descriptor. Socket is bound and has a set BPF filter. Returns -1 if we screwed up.
- */
-int open_receive_socket(char newifName[IFNAMSIZ], char new_mode, uint8_t comm_id, uint8_t revc_direction,
-                        uint8_t new_port) {
-    int sockfd, sockopt;
-    //struct ifreq if_ip;	/* get ip addr */
-    struct ifreq ifopts;    /* set promiscuous mode */
-    //memset(&if_ip, 0, sizeof(struct ifreq));
-
-    if (new_mode == 'w') {
-        if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETHER_TYPE))) == -1) {
-            perror("DB_RECEIVE: Error in wifi socket setup\n");
-            return -1;
-        }
-        int flags = fcntl(sockfd, F_GETFL, 0);
-        fcntl(sockfd, F_SETFL, flags);
-        strncpy(ifopts.ifr_name, newifName, IFNAMSIZ - 1);
-        ioctl(sockfd, SIOCGIFFLAGS, &ifopts);
-        ifopts.ifr_flags |= IFF_PROMISC;
-        ioctl(sockfd, SIOCSIFFLAGS, &ifopts);
-        /* Allow the socket to be reused - incase connection is closed prematurely */
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt) == -1) {
-            perror("DB_RECEIVE: setsockopt");
-            close(sockfd);
-            exit(EXIT_FAILURE);
-        }
-    } else {
-        if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
-            perror("DB_RECEIVE: Error in monitor mode socket setup\n");
-            return -1;
-        }
-        sockfd = setBPF(sockfd, comm_id, revc_direction, new_port);
-    }
-    sockfd = bindsocket(sockfd, new_mode, newifName);
-    return sockfd;
 }

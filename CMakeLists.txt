@@ -7,6 +7,7 @@ add_subdirectory(proxy)
 add_subdirectory(telemetry)
 add_subdirectory(video)
 add_subdirectory(usbbridge)
+add_subdirectory(syslog_server)
 
 if (EXISTS "TCPTest/tcptest")
     add_subdirectory(TCPTest)

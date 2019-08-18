@@ -76,7 +76,7 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
         if (is_accessory_device(device, accessory)) {
             int ret = libusb_open(device, &accessory->handle);
             if (ret != 0 || accessory->handle == NULL) {
-                fprintf(stderr, "AOA_USB: ERROR - Unable to open connected device in android accessory mode: %s\n",
+                LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - Unable to open connected device in android accessory mode: %s\n",
                         libusb_error_name(ret));
                 libusb_free_device_list(device_list, 1);
                 return -1;
@@ -85,12 +85,12 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
                         accessory->pid);
 
 //            if ((ret = libusb_set_configuration(accessory->handle, 0)) != 0)
-//                fprintf(stderr, "--> Error setting device configuration %s\n", libusb_error_name(ret));
+//                LOG_SYS_STD(LOG_ERR, "--> Error setting device configuration %s\n", libusb_error_name(ret));
 
             struct libusb_config_descriptor *config_descriptor;
             ret = libusb_get_active_config_descriptor(device, &config_descriptor);
             if (ret != 0)
-                fprintf(stderr, "AOA_USB: ERROR - getting active config desc. %s\n", libusb_error_name(ret));
+                LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - getting active config desc. %s\n", libusb_error_name(ret));
             LOG_SYS_STD(LOG_INFO, "AOA_USB:\tGot %i interfaces\n", config_descriptor->bNumInterfaces);
             db_usb_max_packet_size =
                     config_descriptor->interface[0].altsetting->endpoint[0].wMaxPacketSize - DB_AOA_HEADER_LENGTH - 1;
@@ -98,7 +98,7 @@ int connect_to_device_in_accessory_mode(db_accessory_t *accessory) {
 
             ret = libusb_claim_interface(accessory->handle, 0);
             if (ret != 0)
-                fprintf(stderr, "AOA_USB: ERROR - claiming AOA interface: %s\n", libusb_error_name(ret));
+                LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - claiming AOA interface: %s\n", libusb_error_name(ret));
 
             libusb_free_config_descriptor(config_descriptor);
             libusb_free_device_list(device_list, 1);
@@ -130,7 +130,7 @@ int supports_aoa(libusb_device *usb_dev, db_accessory_t *db_acc) {
     ret = libusb_control_transfer(dev_handle, LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR, AOA_GET_PROTOCOL,
                                   0, 0, buffer, sizeof(buffer), 2000);
     if (ret == 0) {
-        fprintf(stderr, "AOA_USB: ERROR - Could not get protocol: %s\n", libusb_error_name(ret));
+        LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - Could not get protocol: %s\n", libusb_error_name(ret));
         libusb_close(db_acc->handle);
         return 0;
     } else {
@@ -179,7 +179,7 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
     if (found_device) {
         int ret = libusb_open(found_device, &db_acc->handle);
         if (ret != 0 || db_acc->handle == NULL) {
-            fprintf(stderr, "AOA_USB: ERROR - Unable to open detected device: %s\n", libusb_error_name(ret));
+            LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - Unable to open detected device: %s\n", libusb_error_name(ret));
             return -1;
         }
         return 1;
@@ -206,7 +206,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
 
     int ret = libusb_init(NULL);
     if (ret != 0) {
-        fprintf(stderr, "AOA_USB: ERROR - Could not init libusb: %d\n", ret);
+        LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - Could not init libusb: %d\n", ret);
         return -1;
     }
 
@@ -223,7 +223,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
                                             AOA_STRING_MAN_ID, (uint8_t *) DB_AOA_MANUFACTURER,
                                             strlen(DB_AOA_MANUFACTURER) + 1,
                                             0) < 0) {
-                    fprintf(stderr,
+                    LOG_SYS_STD(LOG_ERR,
                             "\x1B[31m" "--> Error sending manufacturer information to android device \x1B[0m \n");
                     continue;
                 }
@@ -234,7 +234,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
                                             AOA_STRING_MOD_ID, (uint8_t *) DB_AOA_MODEL_NAME,
                                             strlen(DB_AOA_MODEL_NAME) + 1,
                                             0) < 0) {
-                    fprintf(stderr,
+                    LOG_SYS_STD(LOG_ERR,
                             "\x1B[31m" "AOA_USB: ERROR - sending model information to android device \x1B[0m \n");
                     continue;
                 }
@@ -243,7 +243,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
                 if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR,
                                             AOA_SEND_IDENT, 0,
                                             AOA_STRING_DSC_ID, (uint8_t *) DB_AOA_DESC, strlen(DB_AOA_DESC) + 1, 0) < 0) {
-                    fprintf(stderr, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
+                    LOG_SYS_STD(LOG_ERR, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
                     continue;
                 }
                 usleep(10000);
@@ -252,7 +252,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
                                             AOA_SEND_IDENT, 0,
                                             AOA_STRING_VER_ID, (uint8_t *) DB_AOA_VERSION, strlen(DB_AOA_VERSION) + 1,
                                             0) < 0) {
-                    fprintf(stderr, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
+                    LOG_SYS_STD(LOG_ERR, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
                     continue;
                 }
                 usleep(10000);
@@ -260,7 +260,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
                 if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR,
                                             AOA_SEND_IDENT, 0,
                                             AOA_STRING_URL_ID, (uint8_t *) DB_AOA_URL, strlen(DB_AOA_URL) + 1, 0) < 0) {
-                    fprintf(stderr, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
+                    LOG_SYS_STD(LOG_ERR, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
                     continue;
                 }
                 usleep(10000);
@@ -268,7 +268,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
                 if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR,
                                             AOA_SEND_IDENT, 0,
                                             AOA_STRING_SER_ID, (uint8_t *) DB_AOA_SER, strlen(DB_AOA_SER) + 1, 0) < 0) {
-                    fprintf(stderr, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
+                    LOG_SYS_STD(LOG_ERR, "\x1B[31m" "--> Error sending URL information to android device \x1B[0m \n");
                     continue;
                 }
                 usleep(10000);
@@ -277,14 +277,14 @@ int init_db_accessory(db_accessory_t *db_acc) {
                 if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR,
                                             AOA_START_ACCESSORY,
                                             0, 0, NULL, 0, 0) < 0) {
-                    fprintf(stderr, "\x1B[31m" "--> Error enabling accessory mode on device" "\x1B[0m" "\n");
+                    LOG_SYS_STD(LOG_ERR, "\x1B[31m" "--> Error enabling accessory mode on device" "\x1B[0m" "\n");
                     continue;
                 }
                 usleep(10000);
                 if (db_acc->handle != NULL) {
                     int rett;
                     if ((rett = libusb_release_interface(db_acc->handle, 0)) < 0)
-                        fprintf(stderr, "AOA_USB: Error releasing interface %s\n", libusb_error_name(rett));
+                        LOG_SYS_STD(LOG_ERR, "AOA_USB: Error releasing interface %s\n", libusb_error_name(rett));
                 }
                 libusb_close(db_acc->handle);
 
@@ -326,9 +326,9 @@ void exit_close_aoa_device(db_accessory_t *db_acc) {
     if (db_acc->handle != NULL) {
         int ret;
         if ((ret = libusb_release_interface(db_acc->handle, 0)) != 0)
-            fprintf(stderr, "AOA_USB: ERROR - releasing interface: %s\n", libusb_error_name(ret));
+            LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - releasing interface: %s\n", libusb_error_name(ret));
         libusb_close(db_acc->handle);
-        printf("AOA_USB: Devices closed!\n");
+        LOG_SYS_STD(LOG_INFO, "AOA_USB: Devices closed!\n");
     }
     libusb_exit(NULL);
 }

@@ -34,14 +34,12 @@
 #include "../common/ccolors.h"
 #include "../common/radiotap/radiotap_iter.h"
 #include "../common/db_raw_send_receive.h"
+#include "../common/db_common.h"
 
 #define MAX_PACKET_LENGTH 4192
 #define MAX_USER_PACKET_LENGTH 1450
 #define MAX_DATA_OR_FEC_PACKETS_PER_BLOCK 32
-#define MAX_UNIX_CLIENTS 10
 #define DEBUG 0
-#define debug_print(fmt, ...) \
-            do { if (DEBUG) fprintf(stderr, fmt, __VA_ARGS__); } while (0)
 
 int num_interfaces = 0;
 int dest_port_video, unix_sock;
@@ -105,7 +103,7 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
         if (errno != EAGAIN && errno != EWOULDBLOCK)
             perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
         else
-            fprintf(stderr, RED "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n" RESET);
+            LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n" RESET);
     }
     if (udp_enabled) {
         if (sendto(udp_socket, data, message_length, 0, (struct sockaddr *) &client_video_addr,
@@ -115,7 +113,7 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
     if (fec_decoded) {
         // only output decoded fec packets to stdout so that video player can read data stream directly
         if (write(STDOUT_FILENO, data, message_length) < 0)
-            fprintf(stderr, RED "DB_VIDEO_GND: Error writing to stdout %s\n" RESET, strerror(errno));
+            LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND: Error writing to stdout %s\n" RESET, strerror(errno));
     }
 
     // TODO: setup a TCP server and send to connected clients
@@ -167,7 +165,7 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
     //if aram_data_packets_per_block+num_fec_block would be limited to powers of two, this could be replaced by a logical AND operation
     block_num = db_video_packet->video_packet_header.sequence_number / (num_data_block + num_fec_block);
 
-    //fprintf(stderr, "seq %i blk %i crc %d len %i\n", db_video_packet->video_packet_header.sequence_number, block_num, crc_correct, (int) data_len);
+    //LOG_SYS_STD(LOG_ERR, "seq %i blk %i crc %d len %i\n", db_video_packet->video_packet_header.sequence_number, block_num, crc_correct, (int) data_len);
 
     //we have received a block number that exceeds the currently seen ones -> we need to make room for this new block
     //or we have received a block_num that is several times smaller than the current window of buffers -> this indicated that either the window is too small or that the transmitter has been restarted
@@ -176,10 +174,10 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
     if ((block_num > max_block_num || tx_restart) && crc_correct) {
         if (tx_restart) {
             db_gnd_status->tx_restart_cnt++;
-            fprintf(stderr,
-                    "TX RESTART: Detected blk %x that lies outside of the current retr block buffer window (max_block_num = %x) (if there was no tx restart, increase window size via -d)\n",
+            LOG_SYS_STD(LOG_ERR,
+                    "TX RESTART: Detected blk %x that lies outside of the current retr block buffer window "
+                    "(max_block_num = %x) (if there was no tx restart, increase window size via -d)\n",
                     block_num, max_block_num);
-
             block_buffer_list_reset(block_buffer_list, param_block_buffers);
         }
         //first, find the minimum block num in the buffers list. this will be the block that we replace
@@ -297,7 +295,7 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
             if (reconstruction_failed) {
                 //we did not have enough FEC packets to repair this block
                 db_gnd_status->damaged_block_cnt++;
-                //fprintf(stderr, "Could not fully reconstruct block %x! Damage rate: %f (%d / %d blocks)\n", last_block_num, 1.0 * rx_status->damaged_block_cnt / rx_status->received_block_cnt, rx_status->damaged_block_cnt, rx_status->received_block_cnt);
+                //LOG_SYS_STD(LOG_ERR, "Could not fully reconstruct block %x! Damage rate: %f (%d / %d blocks)\n", last_block_num, 1.0 * rx_status->damaged_block_cnt / rx_status->received_block_cnt, rx_status->damaged_block_cnt, rx_status->received_block_cnt);
                 //debug_print("Data mis: %d\tData corr: %d\tFEC mis: %d\tFEC corr: %d\n", datas_missing_c, datas_corrupt_c, fecs_missing_c, fecs_corrupt_c);
             }
 
@@ -389,7 +387,7 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
         }
         if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *) lr_buffer, radiotap_length,
                                              NULL) != 0) {
-            fprintf(stderr, RED "DB_VIDEO_GND: Could not init radiotap header\n");
+            LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND: Could not init radiotap header\n");
             return;
         }
         while ((ieee80211_radiotap_iterator_next(&rti)) == 0) {
@@ -423,7 +421,7 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
         db_gnd_status->last_update = time(NULL);
         process_video_payload(payload_buffer, message_length, checksum_correct, block_buffer_list);
     } else {
-        fprintf(stderr, RED "DB_VIDEO_GND: Received an error: %s\n" RESET, strerror(err));
+        LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND: Received an error: %s\n" RESET, strerror(err));
     }
 }
 
@@ -467,8 +465,7 @@ void process_command_line_args(int argc, char *argv[]) {
                 strncpy(overwrite_ip, optarg, INET6_ADDRSTRLEN);
                 break;
             default:
-                fprintf(stderr,
-                        "Based of Wifibroadcast by befinitiv, based on packet spammer by Andy Green.  Licensed under GPL2\n"
+                printf("Based of Wifibroadcast by befinitiv, based on packet spammer by Andy Green.  Licensed under GPL2\n"
                         "This tool takes a data stream via the DroneBridge long range video port and outputs it via stdout, "
                         "UDP or TCP"
                         "\nIt uses the Reed-Solomon FEC code to repair lost or damaged packets."
@@ -489,6 +486,8 @@ void process_command_line_args(int argc, char *argv[]) {
     }
 }
 
+// Log to LOG_NOTICE since it is directed to stderr via LOG_SYS_STD.
+// Do not log to stdout! It is for video data only!
 int main(int argc, char *argv[]) {
     signal(SIGINT, int_handler);
     setpriority(PRIO_PROCESS, 0, -10);
@@ -498,12 +497,12 @@ int main(int argc, char *argv[]) {
 
     process_command_line_args(argc, argv);
     if (num_interfaces == 0) {
-        fprintf(stderr, RED "DB_VIDEO_GND: No interface specified. Aborting" RESET);
+        LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: No interface specified. Aborting\n");
         abort();
     }
 
     if (pack_size > MAX_USER_PACKET_LENGTH) {
-        fprintf(stderr, "Packet length is limited to %d bytes (you requested %d bytes)\n", MAX_USER_PACKET_LENGTH,
+        LOG_SYS_STD(LOG_ERR, "Packet length is limited to %d bytes (you requested %d bytes)\n", MAX_USER_PACKET_LENGTH,
                 pack_size);
         abort();
     }
@@ -511,7 +510,7 @@ int main(int argc, char *argv[]) {
     fec_init();
     init_outputs();
     if (fixed_ip && udp_enabled) {
-        fprintf(stderr, "DB_VIDEO_GND: Sending to %s\n", overwrite_ip);
+        LOG_SYS_STD(LOG_NOTICE, "DB_VIDEO_GND: Sending to %s\n", overwrite_ip);
         client_video_addr.sin_addr.s_addr = inet_addr(overwrite_ip);
     }
 
@@ -527,7 +526,7 @@ int main(int argc, char *argv[]) {
         db_socket_t db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO, DB_FRAMETYPE_DATA);
         interfaces[j].selectable_fd = db_sock.db_socket;
         strcpy(db_gnd_status->adapter[j].name, adapters[j]);
-        fprintf(stderr, "\t%s\n", db_gnd_status->adapter[j].name);
+        LOG_SYS_STD(LOG_NOTICE, "\t%s\n", db_gnd_status->adapter[j].name);
         db_gnd_status->adapter[j].received_packet_cnt = 0;
         db_gnd_status->adapter[j].wrong_crc_cnt = 0;
         db_gnd_status->adapter[j].current_signal_dbm = -100;
@@ -535,7 +534,7 @@ int main(int argc, char *argv[]) {
     // init UNIX domain master socket to which local clients can connect & get video data in an UDP like fashion
     unix_sock = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (unix_sock < 0) {
-        fprintf(stderr, "DB_VIDEO_GND: Failed opening UNIX domain socket");
+        LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Failed opening UNIX domain socket\n");
         exit(-1);
     }
     unix_sock = set_socket_nonblocking(unix_sock);
@@ -552,7 +551,7 @@ int main(int argc, char *argv[]) {
                                                                                MAX_PACKET_LENGTH);
     }
 
-    fprintf(stderr, GRN "DB_VIDEO_GND: started on %i interfaces" RESET "\n", num_interfaces);
+    LOG_SYS_STD(LOG_NOTICE, GRN "DB_VIDEO_GND: started on %i interfaces" RESET "\n", num_interfaces);
     fd_set readset;
     while (keeprunning) {
         FD_ZERO(&readset);

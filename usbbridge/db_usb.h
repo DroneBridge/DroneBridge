@@ -25,6 +25,12 @@
 #define DB_USB_PARSER_SEARCHING_HEADER  0   // wait for header to arrive at start of USB packet buffer
 #define DB_USB_PARSER_AWAITING_PAYLOAD  1   // wait for payload completion
 
+#define MAX_POLL_FDS                    20
 #define DB_USB_PORT_TIMEOUT_WAKE        255
+
+struct poll_fd_count_t {
+    int total_poll_fd_cnt;
+    int usb_poll_fd_cnt;
+} poll_fd_count;
 
 #endif //DRONEBRIDGE_DB_USB_H
