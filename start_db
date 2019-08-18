@@ -11,7 +11,7 @@
 
 declare -a DBModuleNames=("osd" "video_air" "video_gnd" "db_pi_player" "db_pi_player_30" "db_pi_player_48"
 "db_pi_player_240" "db_status" "db_proxy" "control_air" "control_ground" "db_communication_air.py"
-"db_communication_gnd.py" "init_wifi.py" "start_db_modules.py" "usbbridge")
+"db_communication_gnd.py" "init_wifi.py" "start_db_modules.py" "usbbridge" "db_syslog_server")
 
 RED='\033[0;31m'
 GRN='\033[1;32m'
@@ -62,6 +62,7 @@ function init_dronebridge() {
 
   CAM=$(/usr/bin/vcgencmd get_camera | nice grep -c detected=1)
 
+  /home/pi/DroneBridge/syslog_server/db_syslog_server &
   if [[ "$CAM" == "0" ]]; then
     echo "Welcome to DroneBridge v0.6 Beta (GND) - "
     python3.7 /home/pi/DroneBridge/startup/init_wifi.py -g

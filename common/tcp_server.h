@@ -19,11 +19,11 @@
 
 #ifndef DRONEBRIDGE_TCP_SERVER_H
 #define DRONEBRIDGE_TCP_SERVER_H
-struct tcp_server_info {
+struct tcp_server_info_t {
     int sock_fd;
     struct sockaddr_in servaddr;
 };
 
-struct tcp_server_info create_tcp_server_socket(uint port);
+struct tcp_server_info_t create_tcp_server_socket(uint port);
 void send_to_all_tcp_clients(const int list_client_sockets[], const uint8_t message[], int message_length);
 #endif //DRONEBRIDGE_TCP_SERVER_H

@@ -39,7 +39,7 @@
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_common.h"
 
-#define TCP_STATUS_BUFF_SIZE 2048
+#define NET_BUFF_SIZE 2048
 #define MAX_TCP_CLIENTS 10
 
 bool volatile keeprunning = true;
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
     uint16_t radiotap_length;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
     uint8_t message_buff[DATA_UNI_LENGTH - DB_RAW_V2_HEADER_LENGTH];
-    uint8_t tcp_message_buff[TCP_STATUS_BUFF_SIZE];
+    uint8_t tcp_message_buff[NET_BUFF_SIZE];
     int tcp_clients[MAX_TCP_CLIENTS] = {0};
 
     db_rc_msg_t db_rc_status_message;
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
     socket_timeout.tv_sec = 0;
     socket_timeout.tv_usec = 100000; // 10Hz
     // Setup TCP server for GCS communication
-    struct tcp_server_info status_tcp_server_info = create_tcp_server_socket(APP_PORT_STATUS);
+    struct tcp_server_info_t status_tcp_server_info = create_tcp_server_socket(APP_PORT_STATUS);
     int tcp_addrlen = sizeof(status_tcp_server_info.servaddr);
 
     LOG_SYS_STD(LOG_INFO, GRN "DB_STATUS_GND: started!" RESET "\n");
@@ -201,14 +201,16 @@ int main(int argc, char *argv[]) {
                                              (struct sockaddr *) &status_tcp_server_info.servaddr,
                                              (socklen_t *) &tcp_addrlen)) < 0) {
                     perror("DB_STATUS_GND: Accepting new tcp connection failed");
-                }
-                LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: New connection (%s:%d)\n", inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
-                       ntohs(status_tcp_server_info.servaddr.sin_port));
-                //add new socket to array of sockets
-                for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
-                    if (tcp_clients[i] == 0) {   // if position is empty
-                        tcp_clients[i] = new_tcp_client;
-                        break;
+                } else {
+                    LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: New connection (%s:%d)\n",
+                            inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
+                            ntohs(status_tcp_server_info.servaddr.sin_port));
+                    //add new socket to array of sockets
+                    for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
+                        if (tcp_clients[i] == 0) {   // if position is empty
+                            tcp_clients[i] = new_tcp_client;
+                            break;
+                        }
                     }
                 }
             }
@@ -216,7 +218,7 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
                 int current_client_sock = tcp_clients[i];
                 if (FD_ISSET(current_client_sock, &fd_socket_set)) {
-                    if (read(current_client_sock, tcp_message_buff, TCP_STATUS_BUFF_SIZE) == 0) {
+                    if (read(current_client_sock, tcp_message_buff, NET_BUFF_SIZE) == 0) {
                         //Somebody disconnected , get his details and print
                         getpeername(current_client_sock, (struct sockaddr *) &status_tcp_server_info.servaddr,
                                     (socklen_t *) &tcp_addrlen);

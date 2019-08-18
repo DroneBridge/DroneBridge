@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
     size_t recv_length = 0;
 
     // Setup TCP server for GCS communication
-    struct tcp_server_info tcp_server_info = create_tcp_server_socket(APP_PORT_PROXY);
+    struct tcp_server_info_t tcp_server_info = create_tcp_server_socket(APP_PORT_PROXY);
     int tcp_addrlen = sizeof(tcp_server_info.servaddr);
 
     // open log file for messages incoming from long range link

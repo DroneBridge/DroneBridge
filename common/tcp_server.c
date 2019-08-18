@@ -32,7 +32,7 @@
  * @param port Port of the TCP Server
  * @return Socket file descriptor
  */
-struct tcp_server_info create_tcp_server_socket(uint port) {
+struct tcp_server_info_t create_tcp_server_socket(uint port) {
     int socket_fd;
     struct sockaddr_in servaddr;
     socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -48,17 +48,17 @@ struct tcp_server_info create_tcp_server_socket(uint port) {
 
     int opt = 1;
     if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (char *) &opt, sizeof(opt)) < 0) {
-        perror("setsockopt");
+        perror("DB_TCP_SERVER: setsockopt");
     }
 
     // Binding newly created socket to given IP and verification
     if ((bind(socket_fd, (struct sockaddr *) &servaddr, sizeof(servaddr))) != 0) {
-        perror("TCP socket bind (port: %i) failed...");
+        perror("TCP socket bind failed...");
     }
     // Allow max 5 pending connections
     if (listen(socket_fd, 5) == -1)
-        perror("Error setting TCP socket to listen...");
-    struct tcp_server_info returnval = {socket_fd, servaddr};
+        perror("DB_TCP_SERVER: Error setting TCP socket to listen...");
+    struct tcp_server_info_t returnval = {socket_fd, servaddr};
     return returnval;
 }
 
@@ -74,7 +74,7 @@ void send_to_all_tcp_clients(const int list_client_sockets[], const uint8_t mess
     for (int i = 0; i < max_number_clients; i++) {
         if (list_client_sockets[i] > 0) {
             if (send(list_client_sockets[i], message, message_length, 0) != message_length) {
-                perror("Sending message via TCP connection");
+                perror("DB_TCP_SERVER: Sending message via TCP");
             }
         }
     }

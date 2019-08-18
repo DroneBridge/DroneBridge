@@ -203,7 +203,7 @@ void usb_fd_removed(int fd, void *user_data) {
             rearrange_from_here = true;
         }
         if (rearrange_from_here) {
-            // re-arrange -> move all elements in array one down
+            // re-arrange -> move all elements in array one up
             if (i == (fd_cnt->total_poll_fd_cnt-1)) {
                 poll_fds[i].fd = -1;  // set last element to NULL
                 poll_fds[i].events = -1;
@@ -568,7 +568,6 @@ int main(int argc, char *argv[]) {
                     if (poll_fds[i].revents != 0) {
                         libusb_handle_events_timeout_completed(NULL, &tv_libusb_events, NULL);
                         if ((poll_fds[i].revents & POLLERR) == POLLERR || (poll_fds[i].revents & POLLHUP) == POLLHUP) {
-                            printf("%i\n", poll_fds[i].fd);
                             usb_fd_removed(poll_fds[i].fd, &poll_fd_count);
                         }
                     }
