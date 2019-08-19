@@ -530,21 +530,18 @@ int main(int argc, char *argv[]) {
                     // handle TCP events
                     if (poll_fds[i].revents & POLLIN) {
                         if (video_module_activated && poll_fds[i].fd == video_unix_socket) {
-                            printf("Got some on video socket\n");
                             tcp_num_recv = recv(video_unix_socket, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
                             if (tcp_num_recv > 0) {
                                 db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_VIDEO);
                                 last_write = get_time();
                             }
                         } else if (proxy_module_activated && poll_fds[i].fd == proxy_sock) {
-                            printf("Got some on proxy socket\n");
                             tcp_num_recv = recv(proxy_sock, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
                             if (tcp_num_recv > 0) {
                                 db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_PROXY);
                                 last_write = get_time();
                             }
                         } else if (status_module_activated && poll_fds[i].fd == status_sock) {
-                            printf("Got some on status socket\n");
                             tcp_num_recv = recv(status_sock, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
                             if (tcp_num_recv > 0) {
                                 db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_STATUS);
@@ -552,7 +549,6 @@ int main(int argc, char *argv[]) {
                             }
                         } else if (communication_module_activated && poll_fds[i].fd == communication_sock) {
                             tcp_num_recv = recv(communication_sock, usb_msg->payload, DB_AOA_MAX_PAY_LENGTH, 0);
-                            printf("Got some on comm socket\n");
                             if (tcp_num_recv > 0) {
                                 db_usb_write_async_zc(&accessory, usb_msg, tcp_num_recv, DB_PORT_COMM);
                                 last_write = get_time();
@@ -560,8 +556,6 @@ int main(int argc, char *argv[]) {
                         } else {
                             LOG_SYS_STD(LOG_WARNING, "Got some on unknown socket %i\n", poll_fds->fd);
                         }
-                    } else {
-                        LOG_SYS_STD(LOG_WARNING, "Strange event %i\n", poll_fds[i].revents);
                     }
                 } else {
                     // handle libusb events

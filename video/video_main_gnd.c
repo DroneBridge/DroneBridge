@@ -56,6 +56,7 @@ struct sockaddr_un unix_socket_addr;
 long long prev_time = 0;
 long long now = 0;
 int bytes_written = 0;
+socklen_t server_length = sizeof(struct sockaddr_un);
 
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 char overwrite_ip[INET6_ADDRSTRLEN];
@@ -98,8 +99,7 @@ void init_outputs() {
  */
 void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
     // We assume the consumer is faster than the producer and that it will always be able to send
-    if(sendto(unix_sock, data, message_length, 0, (struct sockaddr *)&unix_socket_addr,
-            sizeof(struct sockaddr_un)) < 0) {
+    if(sendto(unix_sock, data, message_length, 0, (struct sockaddr *)&unix_socket_addr, server_length) < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK)
             perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
         else
@@ -115,9 +115,6 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
         if (write(STDOUT_FILENO, data, message_length) < 0)
             LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND: Error writing to stdout %s\n" RESET, strerror(errno));
     }
-
-    // TODO: setup a TCP server and send to connected clients
-
     now = current_timestamp();
     bytes_written += message_length;
     if (now - prev_time > 500) {
@@ -538,10 +535,9 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
     unix_sock = set_socket_nonblocking(unix_sock);
-    unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
     memset(&unix_socket_addr, 0x00, sizeof(unix_socket_addr));
     unix_socket_addr.sun_family = AF_UNIX;
-    strncpy(unix_socket_addr.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH, sizeof(unix_socket_addr.sun_path));
+    strcpy(unix_socket_addr.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH);
 
     //block buffers contain both the block_num as well as packet buffers for a block.
     block_buffer_list = malloc(sizeof(block_buffer_t) * param_block_buffers);
