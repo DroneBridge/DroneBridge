@@ -32,11 +32,11 @@
 #include <stdint.h>
 #include "../common/db_common.h"
 #include "../common/tcp_server.h"
+#include "../common/db_protocol.h"
 
 #define NET_BUFF_SIZE 2048
 #define MAX_TCP_CLIENTS 10
-#define PORT_TCP_SYSLOG_SERVER 1604
-#define PORT_UDP_SYSLOG_SERVER 1514
+#define PORT_UDP_SYSLOG_SERVER 514
 
 int keep_running = 1;
 
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
                 ssize_t recv_bytes = recvfrom(udp_socket, net_message_buff, NET_BUFF_SIZE, 0,
                                               (struct sockaddr *) &udp_client_addr, &plen);
                 if (recv_bytes > 0) {
-                    send_to_all_tcp_clients(tcp_clients, net_message_buff, NET_BUFF_SIZE);
+                    send_to_all_tcp_clients(tcp_clients, net_message_buff, recv_bytes);
                 } else
                     perror("DB_SYSLOG_SERVER: Error receiving");
             }
