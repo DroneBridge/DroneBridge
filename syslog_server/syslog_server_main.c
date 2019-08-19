@@ -36,7 +36,7 @@
 #define NET_BUFF_SIZE 2048
 #define MAX_TCP_CLIENTS 10
 #define PORT_TCP_SYSLOG_SERVER 1604
-#define PORT_UDP_SYSLOG_SERVER 514
+#define PORT_UDP_SYSLOG_SERVER 1514
 
 int keep_running = 1;
 
@@ -61,7 +61,7 @@ int open_udp_server() {
         perror("DB_SYSLOG_SERVER: Could not bind UDP socket to port. Need to be root for this");
         return -1;
     }
-    LOG_SYS_STD(LOG_INFO, "DB_SYSLOG_SERVER: Listening for log messages on UDP port %i", PORT_UDP_SYSLOG_SERVER);
+    LOG_SYS_STD(LOG_INFO, "DB_SYSLOG_SERVER: Listening for log messages on UDP port %i\n", PORT_UDP_SYSLOG_SERVER);
     return log_udp_socket;
 }
 
@@ -81,15 +81,16 @@ int main(int argc, char *argv[]) {
     int tcp_addrlen = sizeof(tcp_server_syslog.servaddr);
 
     struct sockaddr_in udp_client_addr;
+    socklen_t plen = sizeof(struct sockaddr_in);
     int udp_socket = open_udp_server();
     if (udp_socket < 0) {
         exit(-1);
     } else
-        LOG_SYS_STD(LOG_INFO, "DB_SYSLOG_SERVER: Listening for TCP clients to forward logs on port %i",
+        LOG_SYS_STD(LOG_INFO, "DB_SYSLOG_SERVER: Listening for TCP clients to forward logs on port %i\n",
                     PORT_TCP_SYSLOG_SERVER);
     int max_sd = 0;
 
-    LOG_SYS_STD(LOG_INFO, "DB_SYSLOG_SERVER: Started");
+    LOG_SYS_STD(LOG_INFO, "DB_SYSLOG_SERVER: Started\n");
     while (keep_running) {
         FD_ZERO(&fd_read_set);
         FD_SET(udp_socket, &fd_read_set);
@@ -109,11 +110,11 @@ int main(int argc, char *argv[]) {
             // handle incoming log messages & forward them to connected TCP clients
             if (FD_ISSET(udp_socket, &fd_read_set)) {
                 ssize_t recv_bytes = recvfrom(udp_socket, net_message_buff, NET_BUFF_SIZE, 0,
-                                              (struct sockaddr *) &udp_client_addr,
-                                              (socklen_t *) sizeof(udp_client_addr));
+                                              (struct sockaddr *) &udp_client_addr, &plen);
                 if (recv_bytes > 0) {
                     send_to_all_tcp_clients(tcp_clients, net_message_buff, NET_BUFF_SIZE);
-                }
+                } else
+                    perror("DB_SYSLOG_SERVER: Error receiving");
             }
             // handle incoming tcp connection requests on master TCP socket
             if (FD_ISSET(tcp_server_syslog.sock_fd, &fd_read_set)) {
@@ -153,8 +154,10 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
-        } else if (select_return == -1)
+        } else if (select_return == -1) {
+            keep_running = 0;
             perror("DB_SYSLOG_SERVER: select returned error");
+        }
     }
 
     for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
@@ -162,6 +165,6 @@ int main(int argc, char *argv[]) {
             close(tcp_clients[i]);
     }
     close(tcp_server_syslog.sock_fd);
-    LOG_SYS_STD(LOG_INFO, "DB_SYSLOG_SERVER: Terminated");
+    LOG_SYS_STD(LOG_INFO, "DB_SYSLOG_SERVER: Terminated\n");
     exit(0);
 }
