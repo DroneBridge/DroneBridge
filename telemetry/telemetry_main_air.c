@@ -32,7 +32,6 @@
 #include <termio.h>
 #include <fcntl.h>
 #include "../common/db_protocol.h"
-#include "../common/ccolors.h"
 #include "../common/db_utils.h"
 #include "../common/db_raw_send_receive.h"
 
@@ -75,8 +74,8 @@ void setup_serial_port(){
         serial_socket = open(if_name_serial, O_RDONLY | O_NOCTTY | O_SYNC);
         if (serial_socket == -1)
         {
-            printf(YEL "DB_TELEMETRY_AIR: Error - Unable to open UART for telemetry stream. Ensure it is not in use by "
-                   "another application and the FC is connected. Retrying ..."RESET"\n");
+            printf("DB_TELEMETRY_AIR: Error - Unable to open UART for telemetry stream. Ensure it is not in use by "
+                   "another application and the FC is connected. Retrying ...\n");
             sleep(1);
         }
     }
@@ -118,7 +117,7 @@ void read_bytes_from_serial(size_t num_bytes, uint8_t a_buffer[])
         }
         else
         {
-            perror(RED "DB_TELEMETRY_AIR: Reading from serial port (buffered read)"RESET"\n");
+            perror("DB_TELEMETRY_AIR: Reading from serial port (buffered read)\n");
         }
     }
     // printf("Read: %i bytes form serial port!\n", num_bytes_received);
@@ -167,7 +166,7 @@ int read_remaining_ltm_frame(int pos_ltm_frame_buffer) {
                 frame_size = LTM_SIZE_ATT+3;
                 break;
             default:
-                printf(RED "Unknown LTM frame!" RESET "\n");
+                printf("Unknown LTM frame!\n");
                 break;
         }
     }
@@ -202,7 +201,7 @@ int detect_telemetry_type() {
                 if (read(serial_socket, &serial_byte, 1) > 0) {
                     if (serial_byte == 'T'){
                         if (check_ltm_crc(read_remaining_ltm_frame(0))){
-                            printf(GRN"DB_TELEMETRY_AIR: Detected LTM telemetry stream"RESET"\n");
+                            printf("DB_TELEMETRY_AIR: Detected LTM telemetry stream\n");
                             return 0;
                         }
                     }
@@ -214,7 +213,7 @@ int detect_telemetry_type() {
             perror("DB_TELEMETRY_AIR: detection");
         }
     }
-    printf(GRN"DB_TELEMETRY_AIR: Detected MAVLink telemetry or unknown stream"RESET"\n");
+    printf("DB_TELEMETRY_AIR: Detected MAVLink telemetry or unknown stream\n");
     return 1;
 }
 
@@ -329,7 +328,7 @@ int main(int argc, char *argv[]) {
     } else if (strncmp(telem_type, "ltm", 3) == 0){
         fixed_telem_type = 0;
     }
-    printf(GRN "DB_TELEMETRY_AIR: started!" RESET "\n");
+    printf("DB_TELEMETRY_AIR: started!\n");
     while(keep_running)
     {
         if (fixed_telem_type == 0){

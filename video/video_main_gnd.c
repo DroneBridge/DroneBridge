@@ -31,7 +31,6 @@
 #include "video_lib.h"
 #include "../common/shared_memory.h"
 #include "../common/db_raw_receive.h"
-#include "../common/ccolors.h"
 #include "../common/radiotap/radiotap_iter.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_common.h"
@@ -103,17 +102,17 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
         if (errno != EAGAIN && errno != EWOULDBLOCK)
             perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
         else
-            LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n" RESET);
+            LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n");
     }
     if (udp_enabled) {
         if (sendto(udp_socket, data, message_length, 0, (struct sockaddr *) &client_video_addr,
                    sizeof(client_video_addr)) < message_length)
-            perror(RED "DB_VIDEO_GND: Not all data sent via UDP\n" RESET);
+            perror("DB_VIDEO_GND: Not all data sent via UDP\n");
     }
     if (fec_decoded) {
         // only output decoded fec packets to stdout so that video player can read data stream directly
         if (write(STDOUT_FILENO, data, message_length) < 0)
-            LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND: Error writing to stdout %s\n" RESET, strerror(errno));
+            LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error writing to stdout %s\n", strerror(errno));
     }
     now = current_timestamp();
     bytes_written += message_length;
@@ -384,7 +383,7 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
         }
         if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *) lr_buffer, radiotap_length,
                                              NULL) != 0) {
-            LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND: Could not init radiotap header\n");
+            LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Could not init radiotap header\n");
             return;
         }
         while ((ieee80211_radiotap_iterator_next(&rti)) == 0) {
@@ -418,7 +417,7 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
         db_gnd_status->last_update = time(NULL);
         process_video_payload(payload_buffer, message_length, checksum_correct, block_buffer_list);
     } else {
-        LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND: Received an error: %s\n" RESET, strerror(err));
+        LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Received an error: %s\n", strerror(err));
     }
 }
 
@@ -547,7 +546,7 @@ int main(int argc, char *argv[]) {
                                                                                MAX_PACKET_LENGTH);
     }
 
-    LOG_SYS_STD(LOG_NOTICE, GRN "DB_VIDEO_GND: started on %i interfaces" RESET "\n", num_interfaces);
+    LOG_SYS_STD(LOG_NOTICE, "DB_VIDEO_GND: started on %i interfaces\n", num_interfaces);
     fd_set readset;
     while (keeprunning) {
         FD_ZERO(&readset);

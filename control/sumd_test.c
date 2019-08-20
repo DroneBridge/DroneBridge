@@ -24,7 +24,6 @@
 #include <termio.h>
 #include <string.h>
 #include <errno.h>
-#include "../common/ccolors.h"
 #include "../common/db_crc.h"
 #include "../common/db_utils.h"
 
@@ -110,8 +109,8 @@ int main(int argc, char *argv[]) {
         socket_rc_serial = open("/dev/ttyUSB0", O_WRONLY | O_NOCTTY | O_SYNC);
         if (socket_rc_serial == -1)
         {
-            printf(RED "DB_CONTROL_AIR: Error - Unable to open UART for SUMD RC.  Ensure it is not in use by another "
-                   "application and the FC is connected. Retrying"RESET"\n");
+            printf("DB_CONTROL_AIR: Error - Unable to open UART for SUMD RC.  Ensure it is not in use by another "
+                   "application and the FC is connected. Retrying\n");
             sleep(1);
         }
     }

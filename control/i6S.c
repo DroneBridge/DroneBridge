@@ -27,7 +27,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include "rc_ground.h"
-#include "../common/ccolors.h"
 #include "i6S.h"
 #include "../common/db_common.h"
 
@@ -193,10 +192,10 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         int myerror = errno;
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
-                LOG_SYS_STD(LOG_WARNING, RED "DB_CONTROL_GND: Joystick was unplugged! Retrying... " RESET "\n");
+                LOG_SYS_STD(LOG_WARNING, "DB_CONTROL_GND: Joystick was unplugged! Retrying... \n");
                 fd = initialize_i6S(Joy_IF);
             } else {
-                LOG_SYS_STD(LOG_ERR, RED "DB_CONTROL_GND: Error: %s" RESET " \n", strerror(myerror));
+                LOG_SYS_STD(LOG_ERR, "DB_CONTROL_GND: Error: %s\n", strerror(myerror));
             }
         }
         // SWR - Arm switch

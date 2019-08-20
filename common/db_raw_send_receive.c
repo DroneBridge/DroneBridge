@@ -32,7 +32,7 @@
 #include "db_protocol.h"
 #include "db_raw_send_receive.h"
 #include "db_raw_receive.h"
-#include "ccolors.h"
+#include "db_common.h"
 
 uint8_t radiotap_header_pre[] = {
         0x00, 0x00, // <-- radiotap version
@@ -140,7 +140,7 @@ int conf_monitor(int sockfd, uint8_t comm_id, int bitrate_option, uint8_t send_d
             memcpy(db_raw_header->fcf_duration, frame_control_pre_rts, 4);
             break;
         case DB_FRAMETYPE_BEACON:
-            fprintf(stderr, RED "Warning! Receiving of beacon frames with DB sockets not supported. Test only!" RESET);
+            fprintf(stderr, "Warning! Receiving of beacon frames with DB sockets not supported. Test only!");
             memcpy(db_raw_header->fcf_duration, frame_control_pre_beacon, 4);
             break;
         case DB_FRAMETYPE_DATA:
@@ -151,7 +151,7 @@ int conf_monitor(int sockfd, uint8_t comm_id, int bitrate_option, uint8_t send_d
     db_raw_header->direction = send_direction;
     db_raw_header->comm_id = comm_id;
     if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, interfaceName, IFNAMSIZ) < 0) {
-        fprintf(stderr, RED "DB_SEND: Error binding monitor socket to interface. Closing socket. Please restart." RESET "\n");
+        fprintf(stderr, "DB_SEND: Error binding monitor socket to interface. Closing socket. Please restart.\n");
         close(sockfd);
         return -1;
     }
@@ -191,7 +191,7 @@ db_socket_t open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int b
 
     } else {
         if ((socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
-            perror(RED "DB_SEND: socket" RESET); new_socket.db_socket = -1;
+            perror("DB_SEND: socket"); new_socket.db_socket = -1;
             return new_socket;
         }else{
             printf("DB_SEND: Opened raw socket for monitor mode\n");
@@ -202,7 +202,7 @@ db_socket_t open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int b
     memset(&raw_if_idx, 0, sizeof(struct ifreq));
     strncpy(raw_if_idx.ifr_name, ifName, IFNAMSIZ - 1);
     if (ioctl(socket_fd, SIOCGIFINDEX, &raw_if_idx) < 0) {
-        perror(RED "DB_SEND: SIOCGIFINDEX" RESET); new_socket.db_socket = -1;
+        perror("DB_SEND: SIOCGIFINDEX"); new_socket.db_socket = -1;
         printf("%s", raw_if_idx.ifr_name);
         return new_socket;
     }
@@ -210,12 +210,12 @@ db_socket_t open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int b
     memset(&raw_if_mac, 0, sizeof(struct ifreq));
     strncpy(raw_if_mac.ifr_name, ifName, IFNAMSIZ - 1);
     if (ioctl(socket_fd, SIOCGIFHWADDR, &raw_if_mac) < 0) {
-        perror(RED "DB_SEND: SIOCGIFHWADDR" RESET); new_socket.db_socket = -1;
+        perror("DB_SEND: SIOCGIFHWADDR"); new_socket.db_socket = -1;
         return new_socket;
     }
     socket_fd = bindsocket(socket_fd, trans_mode, ifName);
     if (trans_mode == 'w') {
-        printf(RED "DB_SEND: Wifi mode is not yet supported!" RESET "\n");
+        printf("DB_SEND: Wifi mode is not yet supported!\n");
         new_socket.db_socket = -1;
         return new_socket;
         //return conf_ethernet(dest_mac);
@@ -278,7 +278,7 @@ int send_packet_div(db_socket_t *a_db_socket, uint8_t payload[], uint8_t dest_po
     if (sendto(a_db_socket->db_socket, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
                                                                    payload_length + db_raw_offset), 0,
                (struct sockaddr *) &a_db_socket->db_socket_addr, sizeof(struct sockaddr_ll)) < 0) {
-        printf(RED "DB_SEND: Send failed (monitor): %s" RESET "\n", strerror(errno));
+        printf("DB_SEND: Send failed (monitor): %s\n", strerror(errno));
         return -1;
     }
     return 0;
@@ -310,7 +310,7 @@ int send_packet_hp_div(db_socket_t *a_db_socket, uint8_t dest_port, u_int16_t pa
     if (sendto(a_db_socket->db_socket, monitor_framebuffer,
                (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + payload_length + db_raw_offset), 0,
                (struct sockaddr *) &a_db_socket->db_socket_addr, sizeof(struct sockaddr_ll)) < 0) {
-        printf(RED "DB_SEND: Send failed (monitor): %s" RESET "\n", strerror(errno));
+        LOG_SYS_STD(LOG_ERR, "DB_SEND: Send failed (monitor): %s\n", strerror(errno));
         return -1;
     }
     return 0;

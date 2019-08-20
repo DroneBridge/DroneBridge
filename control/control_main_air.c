@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
 #include <net/if.h>
@@ -28,25 +27,24 @@
 #include <termios.h>    // POSIX terminal control definitionss
 #include <fcntl.h>      // File control definitions
 #include <errno.h>      // Error number definitions
-#include "../common/db_protocol.h"
 #include <sys/time.h>
+#include "../common/db_protocol.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_raw_receive.h"
 #include "rc_air.h"
 #include "../common/mavlink/c_library_v2/common/mavlink.h"
 #include "../common/msp_serial.h"
-#include "../common/ccolors.h"
 #include "../common/db_utils.h"
 #include "../common/radiotap/radiotap_iter.h"
 #include "../common/db_common.h"
 
 
 #define ETHER_TYPE        0x88ab
-#define DEFAULT_IF      "wlx000ee8dcaa2c"
 #define UART_IF          "/dev/serial1"
-#define BUF_SIZ                        512 // should be enough?!
+#define BUF_SIZ                      512    // should be enough?!
 #define COMMAND_BUF_SIZE            1024
-#define RETRANSMISSION_RATE 2  // send every MAVLink transparent packet twice for better reliability
+#define RETRANSMISSION_RATE            2    // send every MAVLink transparent packet twice for better reliability
+#define STATUS_UPDATE_TIME    200    // send rc status to status module on groundstation every 200ms
 
 static volatile int keepRunning = 1;
 uint8_t buf[BUF_SIZ];
@@ -81,6 +79,7 @@ speed_t interpret_baud(int user_baud) {
 
 /**
  * Buffer 5 MAVLink telemetry messages before sending packet to ground station
+ *
  * @param length_message Length of new MAVLink message
  * @param mav_message The pointer to a new MAVLink message
  * @param proxy_seq_number
@@ -106,6 +105,7 @@ void send_buffered_mavlink(int length_message, mavlink_message_t *mav_message, u
 
 /**
  * Gets CPU usage on Linux systems. Needs to be called periodically. No one time calls!
+ *
  * @return CPU load in %
  */
 uint8_t get_cpu_usage() {
@@ -123,6 +123,7 @@ uint8_t get_cpu_usage() {
 
 /**
  * Reads the CPU temperature from a Linux system
+ *
  * @return CPU temperature in °C
  */
 uint8_t get_cpu_temp() {
@@ -149,6 +150,111 @@ int8_t get_rssi(uint8_t *payload_buffer, int radiotap_length) {
         }
     }
     return 0;
+}
+
+/**
+ * Send status update to status module
+ *
+ * @param status_seq_number
+ * @param raw_interfaces_telem
+ * @param rssi
+ * @param start
+ * @param start_rc
+ * @param rc_packets_tmp
+ * @param rc_packets_cnt
+ * @param rc_status_update_data
+ * @return
+ */
+uint8_t send_status_update(uint8_t *status_seq_number, db_socket_t *raw_interfaces_telem, int8_t rssi, long *start,
+                           long *start_rc, uint8_t rc_packets_tmp, uint8_t rc_packets_cnt,
+                           struct uav_rc_status_update_message_t *rc_status_update_data, long *rightnow) {
+    struct timeval time_check;
+    if (*rightnow - *start_rc >= 1000) {
+        rc_packets_tmp = rc_packets_cnt; // save received packets/seconds to temp variable
+        rc_packets_cnt = 0;
+        *start_rc = (long) time_check.tv_sec * 1000 + (long) time_check.tv_usec / 1000;
+    }
+    if ((*rightnow - *start) >= STATUS_UPDATE_TIME) {
+        memset(rc_status_update_data, 0xff, 6);
+        rc_status_update_data->rssi_rc_uav = rssi;
+        // lost packets/second (it is a estimate)
+        rc_status_update_data->recv_pack_sec = rc_packets_tmp;
+        rc_status_update_data->cpu_usage_uav = get_cpu_usage();
+        rc_status_update_data->cpu_temp_uav = get_cpu_temp();
+        rc_status_update_data->uav_is_low_V = get_undervolt();
+        for (int i = 0; i < num_inf; i++) {
+            send_packet_hp_div(&raw_interfaces_telem[i], DB_PORT_STATUS,
+                               (u_int16_t) 6, update_seq_num(status_seq_number));
+        }
+
+        gettimeofday(&time_check, NULL);
+        *start = (long) time_check.tv_sec * 1000 + (long) time_check.tv_usec / 1000;
+    }
+    return rc_packets_cnt;
+}
+
+/**
+ * Open serial port for SUMD interface. Blocking call.
+ *
+ * @param sumd_interface Name of interface
+ * @param socket_rc_serial
+ * @return Socket to serial interface
+ */
+int open_serial_sumd(const char *sumd_interface) {
+    int serial_socket;
+    do {
+        serial_socket = open(sumd_interface, O_WRONLY | O_NOCTTY | O_SYNC);
+        if (serial_socket == -1) {
+            LOG_SYS_STD(LOG_WARNING, "DB_CONTROL_AIR: Error - Unable to open UART for SUMD RC.  Ensure it is not "
+                                     "in use by another application and the FC is connected. Retrying ... \n");
+            sleep(1);
+        }
+    } while (serial_socket == -1);
+
+    struct termios options_rc;
+    tcgetattr(serial_socket, &options_rc);
+    cfsetospeed(&options_rc, B115200);
+    options_rc.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+    options_rc.c_oflag &= ~(OCRNL | ONLCR | ONLRET | ONOCR | OFILL | OPOST);
+    options_rc.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+    options_rc.c_cflag &= ~(CSIZE | PARENB);
+    options_rc.c_cflag |= CS8;
+    tcflush(serial_socket, TCIFLUSH);
+    tcsetattr(serial_socket, TCSANOW, &options_rc);
+    return serial_socket;
+}
+
+/**
+ * Open serial port to receive telemetry. Non-blocking call
+ *
+ * @param baud_rate Baud rate of serial interface
+ * @param telem_inf Name of serial interface connected with telemetry output
+ * @return Socket to serial interface on success (>0) or -1 on failure
+ */
+int open_serial_telem(int baud_rate, const char *telem_inf) {
+    int socket_control_serial;
+    socket_control_serial = open(telem_inf, O_RDWR | O_NOCTTY | O_SYNC);
+    if (socket_control_serial == -1) {
+        LOG_SYS_STD(LOG_WARNING, "DB_CONTROL_AIR: Error - Unable to open UART for MSP/MAVLink.  Ensure it is not "
+                                 "in use by another application and the FC is connected\n");
+    } else {
+        // configure serial socket
+        struct termios options;
+        tcgetattr(socket_control_serial, &options);
+        options.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+        options.c_oflag &= ~(OCRNL | ONLCR | ONLRET | ONOCR | OFILL | OPOST);
+        options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+        options.c_cflag &= ~(CSIZE | PARENB);
+        options.c_cflag |= CS8;
+        cfsetispeed(&options, interpret_baud(baud_rate));
+        cfsetospeed(&options, interpret_baud(baud_rate));
+
+        options.c_cc[VMIN] = 1;            // wait for min. 1 byte (select trigger)
+        options.c_cc[VTIME] = 0;           // timeout 0 second
+        tcflush(socket_control_serial, TCIFLUSH);
+        tcsetattr(socket_control_serial, TCSANOW, &options);
+    }
+    return socket_control_serial;
 }
 
 int main(int argc, char *argv[]) {
@@ -258,69 +364,24 @@ int main(int argc, char *argv[]) {
 // Setting up UART interface for MSP/MAVLink stream
 // -------------------------------
     uint8_t transparent_buffer[chucksize];
-    int socket_control_serial = -1;
-    do {
-        socket_control_serial = open(telem_inf, O_RDWR | O_NOCTTY | O_SYNC);
-        if (socket_control_serial == -1) {
-            LOG_SYS_STD(LOG_WARNING, YEL"DB_CONTROL_AIR: Error - Unable to open UART for MSP/MAVLink.  Ensure it is not in use by another "
-                   "application and the FC is connected\n");
-            LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: retrying ..."RESET"\n");
-            sleep(1);
-        }
-    } while (socket_control_serial == -1);
-
-    struct termios options;
-    tcgetattr(socket_control_serial, &options);
-    options.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
-    options.c_oflag &= ~(OCRNL | ONLCR | ONLRET | ONOCR | OFILL | OPOST);
-    options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
-    options.c_cflag &= ~(CSIZE | PARENB);
-    options.c_cflag |= CS8;
-    cfsetispeed(&options, interpret_baud(baud_rate));
-    cfsetospeed(&options, interpret_baud(baud_rate));
-
-    options.c_cc[VMIN] = 1;            // wait for min. 1 byte (select trigger)
-    options.c_cc[VTIME] = 0;           // timeout 0 second
-    tcflush(socket_control_serial, TCIFLUSH);
-    tcsetattr(socket_control_serial, TCSANOW, &options);
+    int socket_control_serial = open_serial_telem(baud_rate, telem_inf);
     int rc_serial_socket = socket_control_serial;
 
 // -------------------------------
 // Setting up UART interface for RC commands over SUMD
 // -------------------------------
-    int socket_rc_serial = -1;
     if (use_sumd == 'Y') {
-        do {
-            socket_rc_serial = open(sumd_interface, O_WRONLY | O_NOCTTY | O_SYNC);
-            if (socket_rc_serial == -1) {
-                LOG_SYS_STD(LOG_WARNING, RED "DB_CONTROL_AIR: Error - Unable to open UART for SUMD RC.  Ensure it is not "
-                                          "in use by another application and the FC is connected. Retrying ... "RESET"\n");
-                sleep(1);
-            }
-        } while (socket_rc_serial == -1);
-
-        struct termios options_rc;
-        tcgetattr(socket_rc_serial, &options_rc);
-        cfsetospeed(&options_rc, B115200);
-        options_rc.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
-        options_rc.c_oflag &= ~(OCRNL | ONLCR | ONLRET | ONOCR | OFILL | OPOST);
-        options_rc.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
-        options_rc.c_cflag &= ~(CSIZE | PARENB);
-        options_rc.c_cflag |= CS8;
-        tcflush(socket_rc_serial, TCIFLUSH);
-        tcsetattr(socket_rc_serial, TCSANOW, &options_rc);
-        rc_serial_socket = socket_rc_serial;
+        rc_serial_socket = open_serial_sumd(sumd_interface);  // overwrite serial socket used for RC
     }
 
 // ----------------------------------
 // Loop
 // ----------------------------------
     int sentbytes = 0, command_length = 0, errsv, select_return, continue_reading, chunck_left = chucksize,
-    serial_read_bytes = 0, max_sd = 0;
+            serial_read_bytes = 0, max_sd = 0;
     int8_t rssi = 0, last_recv_rc_seq_num = 0, last_recv_cont_seq_num = 0;
     long start; // start time for status report update
     long start_rc; // start time for measuring the recv RC packets/second
-    long rightnow, status_report_update_rate = 200; // send rc status to status module on groundstation every 200ms
 
     uint8_t rc_packets_tmp = 0, rc_packets_cnt = 0, seq_num_rc = 0, seq_num_cont = 0;
     mavlink_message_t mavlink_message;
@@ -329,9 +390,9 @@ int main(int argc, char *argv[]) {
 
     fd_set fd_socket_set;
     struct timeval socket_timeout;
+    // wait max STATUS_UPDATE_TIME for message on socket
     socket_timeout.tv_sec = 0;
-    socket_timeout.tv_usec =
-            status_report_update_rate * 1000; // wait max status_report_update_rate for message on socket
+    socket_timeout.tv_usec = STATUS_UPDATE_TIME * 1000;
 
     ssize_t length;
     signal(SIGINT, intHandler);
@@ -343,15 +404,17 @@ int main(int argc, char *argv[]) {
     struct uav_rc_status_update_message_t *rc_status_update_data = (struct uav_rc_status_update_message_t *) raw_buffer;
     memset(raw_buffer->bytes, 0, DATA_UNI_LENGTH);
 
-    LOG_SYS_STD(LOG_INFO, GRN "DB_CONTROL_AIR: Ready for data! Enabled diversity on %i adapters"RESET"\n", num_inf);
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: Ready for data! Enabled diversity on %i adapters\n", num_inf);
     gettimeofday(&timecheck, NULL);
-    start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
+    start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000; // [ms]
+    long last_serial_telem_reconnect_try = start; // [ms]
     start_rc = start;
-    uint16_t radtap_lenght;
+    uint16_t radiotap_lenght;
     while (keepRunning) {
         socket_timeout.tv_sec = 0;
-        socket_timeout.tv_usec = status_report_update_rate * 1000;
+        socket_timeout.tv_usec = STATUS_UPDATE_TIME * 1000;
         FD_ZERO (&fd_socket_set);
+
         // add raw DroneBridge sockets
         for (int i = 0; i < num_inf; i++) {
             FD_SET (raw_interfaces_rc[i].db_socket, &fd_socket_set);
@@ -360,13 +423,18 @@ int main(int argc, char *argv[]) {
             if (raw_interfaces_telem[i].db_socket > max_sd)
                 max_sd = raw_interfaces_telem[i].db_socket;
         }
-        FD_SET (socket_control_serial, &fd_socket_set);
-        if (socket_control_serial > max_sd)
-            max_sd = socket_control_serial;
+
+        // Add or open serial interface for telemetry
+        if (socket_control_serial > 0) {
+            FD_SET (socket_control_serial, &fd_socket_set);
+            if (socket_control_serial > max_sd)
+                max_sd = socket_control_serial;
+        }
+
         select_return = select(max_sd + 1, &fd_socket_set, NULL, NULL, &socket_timeout);
 
         if (select_return == -1) {
-            perror("DB_CONTROL_AIR: select() returned error: ");
+            perror("DB_CONTROL_AIR: select returned error: ");
         } else if (select_return > 0) {
             // --------------------------------
             // DroneBridge long range data
@@ -379,7 +447,7 @@ int main(int argc, char *argv[]) {
                     length = recv(raw_interfaces_rc[i].db_socket, buf, BUF_SIZ, 0);
                     if (length > 0) {
                         rssi = get_rssi(buf, buf[2]);
-                        get_db_payload(buf, length, commandBuf, &seq_num_rc, &radtap_lenght);
+                        get_db_payload(buf, length, commandBuf, &seq_num_rc, &radiotap_lenght);
                         if (last_recv_rc_seq_num != seq_num_rc) {  // diversity duplicate protection
                             last_recv_rc_seq_num = seq_num_rc;
                             command_length = generate_rc_serial_message(commandBuf);
@@ -389,8 +457,7 @@ int main(int argc, char *argv[]) {
                                 errsv = errno;
                                 tcdrain(rc_serial_socket);
                                 if (sentbytes <= 0) {
-                                    LOG_SYS_STD(LOG_WARNING, RED "RC NOT WRITTEN because of error: %s"RESET"\n",
-                                            strerror(errsv));
+                                    LOG_SYS_STD(LOG_WARNING, "RC NOT WRITTEN because of error: %s\n", strerror(errsv));
                                 }
                                 // TODO: check if necessary. It shouldn't as we use blocking UART socket
                                 // tcflush(rc_serial_socket, TCOFLUSH);
@@ -403,23 +470,25 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < num_inf; i++) {
                 if (FD_ISSET(raw_interfaces_telem[i].db_socket, &fd_socket_set)) {
                     // --------------------------------
-                    // DB_CONTROL_PORT for MSP/MAVLink
+                    // DB_CONTROL_PORT for incoming MSP/MAVLink
                     // --------------------------------
                     length = recv(raw_interfaces_telem[i].db_socket, buf, BUF_SIZ, 0);
                     if (length > 0) {
                         rssi = get_rssi(buf, buf[2]);
                         if (last_recv_cont_seq_num != seq_num_cont) {  // diversity duplicate protection
                             last_recv_cont_seq_num = seq_num_cont;
-                            command_length = get_db_payload(buf, length, commandBuf, &seq_num_cont, &radtap_lenght);
-                            sentbytes = (int) write(socket_control_serial, commandBuf, (size_t) command_length);
-                            errsv = errno;
-                            tcdrain(socket_control_serial);
-                            if (sentbytes < command_length) {
-                                LOG_SYS_STD(LOG_WARNING, RED"MSP/MAVLink NOT WRITTEN because of error: %s"RESET"\n",
-                                        strerror(errsv));
+                            command_length = get_db_payload(buf, length, commandBuf, &seq_num_cont, &radiotap_lenght);
+                            if (socket_control_serial > 0) {
+                                sentbytes = (int) write(socket_control_serial, commandBuf, (size_t) command_length);
+                                errsv = errno;
+                                tcdrain(socket_control_serial);
+                                if (sentbytes < command_length) {
+                                    LOG_SYS_STD(LOG_WARNING, "MSP/MAVLink NOT WRITTEN because of error: %s\n",
+                                                strerror(errsv));
+                                }
+                                // TODO: check if necessary. It shouldn't as we use blocking UART socket
+                                // tcflush(socket_control_serial, TCOFLUSH);
                             }
-                            // TODO: check if necessary. It shouldn't as we use blocking UART socket
-                            // tcflush(socket_control_serial, TCOFLUSH);
                         }
                     }
                 }
@@ -456,7 +525,13 @@ int main(int argc, char *argv[]) {
                                 } else {
                                     continue_reading = 0;
                                 }
-                            }
+                            }/* else {
+                                if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                                    close(socket_control_serial);
+                                    socket_control_serial = -1;  // will try to reconnect in next loop iteration
+                                    continue_reading = 0;
+                                }
+                            }*/
                         }
                         break;
                     case 3:
@@ -473,7 +548,7 @@ int main(int argc, char *argv[]) {
                                     mavlink_msg_to_send_buffer(raw_buffer->bytes, &mavlink_message);
                                     for (int i = 0; i < num_inf; i++) {
                                         send_packet_hp_div(&raw_interfaces_telem[i], DB_PORT_PROXY,
-                                                        (u_int16_t) chucksize, update_seq_num(&proxy_seq_number));
+                                                           (u_int16_t) chucksize, update_seq_num(&proxy_seq_number));
                                     }
                                 }
                             }
@@ -486,10 +561,10 @@ int main(int argc, char *argv[]) {
                             serial_read_bytes++;
                             if (serial_read_bytes == chucksize) {
                                 for (int i = 0; i < num_inf; i++) {
-                                    for (int r = 0; r < RETRANSMISSION_RATE; r ++)
+                                    for (int r = 0; r < RETRANSMISSION_RATE; r++)
                                         send_packet_div(&raw_interfaces_telem[i], transparent_buffer, DB_PORT_PROXY,
-                                                (u_int16_t) chucksize, update_seq_num(&proxy_seq_number),
-                                                cont_adhere_80211);
+                                                        (u_int16_t) chucksize, update_seq_num(&proxy_seq_number),
+                                                        cont_adhere_80211);
                                 }
                                 serial_read_bytes = 0;
                             }
@@ -498,34 +573,30 @@ int main(int argc, char *argv[]) {
                 }
             }
         }
+        struct timeval time_check;
+        gettimeofday(&time_check, NULL);
+        long rightnow = (long) time_check.tv_sec * 1000 + (long) time_check.tv_usec / 1000;
 
         // --------------------------------
         // Send a status update to status module on ground station
         // --------------------------------
-        gettimeofday(&timecheck, NULL);
-        rightnow = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
-        if (rightnow - start_rc >= 1000) {
-            rc_packets_tmp = rc_packets_cnt; // save received packets/seconds to temp variable
-            rc_packets_cnt = 0;
-            start_rc = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
-        }
-        if ((rightnow - start) >= status_report_update_rate) {
-            memset(rc_status_update_data, 0xff, 6);
-            rc_status_update_data->rssi_rc_uav = rssi;
-            // lost packets/second (it is a estimate)
-            rc_status_update_data->recv_pack_sec = rc_packets_tmp;
-            rc_status_update_data->cpu_usage_uav = get_cpu_usage();
-            rc_status_update_data->cpu_temp_uav = get_cpu_temp();
-            rc_status_update_data->uav_is_low_V = get_undervolt();
-            for (int i = 0; i < num_inf; i++) {
-                send_packet_hp_div(&raw_interfaces_telem[i], DB_PORT_STATUS,
-                                   (u_int16_t) 6, update_seq_num(&status_seq_number));
+        rc_packets_cnt = send_status_update(&status_seq_number, raw_interfaces_telem, rssi, &start, &start_rc,
+                                            rc_packets_tmp, rc_packets_cnt, rc_status_update_data, &rightnow);
+        // --------------------------------
+        // Check for open telemetry serial socket
+        // --------------------------------
+        if (socket_control_serial < 0) {
+            if ((rightnow - last_serial_telem_reconnect_try) >= 2000) { // try to open it every two seconds
+                last_serial_telem_reconnect_try = rightnow;
+                socket_control_serial = open_serial_telem(baud_rate, telem_inf);
+                if (socket_control_serial > 0) {
+                    if (use_sumd == 'N')  // do not overwrite SUMD if set
+                        rc_serial_socket = socket_control_serial;
+                }
             }
-
-            gettimeofday(&timecheck, NULL);
-            start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
         }
     }
+    
     for (int i = 0; i < DB_MAX_ADAPTERS; i++) {
         if (raw_interfaces_rc[i].db_socket > 0)
             close(raw_interfaces_rc[i].db_socket);
@@ -534,6 +605,6 @@ int main(int argc, char *argv[]) {
     }
     close(socket_control_serial);
     close(rc_serial_socket);
-    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: Sockets closed!\n");
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: Terminated!\n");
     return 1;
 }

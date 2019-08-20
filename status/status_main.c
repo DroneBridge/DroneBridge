@@ -33,7 +33,6 @@
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
 #include "../common/shared_memory.h"
-#include "../common/ccolors.h"
 #include "../common/db_utils.h"
 #include "../common/tcp_server.h"
 #include "../common/db_raw_send_receive.h"
@@ -143,7 +142,7 @@ int main(int argc, char *argv[]) {
     struct tcp_server_info_t status_tcp_server_info = create_tcp_server_socket(APP_PORT_STATUS);
     int tcp_addrlen = sizeof(status_tcp_server_info.servaddr);
 
-    LOG_SYS_STD(LOG_INFO, GRN "DB_STATUS_GND: started!" RESET "\n");
+    LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: started!\n");
     gettimeofday(&timecheck, NULL);
     start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
     while (keeprunning) {
@@ -237,7 +236,7 @@ int main(int argc, char *argv[]) {
                                 rc_overwrite_values->timestamp = timestamp;
                                 break;
                             default:
-                                LOG_SYS_STD(LOG_WARNING, RED "Unknown status message received from GCS" RESET "\n");
+                                LOG_SYS_STD(LOG_WARNING, "Unknown status message received from GCS\n");
                                 break;
                         }
                     }

@@ -36,7 +36,6 @@
 #include <signal.h>
 #include "linux_aoa.h"
 #include "../common/db_protocol.h"
-#include "../common/ccolors.h"
 #include "db_usb.h"
 #include "../common/db_common.h"
 
@@ -153,7 +152,7 @@ int open_local_tcp_socket(int port) {
     bool connected = false;
     while (!connected && keeprunning) {
         if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0) {
-            LOG_SYS_STD(LOG_INFO, RED "DB_USB: Error connection with local server on port %i failed: %s"RESET"\n", port, strerror(errno));
+            LOG_SYS_STD(LOG_ERR, "DB_USB: Error connection with local server on port %i failed: %s\n", port, strerror(errno));
             usleep(1e6);
         } else
             connected = true;

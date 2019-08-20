@@ -29,7 +29,6 @@
 #include <linux/joystick.h>
 #include "opentx.h"
 #include "../common/db_protocol.h"
-#include "../common/ccolors.h"
 #include "rc_ground.h"
 #include "../common/db_common.h"
 
@@ -64,7 +63,7 @@ int initialize_opentx(int new_Joy_IF) {
     if (returnval == 0) {
         LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Calibrated OpenTX RC\n");
     }else{
-        LOG_SYS_STD(LOG_INFO, RED "DB_CONTROL_GND: Could not calibrate OpenTX RC " RESET "\n");
+        LOG_SYS_STD(LOG_ERR, "DB_CONTROL_GND: Could not calibrate OpenTX RC\n");
     }
     return fd;
 }
@@ -108,10 +107,10 @@ int opentx(int Joy_IF, char calibrate_comm[]) {
         int myerror = errno;
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
-                LOG_SYS_STD(LOG_WARNING, RED "DB_CONTROL_GND: Joystick was unplugged! Retrying... " RESET "\n");
+                LOG_SYS_STD(LOG_WARNING, "DB_CONTROL_GND: Joystick was unplugged! Retrying...\n");
                 fd = initialize_opentx(Joy_IF);
             } else {
-                LOG_SYS_STD(LOG_ERR, RED "DB_CONTROL_GND: Error: %s" RESET " \n", strerror(myerror));
+                LOG_SYS_STD(LOG_ERR, "DB_CONTROL_GND: Error: %s\n", strerror(myerror));
             }
         }
         // Channel map must be AETR1234!

@@ -34,7 +34,6 @@
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
 #include "../common/db_raw_send_receive.h"
-#include "../common/ccolors.h"
 #include "../common/tcp_server.h"
 #include "../common/mavlink/c_library_v2/mavlink_types.h"
 #include "../common/db_common.h"
@@ -140,7 +139,7 @@ struct log_file_t open_telemetry_log_file() {
     }
     log_file.file_pntr = fopen(log_file.file_name, "a");
     if(log_file.file_pntr == NULL)
-        perror(RED "DB_PROXY_GROUND: Error opening log file!" RESET);
+        perror("DB_PROXY_GROUND: Error opening log file!");
     else
         LOG_SYS_STD(LOG_INFO, "DB_PROXY_GROUND: Opened telemetry log: %s\n", log_file.file_name);
     return log_file;
@@ -164,7 +163,7 @@ int open_osd_fifo() {
     int tempfifo_osd = open(fifoname, O_RDWR | O_NONBLOCK);
     // try to open FIFO to OSD for a couple of times. OSD might not start because of no HDMI devide connected -> no FIFO
     while (tempfifo_osd == -1 && tries < MAX_TIRES_OSD_FIFO_OPEN) {
-        perror(YEL "DB_PROXY_GROUND: Unable to open OSD FIFO. OSD make sure OSD is running" RESET);
+        perror("DB_PROXY_GROUND: Unable to open OSD FIFO. OSD make sure OSD is running");
         LOG_SYS_STD(LOG_INFO, "DB_PROXY_GROUND: Creating FIFO %s\n", fifoname);
         if (mkfifo(fifoname, 0777) < 0)
             perror("Cannot create FIFO");
@@ -173,8 +172,8 @@ int open_osd_fifo() {
         usleep((__useconds_t) 3e6);
     }
     if (tempfifo_osd == -1)
-        LOG_SYS_STD(LOG_ERR, YEL "DB_PROXY_GROUND: Error opening FIFO. Giving up. OSD might not be running because of no HDMI DEV"
-        RESET "\n" );
+        LOG_SYS_STD(LOG_ERR, "DB_PROXY_GROUND: Error opening FIFO. Giving up. OSD might not be running because of no "
+                             "HDMI DEV\n" );
     return tempfifo_osd;
 }
 
@@ -215,7 +214,7 @@ int main(int argc, char *argv[]) {
     uint8_t tcp_buffer[TCP_BUFFER_SIZE];
     size_t payload_length = 0;
 
-    LOG_SYS_STD(LOG_INFO, GRN "DB_PROXY_GROUND: started! Enabled diversity on %i adapters." RESET "\n", num_interfaces);
+    LOG_SYS_STD(LOG_INFO, "DB_PROXY_GROUND: started! Enabled diversity on %i adapters.\n", num_interfaces);
     while (keeprunning) {
         select_timeout.tv_sec = 5;
         select_timeout.tv_usec = 0;
@@ -257,11 +256,11 @@ int main(int argc, char *argv[]) {
                             if (fifo_osd != -1 && write_to_osdfifo == 'Y') {
                                 ssize_t written = write(fifo_osd, tcp_buffer, payload_length);
                                 if (written < 1)
-                                    perror(RED "DB_TEL_GROUND: Could not write to OSD FIFO" RESET);
+                                    perror("DB_TEL_GROUND: Could not write to OSD FIFO");
                             }
                         }
                     } else
-                        LOG_SYS_STD(LOG_ERR, RED "DB_PROXY_GROUND: Long range socket received an error: %s\n" RESET, strerror(err));
+                        LOG_SYS_STD(LOG_ERR, "DB_PROXY_GROUND: Long range socket received an error: %s\n", strerror(err));
                 }
             }
             // handle incoming tcp connection requests on master TCP socket

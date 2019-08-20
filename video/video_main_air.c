@@ -36,7 +36,6 @@
 #include "../common/db_protocol.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/shared_memory.h"
-#include "../common/ccolors.h"
 #include "../common/db_common.h"
 
 #define MAX_PACKET_LENGTH (DATA_UNI_LENGTH + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH)
@@ -232,21 +231,21 @@ int main(int argc, char *argv[]) {
     }
 
     if (pack_size > DATA_UNI_LENGTH) {
-        LOG_SYS_STD(LOG_ERR, RED "DB_VIDEO_GND; Packet length is limited to %d bytes (you requested %d bytes)\n" RESET,
+        LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND; Packet length is limited to %d bytes (you requested %d bytes)\n",
                 DATA_UNI_LENGTH, pack_size);
         abort();
     }
 
     if (param_min_packet_length > pack_size) {
         LOG_SYS_STD(LOG_ERR,
-                RED "DB_VIDEO_GND; Minimum packet length is higher than maximum packet length (%d > %d)\n" RESET,
+                "DB_VIDEO_GND; Minimum packet length is higher than maximum packet length (%d > %d)\n",
                 param_min_packet_length, pack_size);
         abort();
     }
 
     if (num_data_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK || num_fec_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK) {
         LOG_SYS_STD(LOG_ERR,
-                RED "DB_VIDEO_GND: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n" RESET,
+                "DB_VIDEO_GND: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n",
                 MAX_DATA_OR_FEC_PACKETS_PER_BLOCK, num_data_block, num_fec_block);
         abort();
     }
@@ -271,7 +270,7 @@ int main(int argc, char *argv[]) {
                                         frame_type);
         strncpy(db_uav_status->adapter[k].name, adapters[k], IFNAMSIZ);
     }
-    LOG_SYS_STD(LOG_INFO, GRN "DB_VIDEO_AIR: started!" RESET "\n");
+    LOG_SYS_STD(LOG_INFO, "DB_VIDEO_AIR: started!\n");
     while (keeprunning) {
         // get a packet buffer from list
         packet_buffer_t *pb = input.pb_list + input.curr_pb;
@@ -282,7 +281,7 @@ int main(int argc, char *argv[]) {
         //read the data into packet buffer (inside block)
         ssize_t inl = read(input.fd, pb->data + pb->len, pack_size - pb->len);
         if (inl < 0 || inl > pack_size - pb->len) {
-            perror(RED "DB_VIDEO_AIR: reading stdin" RESET "\n");
+            perror("DB_VIDEO_AIR: reading stdin\n");
             abort();
         }
         if (inl == 0) { // EOF
