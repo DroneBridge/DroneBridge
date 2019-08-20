@@ -47,7 +47,7 @@ char db_mode;
 uint8_t comm_id = DEFAULT_V2_COMMID;
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 
-void intHandler(int dummy) {
+void int_handler(int dummy) {
     keeprunning = false;
 }
 
@@ -84,8 +84,8 @@ int process_command_line_args(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-    signal(SIGINT, intHandler);
-    usleep((__useconds_t) 1e6);
+    signal(SIGINT, int_handler);
+    signal(SIGTERM, int_handler);
     struct timespec timestamp;
     int restarts = 0, cardcounter = 0, select_return, max_sd, new_tcp_client, prev_seq_num_status = 0;
     struct timeval timecheck;
@@ -236,7 +236,7 @@ int main(int argc, char *argv[]) {
                                 rc_overwrite_values->timestamp = timestamp;
                                 break;
                             default:
-                                LOG_SYS_STD(LOG_WARNING, "Unknown status message received from GCS\n");
+                                LOG_SYS_STD(LOG_WARNING, "DB_STATUS_GND: Unknown status message received from GCS\n");
                                 break;
                         }
                     }
@@ -289,5 +289,6 @@ int main(int argc, char *argv[]) {
         if (raw_interfaces_status[i].db_socket > 0)
             close(raw_interfaces_status[i].db_socket);
     }
-    return 0;
+    LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: Terminated!\n");
+    exit(0);
 }

@@ -596,7 +596,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    
+
     for (int i = 0; i < DB_MAX_ADAPTERS; i++) {
         if (raw_interfaces_rc[i].db_socket > 0)
             close(raw_interfaces_rc[i].db_socket);

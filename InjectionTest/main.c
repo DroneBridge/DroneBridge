@@ -25,6 +25,7 @@
 #include <sys/un.h>
 #include <errno.h>
 #include <signal.h>
+#include <sys/stat.h>
 
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_raw_receive.h"

@@ -49,7 +49,7 @@ int bitrate_op, prox_adhere_80211, num_interfaces;
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 uint8_t tel_msg_log_buff[MAVLINK_MAX_PACKET_LEN + sizeof(uint64_t)];
 
-void intHandler(int dummy) {
+void int_handler(int dummy) {
     keeprunning = false;
 }
 
@@ -178,7 +178,8 @@ int open_osd_fifo() {
 }
 
 int main(int argc, char *argv[]) {
-    signal(SIGINT, intHandler);
+    signal(SIGINT, int_handler);
+    signal(SIGTERM, int_handler);
     signal(SIGPIPE, SIG_IGN);
     usleep((__useconds_t) 1e6);
     process_command_line_args(argc, argv);
@@ -324,5 +325,6 @@ int main(int argc, char *argv[]) {
         if (st.st_size <= 1)
             remove(log_file.file_name);
     }
-    return 0;
+    LOG_SYS_STD(LOG_INFO, "DB_PROXY_GROUND: Terminated\n");
+    exit(0);
 }

@@ -576,5 +576,6 @@ int main(int argc, char *argv[]) {
     unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
     close(unix_sock);
     if (udp_enabled) close(udp_socket);
+    LOG_SYS_STD(LOG_NOTICE, "DB_VIDEO_GND: Terminated\n");
     return (0);
 }
