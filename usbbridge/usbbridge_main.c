@@ -105,6 +105,11 @@ int process_command_line_args(int argc, char *argv[]) {
     return 0;
 }
 
+/**
+ * Open UNIX domain socket server
+ *
+ * @return File descriptor of unix domain socket
+ */
 int open_configure_unix_socket() {
     struct sockaddr_un sock_server_add;
     memset(&sock_server_add, 0x00, sizeof(sock_server_add));
@@ -443,13 +448,6 @@ int main(int argc, char *argv[]) {
     usb_msg->ident[2] = DB_USB_PROTO_VERSION;
     long last_write = 0;
 
-    db_accessory_t accessory;
-    if (init_db_accessory(&accessory) == -1) { // blocking
-        keeprunning = false;
-        device_connected = false;
-    } else
-        device_connected = true;
-
     if (video_module_activated && keeprunning)
         video_unix_socket = open_configure_unix_socket();
     if (proxy_module_activated && keeprunning)
@@ -458,6 +456,13 @@ int main(int argc, char *argv[]) {
         status_sock = open_local_tcp_socket(APP_PORT_STATUS);
     if (communication_module_activated && keeprunning)
         communication_sock = open_local_tcp_socket(APP_PORT_COMM);
+
+    db_accessory_t accessory;
+    if (init_db_accessory(&accessory) == -1) { // blocking
+        keeprunning = false;
+        device_connected = false;
+    } else
+        device_connected = true;
 
     struct timeval tv_libusb_events;
 
@@ -494,9 +499,10 @@ int main(int argc, char *argv[]) {
         poll_fd_count.total_poll_fd_cnt++;
     }
     libusb_set_pollfd_notifiers(NULL, usb_fd_added, usb_fd_removed, &poll_fd_count);
-
-    LOG_SYS_STD(LOG_INFO, "DB_USB: Started\n");
-    db_read_usb_async(&accessory);
+    if (keeprunning) {
+        LOG_SYS_STD(LOG_INFO, "DB_USB: Started\n");
+        db_read_usb_async(&accessory);
+    }
     action.sa_handler = intHandler;
     sigaction(SIGTERM, &action, NULL);
     sigaction(SIGINT, &action, NULL);

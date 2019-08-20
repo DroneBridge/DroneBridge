@@ -65,7 +65,6 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, int_handler);
     uint8_t buff[4096];
     struct sockaddr_un peer_sock;
-    int unix_server_socket = open_configure_unix_socket();
 
     // -----------
     int unix_client_socket = socket(AF_UNIX, SOCK_DGRAM, 0);
@@ -75,12 +74,13 @@ int main(int argc, char *argv[]) {
     }
     struct sockaddr_un unix_socket_addr;
     unix_client_socket = set_socket_nonblocking(unix_client_socket);
-    // unlink(UNIX_PATH);
     memset(&unix_socket_addr, 0x00, sizeof(unix_socket_addr));
     unix_socket_addr.sun_family = AF_UNIX;
     strcpy(unix_socket_addr.sun_path, UNIX_PATH);
     socklen_t server_length = sizeof(struct sockaddr_un);
     // ---------------
+
+    int unix_server_socket = open_configure_unix_socket();
 
     while(keep_running) {
         if(sendto(unix_client_socket, buff, 50, 0, (struct sockaddr *) &unix_socket_addr, server_length) < 0) {

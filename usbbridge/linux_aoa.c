@@ -302,7 +302,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
             }
         }
     }
-    return 1;
+    return -1;
 }
 
 
