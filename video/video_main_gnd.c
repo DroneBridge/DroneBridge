@@ -100,9 +100,11 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
     if (output_to_usb_bridge) {
         // We assume the consumer is faster than the producer and that it will always be able to send
         if(sendto(unix_sock, data, message_length, 0, (struct sockaddr *)&unix_socket_addr, server_length) < 0) {
-            if (errno != EAGAIN && errno != EWOULDBLOCK)
-                perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
-            else
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                if (errno != ENOENT)  // ignore non existing dst socket addr. usbbridge might not have a connected dev
+                    perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
+                // else: usbbridge might not started or device not connected
+            } else
                 LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n");
         }
     }

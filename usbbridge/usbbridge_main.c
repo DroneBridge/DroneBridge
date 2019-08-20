@@ -448,6 +448,14 @@ int main(int argc, char *argv[]) {
     usb_msg->ident[2] = DB_USB_PROTO_VERSION;
     long last_write = 0;
 
+    db_accessory_t accessory;
+    if (init_db_accessory(&accessory) == -1) { // blocking
+        keeprunning = false;
+        device_connected = false;
+    } else
+        device_connected = true;
+
+    // open sockets & unix domain socket server for video AFTER we got a connected android device
     if (video_module_activated && keeprunning)
         video_unix_socket = open_configure_unix_socket();
     if (proxy_module_activated && keeprunning)
@@ -456,13 +464,6 @@ int main(int argc, char *argv[]) {
         status_sock = open_local_tcp_socket(APP_PORT_STATUS);
     if (communication_module_activated && keeprunning)
         communication_sock = open_local_tcp_socket(APP_PORT_COMM);
-
-    db_accessory_t accessory;
-    if (init_db_accessory(&accessory) == -1) { // blocking
-        keeprunning = false;
-        device_connected = false;
-    } else
-        device_connected = true;
 
     struct timeval tv_libusb_events;
 
