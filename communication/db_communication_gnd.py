@@ -21,7 +21,6 @@ from select import select, error
 from socket import socket, AF_INET, SOCK_STREAM, SO_REUSEADDR, SOL_SOCKET
 from syslog import LOG_ERR, LOG_WARNING
 
-from CColors import CColors
 from DBCommProt import DBCommProt
 from DroneBridge import DBMode, DBPort, DBDir, DroneBridge
 from db_comm_messages import parse_comm_message, new_error_response_message, process_db_comm_protocol
@@ -85,8 +84,7 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
                     sendto_tcp_clients(message, _tcp_connections)
                     db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
                 else:
-                    db_log(f"{CColors.FAIL}Destination 2 (GND & UAV) is only supported for ping response messages "
-                          f"{CColors.ENDC}", ident=LOG_WARNING)
+                    db_log(f"Destination 2 (GND & UAV) is only supported for ping response messages", ident=LOG_WARNING)
                     message = new_error_response_message('Destination 2 (GND & UAV) is unsupported for non ping msgs',
                                                          DBCommProt.DB_ORIGIN_GND.value, comm_json['id'])
                     sendto_tcp_clients(message, _tcp_connections)
@@ -140,7 +138,7 @@ if __name__ == "__main__":
     MONITOR_BUFFERSIZE = 2048
     db.clear_socket_buffers()
 
-    db_log(CColors.OKGREEN + "DB_COMM_GND: started!" + CColors.ENDC)
+    db_log("DB_COMM_GND: started!")
     while keep_running:
         read_sockets = [tcp_master]
         read_sockets.extend(db.list_lr_sockets)

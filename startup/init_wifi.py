@@ -4,7 +4,6 @@ import sys
 import time
 
 from Chipset import is_atheros_card, is_realtek_card
-from CColors import CColors
 
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
@@ -36,10 +35,9 @@ def main():
     config = read_dronebridge_config()
     if parsed_args.gnd:
         SETUP_GND = True
-        print(CColors.OKGREEN + "Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for ground station"
-              + CColors.ENDC)
+        print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for ground station")
     else:
-        print(CColors.OKGREEN + "Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for UAV" + CColors.ENDC)
+        print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for UAV")
     print("Settings up network interfaces")
     # TODO: check for USB Stick?!
     # TODO: low voltage check on startup till we update OSD code
@@ -103,9 +101,9 @@ def setup_card(interface_name, frequency, data_rate=2):
     wifi_card = pyw.getcard(interface_name)
     driver_name = iwhw.ifdriver(interface_name)
     if driver_name in EXPERIMENTAL_DRIVERS:
-        print(CColors.WARNING + "Warning: Using WiFi adapter with experimental support!" + CColors.ENDC)
-    print(CColors.OKGREEN + "Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz" +
-            " bitrate: " + get_bit_rate(data_rate) + " Mbps" + CColors.ENDC)
+        print("Warning: Using WiFi adapter with experimental support!")
+    print("Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz" +
+            " bitrate: " + get_bit_rate(data_rate) + " Mbps")
     if not pyw.isup(wifi_card):
         print("\tup...")
         pyw.up(wifi_card)
@@ -203,7 +201,7 @@ def setup_hotspot(interface):
         Popen(["dos2unix -n " + os.path.join(DRONEBRIDGE_SETTINGS_PATH, "apconfig.txt") + " /tmp/apconfig.txt"],
               shell=True, close_fds=True, stdout=DEVNULL)
         Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
-        print(CColors.OKGREEN + "Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 " + CColors.ENDC)
+        print("Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 ")
     else:
         print("Error: Could not find AP-adapter: " + str(interface) + ", unable to enable access point")
 

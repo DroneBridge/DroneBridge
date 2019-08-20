@@ -7,7 +7,6 @@ from subprocess import Popen
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
 
-from CColors import CColors
 from Chipset import is_atheros_card, is_realtek_card, is_ralink_card
 from common_helpers import read_dronebridge_config, PI3_WIFI_NIC, HOTSPOT_NIC, get_bit_rate
 
@@ -167,7 +166,7 @@ def start_uav_modules():
         print(f"{UAV_STRING_TAG} Available bandwidth is {video_bitrate / 1000} kbit/s")
         video_bitrate = int(video_channel_util / 100 * int(video_bitrate))
         print(
-            f"{CColors.OKGREEN}{UAV_STRING_TAG} Setting video bitrate to {video_bitrate / 1000} kbit/s {CColors.ENDC}")
+            f"{UAV_STRING_TAG} Setting video bitrate to {video_bitrate / 1000} kbit/s")
 
     # ---------- Error pre-check ------------------------
     if serial_int_cont == serial_int_sumd and en_control == 'Y' and enable_sumd_rc == 'Y':
@@ -293,7 +292,7 @@ def measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, vid
     :param interface_video:
     :return: Capacity in bit per second
     """
-    print(f"{CColors.OKGREEN}{UAV_STRING_TAG} Measuring available bitrate {CColors.ENDC}")
+    print(f"{UAV_STRING_TAG} Measuring available bitrate")
     tx_measure = Popen(os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'tx_measure') + " -p 77 -b "
                        + str(video_blocks) + " -r " + str(video_fecs) + " -f " + str(video_blocklength) + " -t "
                        + str(video_frametype) + " -d " + str(get_bit_rate(datarate)) + " -y 0 " + interface_video,

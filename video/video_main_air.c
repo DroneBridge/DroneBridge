@@ -226,26 +226,26 @@ int main(int argc, char *argv[]) {
     int param_min_packet_length = 24;
 
     if (num_interfaces == 0) {
-        LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: No interface specified. Aborting\n");
+        LOG_SYS_STD(LOG_ERR, "DB_VIDEO_AIR: No interface specified. Aborting\n");
         abort();
     }
 
     if (pack_size > DATA_UNI_LENGTH) {
-        LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND; Packet length is limited to %d bytes (you requested %d bytes)\n",
+        LOG_SYS_STD(LOG_ERR, "DB_VIDEO_AIR; Packet length is limited to %d bytes (you requested %d bytes)\n",
                 DATA_UNI_LENGTH, pack_size);
         abort();
     }
 
     if (param_min_packet_length > pack_size) {
         LOG_SYS_STD(LOG_ERR,
-                "DB_VIDEO_GND; Minimum packet length is higher than maximum packet length (%d > %d)\n",
+                "DB_VIDEO_AIR; Minimum packet length is higher than maximum packet length (%d > %d)\n",
                 param_min_packet_length, pack_size);
         abort();
     }
 
     if (num_data_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK || num_fec_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK) {
         LOG_SYS_STD(LOG_ERR,
-                "DB_VIDEO_GND: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n",
+                "DB_VIDEO_AIR: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n",
                 MAX_DATA_OR_FEC_PACKETS_PER_BLOCK, num_data_block, num_fec_block);
         abort();
     }
@@ -285,7 +285,7 @@ int main(int argc, char *argv[]) {
             abort();
         }
         if (inl == 0) { // EOF
-            LOG_SYS_STD(LOG_ERR, "\nWarning: Lost connection to stdin. Please make sure that a data source is connected");
+            LOG_SYS_STD(LOG_ERR, "\nDB_VIDEO_AIR: Warning: Lost connection to stdin. Please make sure that a data source is connected");
             usleep((__useconds_t) 5e5);
             continue;
         }
@@ -301,8 +301,8 @@ int main(int argc, char *argv[]) {
                 // always transmit/FEC encode packets of length pack_size, even if payload (data_length) is less
                 transmit_block(input.pb_list, &(input.seq_nr),
                                pack_size); // input.pb_list is video_packet_data_t[num_fec + num_data]
-                if (db_uav_status->injected_block_cnt % 500) {
-                    LOG_SYS_STD(LOG_INFO, "\ttried to inject %i packets, failed %i, injection time/packet %ius, FEC encoding time %ius         \r",
+                if (db_uav_status->injected_block_cnt % 500 == 1) {
+                    LOG_SYS_STD(LOG_INFO, "DB_VIDEO_AIR: \ttried to inject %i packets, failed %i, injection time/packet %ius, FEC encoding time %ius         \r",
                            db_uav_status->injected_packet_cnt, db_uav_status->injection_fail_cnt,
                            db_uav_status->injection_time_packet, db_uav_status->encoding_time);
                 }
