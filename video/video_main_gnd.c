@@ -104,8 +104,8 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
                 if (errno != ENOENT)  // ignore non existing dst socket addr. usbbridge might not have a connected dev
                     perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
                 // else: usbbridge might not started or device not connected
-            } else
-                LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n");
+            } // else
+//                LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n");
         }
     }
     if (udp_enabled) {

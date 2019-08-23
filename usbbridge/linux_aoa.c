@@ -217,7 +217,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
             int found_dev = discover_compatible_devices(db_acc);
             if (found_dev) {
                 if (abort_aoa_init) return -1;
-                LOG_SYS_STD(LOG_INFO, "AOA_USB: \tSending manufacturer identification: %s\n", DB_AOA_MANUFACTURER);
+                LOG_SYS_STD(LOG_INFO, "AOA_USB:\tSending manufacturer identification: %s\n", DB_AOA_MANUFACTURER);
                 if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR,
                                             AOA_SEND_IDENT, 0,
                                             AOA_STRING_MAN_ID, (uint8_t *) DB_AOA_MANUFACTURER,
@@ -228,7 +228,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
                     continue;
                 }
                 usleep(10000);
-                LOG_SYS_STD(LOG_INFO, "AOA_USB: \tSending model identification: %s\n", DB_AOA_MODEL_NAME);
+                LOG_SYS_STD(LOG_INFO, "AOA_USB:\tSending model identification: %s\n", DB_AOA_MODEL_NAME);
                 if (libusb_control_transfer(db_acc->handle, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR,
                                             AOA_SEND_IDENT, 0,
                                             AOA_STRING_MOD_ID, (uint8_t *) DB_AOA_MODEL_NAME,
@@ -301,6 +301,8 @@ int init_db_accessory(db_accessory_t *db_acc) {
                 }
             }
         }
+    } else {
+        return 1;
     }
     return -1;
 }

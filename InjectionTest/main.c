@@ -30,9 +30,6 @@
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_raw_receive.h"
 
-#define UNIX_PATH   "/tmp/endpoint"
-
-
 int keep_running = 1;
 
 void int_handler(int dummy) {
@@ -49,8 +46,8 @@ int open_configure_unix_socket() {
         exit(-1);
     }
     sock_server_add.sun_family = AF_UNIX;
-    strcpy(sock_server_add.sun_path, UNIX_PATH);
-    unlink(UNIX_PATH);
+    strcpy(sock_server_add.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH);
+    unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
     if (bind(unix_sock, (struct sockaddr *)&sock_server_add, SUN_LEN(&sock_server_add)) < 0) {
         perror("DB_USB: Error binding name to datagram socket");
         close(unix_sock);
@@ -76,11 +73,11 @@ int main(int argc, char *argv[]) {
     unix_client_socket = set_socket_nonblocking(unix_client_socket);
     memset(&unix_socket_addr, 0x00, sizeof(unix_socket_addr));
     unix_socket_addr.sun_family = AF_UNIX;
-    strcpy(unix_socket_addr.sun_path, UNIX_PATH);
+    strcpy(unix_socket_addr.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH);
     socklen_t server_length = sizeof(struct sockaddr_un);
     // ---------------
 
-    int unix_server_socket = open_configure_unix_socket();
+    // int unix_server_socket = open_configure_unix_socket();
 
     while(keep_running) {
         if(sendto(unix_client_socket, buff, 50, 0, (struct sockaddr *) &unix_socket_addr, server_length) < 0) {
@@ -88,14 +85,14 @@ int main(int argc, char *argv[]) {
                 printf("DB_VIDEO_GND: Error sending via UNIX domain socket - %s\n", strerror(errno));
             else
                 printf("DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n");
-        }
-        ssize_t tcp_num_recv = recv(unix_server_socket, buff, 4096, 0);
-        if (tcp_num_recv > 0) {
-            printf("Received %zi\n", tcp_num_recv);
-        }
+        } else { printf("Sent!\n");}
+//        ssize_t tcp_num_recv = recv(unix_server_socket, buff, 4096, 0);
+//        if (tcp_num_recv > 0) {
+//            printf("Received %zi\n", tcp_num_recv);
+//        }
         sleep(1);
     }
-    unlink(UNIX_PATH);
+    unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
 
 /*    char interface[IFNAMSIZ];
     strcpy(interface, argv[1]);

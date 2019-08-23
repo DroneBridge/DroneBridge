@@ -560,7 +560,10 @@ int main(int argc, char *argv[]) {
                                 last_write = get_time();
                             }
                         } else {
-                            LOG_SYS_STD(LOG_WARNING, "Got some on unknown socket %i\n", poll_fds->fd);
+                            // TODO: Why are we landing here?!
+                            LOG_SYS_STD(LOG_WARNING, "DB_USB: Poll got some on unknown socket %i; known sockets are: "
+                                                     "video: %i proxy %i status %i comm %i\n", poll_fds->fd,
+                                                     video_unix_socket, proxy_sock, status_sock, communication_sock);
                         }
                     }
                 } else {
