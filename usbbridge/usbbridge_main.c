@@ -216,7 +216,7 @@ void usb_fd_removed(int fd, void *user_data) {
         }
     }
     if (rearrange_from_here) { // lower count if we removed something
-        fd_cnt->usb_poll_fd_cnt--;
+        fd_cnt->usb_poll_fd_cnt--; // TODO: only lower in case it really was a libusb fd
         fd_cnt->total_poll_fd_cnt--;
     }
 }
@@ -561,9 +561,10 @@ int main(int argc, char *argv[]) {
                             }
                         } else {
                             // TODO: Why are we landing here?!
-                            LOG_SYS_STD(LOG_WARNING, "DB_USB: Poll got some on unknown socket %i; known sockets are: "
-                                                     "video: %i proxy %i status %i comm %i\n", poll_fds->fd,
-                                                     video_unix_socket, proxy_sock, status_sock, communication_sock);
+                            LOG_SYS_STD(LOG_WARNING, "DB_USB: Poll got some on unknown socket %i (count: %i); "
+                                                     "known sockets are: video: %i proxy %i status %i comm %i\n",
+                                                     poll_fds[i].fd, poll_fd_count.total_poll_fd_cnt, video_unix_socket,
+                                                     proxy_sock, status_sock, communication_sock);
                         }
                     }
                 } else {

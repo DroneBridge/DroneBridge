@@ -28,13 +28,13 @@ function start_osd() {
     echo -e "${RED}ERROR: Could not build OSD, check osdconfig.txt!${NC}"
   }
   cd /tmp
-  echo "Waiting until video is running ..." # otherwise the video will overlay the OSD
-    VIDEORXRUNNING=0
-    while [ $VIDEORXRUNNING -ne 1 ]; do
-      sleep 0.5
-      VIDEORXRUNNING=`pidof video_gnd | wc -w`
-      echo -n "."
-    done
+#  echo "Waiting until video is running ..." # otherwise the video will overlay the OSD
+#    VIDEORXRUNNING=0
+#    while [ $VIDEORXRUNNING -ne 1 ]; do
+#      sleep 0.5
+#      VIDEORXRUNNING=`pidof video_gnd | wc -w`
+#      echo -n "."
+#    done
   ./osd &
 }
 

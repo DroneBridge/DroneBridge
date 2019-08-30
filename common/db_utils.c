@@ -46,7 +46,7 @@ uint8_t get_undervolt(void){
     if (fgets(path, sizeof(path)-1, fp) != NULL) {
         char *dummy;
         uint32_t iuvolt = (uint32_t) strtoul(&path[10], &dummy, 16);
-        uvolt = (uint8_t) ((uint8_t) iuvolt & 1);  // get undervolt bit - current voltage status
+        uvolt = (uint8_t) ((uint8_t) iuvolt & 1);  // get under volt bit - current voltage status
     }
     pclose(fp);
     return uvolt;

@@ -257,11 +257,12 @@ int main(int argc, char *argv[]) {
                 if (best_dbm < db_gnd_status_t->adapter[cardcounter].current_signal_dbm)
                     best_dbm = db_gnd_status_t->adapter[cardcounter].current_signal_dbm;
             }
+            db_uav_status->undervolt = get_undervolt();
             db_sys_status_message.rssi_ground = best_dbm;
             db_sys_status_message.damaged_blocks_wbc = db_gnd_status_t->damaged_block_cnt;
             db_sys_status_message.lost_packets_wbc = db_gnd_status_t->lost_packet_cnt;
             db_sys_status_message.kbitrate_wbc = db_gnd_status_t->kbitrate;
-            db_sys_status_message.voltage_status = ((db_uav_status->undervolt << 1) | get_undervolt());
+            db_sys_status_message.voltage_status = db_uav_status->undervolt;
             if (db_gnd_status_t->tx_restart_cnt > restarts) {
                 restarts++;
                 usleep((__useconds_t) 1e7);

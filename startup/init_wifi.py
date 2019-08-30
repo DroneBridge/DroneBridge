@@ -1,4 +1,5 @@
 import argparse
+import configparser
 import os
 import sys
 import time
@@ -31,26 +32,23 @@ def parse_args():
 
 def main():
     parsed_args = parse_args()
-    SETUP_GND = False  # If true we are operating on the ground station else we are on the UAV (by .profile via Cam)
+    setup_gnd = False  # If true we are operating on the ground station else we are on the UAV (by .profile via Cam)
     config = read_dronebridge_config()
     if parsed_args.gnd:
-        SETUP_GND = True
+        setup_gnd = True
         print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for ground station")
     else:
         print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for UAV")
     print("Settings up network interfaces")
     # TODO: check for USB Stick?!
-    # TODO: low voltage check on startup till we update OSD code
-    setup_network_interfaces(SETUP_GND, config)  # blocks until interface becomes available
-    if SETUP_GND and config.get(GROUND, 'wifi_ap') == 'Y':
+    setup_network_interfaces(setup_gnd, config)  # blocks until interface becomes available
+    if setup_gnd and config.get(GROUND, 'wifi_ap') == 'Y':
         setup_hotspot(config.get(GROUND, 'wifi_ap_if'))
-    if SETUP_GND and config.get(GROUND, 'eth_hotspot') == 'Y':
+    if setup_gnd and config.get(GROUND, 'eth_hotspot') == 'Y':
         setup_eth_hotspot()
-    elif SETUP_GND:
-        setup_eth_dhcp()
 
 
-def setup_network_interfaces(SETUP_GND, config):
+def setup_network_interfaces(setup_gnd: bool, config: configparser.ConfigParser):
     # READ THE SETTINGS
     freq = config.getint(COMMON, 'freq')
     section = UAV
@@ -58,7 +56,7 @@ def setup_network_interfaces(SETUP_GND, config):
     list_man_freqs = [None] * 4
     wifi_ap_blacklist = []
 
-    if SETUP_GND:
+    if setup_gnd:
         section = GROUND
         list_man_nics[2] = config.get(GROUND, 'nic_3')
         list_man_freqs[2] = config.getint(GROUND, 'frq_3')
@@ -211,13 +209,6 @@ def setup_eth_hotspot():
     Popen(["ifconfig eth0 192.168.1.1 up"], shell=True)
     Popen(["udhcpd -I 192.168.1.1 " + os.path.join(DRONEBRIDGE_BIN_PATH, "udhcpd-eth.conf")], shell=True,
           close_fds=True, stdout=DEVNULL)
-
-
-def setup_eth_dhcp():
-    print("Setting up DHCP for ethernet")
-    Popen(["ifconfig eth0 up"], shell=True)
-    Popen(["pump -i eth0 --no-ntp -h DroneBridgeGND"], shell=True, close_fds=True, stdout=DEVNULL)
-    Popen(["ifconfig eth0 up"], shell=True)
 
 
 def get_firmware_id():

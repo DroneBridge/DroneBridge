@@ -257,7 +257,7 @@ int main(int argc, char *argv[]) {
                             if (fifo_osd != -1 && write_to_osdfifo == 'Y') {
                                 ssize_t written = write(fifo_osd, tcp_buffer, payload_length);
                                 if (written < 1)
-                                    perror("DB_TEL_GROUND: Could not write to OSD FIFO");
+                                    perror("DB_PROXY_GROUND: Could not write to OSD FIFO");
                             }
                         }
                     } else

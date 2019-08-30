@@ -83,7 +83,7 @@ typedef struct {
     uint16_t bitrate_kbit;
     uint16_t bitrate_measured_kbit;
     uint8_t cts;
-    uint8_t undervolt; // 1=undervoltage
+    uint8_t undervolt; // 1 = too low voltage
     uint32_t wifi_adapter_cnt; // video stream
     db_adapter_status adapter[8];
 } __attribute__((packed)) db_uav_status_t;

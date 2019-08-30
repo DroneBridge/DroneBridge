@@ -7,7 +7,7 @@ PI3_WIFI_NIC = 'wlan0'
 HOTSPOT_NIC = 'wifihotspot0'
 
 
-def read_dronebridge_config():
+def read_dronebridge_config() -> configparser.ConfigParser:
     """
     Reads the DroneBridge config file
     :return: A configparser object containing the config
