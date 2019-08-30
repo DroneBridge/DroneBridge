@@ -51,10 +51,10 @@ def parse_arguments():
 
 def open_tcp_socket() -> socket:
     tcp_socket = socket(AF_INET, SOCK_STREAM)
+    tcp_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     tcp_socket.bind(('', 1603))
     tcp_socket.setblocking(False)
     tcp_socket.listen(5)
-    tcp_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     return tcp_socket
 
 

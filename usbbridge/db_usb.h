@@ -31,6 +31,6 @@
 struct poll_fd_count_t {
     int total_poll_fd_cnt;
     int usb_poll_fd_cnt;
-} poll_fd_count;
+};
 
 #endif //DRONEBRIDGE_DB_USB_H

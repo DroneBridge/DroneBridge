@@ -471,6 +471,7 @@ int main(int argc, char *argv[]) {
     tv_libusb_events.tv_sec = 0; tv_libusb_events.tv_usec = 0;
     struct libusb_pollfd ** usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
 
+    struct poll_fd_count_t poll_fd_count;
     poll_fd_count.total_poll_fd_cnt = 0;
     poll_fd_count.usb_poll_fd_cnt = 0;
 
