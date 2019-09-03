@@ -3,7 +3,9 @@
 # Provides: start DroneBridge
 # Required-Start: $remote_fs $syslog $local_fs
 # Required-Stop:
-# Default-Start: 3 5
+# Should-Start: $network
+# Should-Stop:
+# Default-Start: 2 3 4 5
 # Default-Stop: 3 5
 # Short-Description: DroneBridge startup script
 # Description:  Helper & auto start script for DroneBridge. Placed in /etc/init.d/ to handle DroneBridge on system boot

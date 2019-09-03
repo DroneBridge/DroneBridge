@@ -24,7 +24,7 @@ wmm_enabled=1         # QoS support
 #ht_capab=[HT40][SHORT-GI-20][DSSS_CCK-40]
 #ht_capab=[TX-STBC][RX-STBC12]
 
-supported_rates=240 360
+supported_rates=240 360 480 540
 basic_rates=240 360
 
 disassoc_low_ack=0

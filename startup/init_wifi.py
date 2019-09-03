@@ -1,15 +1,15 @@
 import argparse
 import configparser
 import os
+import subprocess
 import sys
 import time
-
-from Chipset import is_atheros_card, is_realtek_card
+from subprocess import DEVNULL
 
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
-from subprocess import Popen, DEVNULL
 
+from Chipset import is_atheros_card, is_realtek_card
 from common_helpers import read_dronebridge_config, get_bit_rate, HOTSPOT_NIC, PI3_WIFI_NIC
 
 DRONEBRIDGE_BIN_PATH = os.path.join(os.sep, "home", "pi", "DroneBridge")
@@ -101,7 +101,7 @@ def setup_card(interface_name, frequency, data_rate=2):
     if driver_name in EXPERIMENTAL_DRIVERS:
         print("Warning: Using WiFi adapter with experimental support!")
     print("Setting " + wifi_card.dev + " " + driver_name + " " + str(frequency) + " MHz" +
-            " bitrate: " + get_bit_rate(data_rate) + " Mbps")
+          " bitrate: " + get_bit_rate(data_rate) + " Mbps")
     if not pyw.isup(wifi_card):
         print("\tup...")
         pyw.up(wifi_card)
@@ -123,9 +123,9 @@ def setup_card(interface_name, frequency, data_rate=2):
     pyw.freqset(wifi_card, frequency)
     print("\tMTU...")
     if is_realtek_card(driver_name):
-        Popen(['ip link set dev ' + interface_name + ' mtu 1500'], shell=True).communicate()
+        subprocess.run(['ip link set dev ' + interface_name + ' mtu 1500'], shell=True)
     else:
-        Popen(['ip link set dev ' + interface_name + ' mtu 2304'], shell=True).communicate()
+        subprocess.run(['ip link set dev ' + interface_name + ' mtu 2304'], shell=True)
     pyw.regset('DE')  # to allow channel 12 and 13 for hotspot
     rename_interface(interface_name)
 
@@ -141,7 +141,7 @@ def rename_interface(orig_interface_name):
         pyw.down(wifi_card)
         new_name = pyw.macget(wifi_card).replace(':', '')
         print(f"\trenaming {orig_interface_name} to {new_name}")
-        Popen(['ip link set ' + orig_interface_name + ' name ' + new_name], shell=True).communicate()
+        subprocess.run(['ip link set ' + orig_interface_name + ' name ' + new_name], shell=True)
         wifi_card = pyw.getcard(new_name)
         pyw.up(wifi_card)
     else:
@@ -150,7 +150,7 @@ def rename_interface(orig_interface_name):
 
 def set_bitrate(interface_name, datarate):
     print("\tbitrate...")
-    Popen(['iw dev ' + interface_name + ' set bitrates legacy-2.4 ' + get_bit_rate(datarate)], shell=True)
+    subprocess.run(['iw dev ' + interface_name + ' set bitrates legacy-2.4 ' + get_bit_rate(datarate)], shell=True)
 
 
 def waitfor_network_adapters(wifi_ap_blacklist=None):
@@ -189,16 +189,17 @@ def setup_hotspot(interface):
     if pyw.isinterface(interface):
         card = pyw.getcard(interface)
         pyw.down(card)
-        Popen(["ip link set " + card.dev + " name " + HOTSPOT_NIC], shell=True)
+        subprocess.run(["ip link set " + card.dev + " name " + HOTSPOT_NIC], shell=True)
         time.sleep(1)
         card = pyw.getcard(HOTSPOT_NIC)
         pyw.up(card)
-        pyw.inetset(card, '192.168.2.1')
-        Popen(["udhcpd -I 192.168.2.1 " + os.path.join(DRONEBRIDGE_BIN_PATH, "udhcpd-wifi.conf")], shell=True,
-              close_fds=True, stdout=DEVNULL)
-        Popen(["dos2unix -n " + os.path.join(DRONEBRIDGE_SETTINGS_PATH, "apconfig.txt") + " /tmp/apconfig.txt"],
-              shell=True, close_fds=True, stdout=DEVNULL)
-        Popen(["hostapd -B -d /tmp/apconfig.txt"], shell=True, close_fds=True, stdout=DEVNULL)
+        # pyw.inetset(card, '192.168.2.1') done via dhcp service inside /etc/dhcpd.conf
+        subprocess.run(["udhcpd -I 192.168.2.1 " + os.path.join(DRONEBRIDGE_BIN_PATH, "udhcpd-wifi.conf")], shell=True,
+                       stdout=DEVNULL)
+        subprocess.run(
+            ["dos2unix -n " + os.path.join(DRONEBRIDGE_SETTINGS_PATH, "apconfig.txt") + " /tmp/apconfig.txt"],
+            shell=True, stdout=DEVNULL)
+        subprocess.Popen(["hostapd", "/tmp/apconfig.txt"], shell=False)
         print("Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 ")
     else:
         print("Error: Could not find AP-adapter: " + str(interface) + ", unable to enable access point")
@@ -206,9 +207,9 @@ def setup_hotspot(interface):
 
 def setup_eth_hotspot():
     print("Setting up ethernet hotspot")
-    Popen(["ifconfig eth0 192.168.1.1 up"], shell=True)
-    Popen(["udhcpd -I 192.168.1.1 " + os.path.join(DRONEBRIDGE_BIN_PATH, "udhcpd-eth.conf")], shell=True,
-          close_fds=True, stdout=DEVNULL)
+    subprocess.run(["ifconfig eth0 192.168.1.1 up"], shell=True)
+    subprocess.run(["udhcpd -I 192.168.1.1 " + os.path.join(DRONEBRIDGE_BIN_PATH, "udhcpd-eth.conf")], shell=True,
+                   stdout=DEVNULL)
 
 
 def get_firmware_id():
