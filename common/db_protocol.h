@@ -86,7 +86,7 @@ typedef u32 __le32;
 #define	MAX_PENUMBRA_INTERFACES 8
 
 #define DB_UNIX_DOMAIN_VIDEO_PATH   "/tmp/db_video_out"
-#define DB_AP_CLIENT_IP             "192.168.2.1"   // default IP address of GCS connected via WiFi AP
+#define DB_AP_CLIENT_IP             "192.168.2.2"   // default IP address of GCS connected via WiFi AP
 
 
 struct data_uni{

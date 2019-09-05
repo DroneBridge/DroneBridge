@@ -91,12 +91,13 @@ int process_command_line_args(int argc, char *argv[]) {
                     status_module_activated = true;
                 break;
             case '?':
-                LOG_SYS_STD(LOG_INFO, "Transforms the device into an android accessory. Reads data from DroneBridge modules and "
-                       "passes it on to the DroneBridge for android app via USB."
-                       "\n\t-v Set to Y to listen for video module data"
-                       "\n\t-c Set to Y to listen for communication module data"
-                       "\n\t-p Set to Y to listen for proxy module data"
-                       "\n\t-s Set to Y to listen for status module data");
+                LOG_SYS_STD(LOG_INFO,
+                            "Transforms the device into an android accessory. Reads data from DroneBridge modules and "
+                            "passes it on to the DroneBridge for android app via USB."
+                            "\n\t-v Set to Y to listen for video module data"
+                            "\n\t-c Set to Y to listen for communication module data"
+                            "\n\t-p Set to Y to listen for proxy module data"
+                            "\n\t-s Set to Y to listen for status module data");
                 break;
             default:
                 abort();
@@ -122,7 +123,7 @@ int open_configure_unix_socket() {
     sock_server_add.sun_family = AF_UNIX;
     strcpy(sock_server_add.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH);
     unlink(DB_UNIX_DOMAIN_VIDEO_PATH);
-    if (bind(unix_sock, (struct sockaddr *)&sock_server_add, SUN_LEN(&sock_server_add))) {
+    if (bind(unix_sock, (struct sockaddr *) &sock_server_add, SUN_LEN(&sock_server_add))) {
         perror("DB_USB: Error binding name to datagram socket");
         close(unix_sock);
         exit(-1);
@@ -156,8 +157,9 @@ int open_local_tcp_socket(int port) {
     servaddr.sin_port = htons(port);
     bool connected = false;
     while (!connected && keeprunning) {
-        if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0) {
-            LOG_SYS_STD(LOG_ERR, "DB_USB: Error connection with local server on port %i failed: %s\n", port, strerror(errno));
+        if (connect(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) != 0) {
+            LOG_SYS_STD(LOG_ERR, "DB_USB: Error connection with local server on port %i failed: %s\n", port,
+                        strerror(errno));
             usleep(1e6);
         } else
             connected = true;
@@ -178,8 +180,8 @@ long get_time() {
  * @param events poll event
  * @param user_data poll_fd_count_t structure
  */
-void usb_fd_added(int fd, short events, void *user_data){
-    struct poll_fd_count_t *fd_cnt = ((struct poll_fd_count_t*) user_data);
+void usb_fd_added(int fd, short events, void *user_data) {
+    struct poll_fd_count_t *fd_cnt = ((struct poll_fd_count_t *) user_data);
     if (fd_cnt->total_poll_fd_cnt < MAX_POLL_FDS) {
         LOG_SYS_STD(LOG_INFO, "DB_USB: Adding new file descriptor to poll\n");
         poll_fds[fd_cnt->total_poll_fd_cnt].fd = fd;
@@ -197,22 +199,22 @@ void usb_fd_added(int fd, short events, void *user_data){
  * @param user_data poll_fd_count_t structure
  */
 void usb_fd_removed(int fd, void *user_data) {
-    struct poll_fd_count_t *fd_cnt = ((struct poll_fd_count_t*) user_data);
+    struct poll_fd_count_t *fd_cnt = ((struct poll_fd_count_t *) user_data);
     bool rearrange_from_here = false;
-    for(int i = 0; i < fd_cnt->total_poll_fd_cnt; i++) {
+    for (int i = 0; i < fd_cnt->total_poll_fd_cnt; i++) {
         if (poll_fds[i].fd == fd) {
-            LOG_SYS_STD(LOG_INFO, "DB_USB: Removing file descriptor from poll\n");
+            LOG_SYS_STD(LOG_INFO, "DB_USB: Removing file descriptor at pos %i from poll\n", i);
             poll_fds[i].fd = -1;
             poll_fds[i].events = -1;
             rearrange_from_here = true;
         }
         if (rearrange_from_here) {
             // re-arrange -> move all elements in array one up
-            if (i == (fd_cnt->total_poll_fd_cnt-1)) {
+            if (i == (fd_cnt->total_poll_fd_cnt - 1)) {
                 poll_fds[i].fd = -1;  // set last element to NULL
                 poll_fds[i].events = -1;
             } else
-                poll_fds[i] = poll_fds[i+1];
+                poll_fds[i] = poll_fds[i + 1];
         }
     }
     if (rearrange_from_here) { // lower count if we removed something
@@ -266,7 +268,7 @@ void process_db_usb_proto(unsigned char buffer[], int length) {
             db_usb_parser_payload_size = buffer[4] | (buffer[5] << 8);
             if (db_usb_parser_payload_size > DATA_UNI_LENGTH) {
                 LOG_SYS_STD(LOG_ERR, "DB_USB: Specified payload too big for raw protocol (%i > %i). Ignoring\n",
-                        db_usb_parser_payload_size, DATA_UNI_LENGTH);
+                            db_usb_parser_payload_size, DATA_UNI_LENGTH);
                 return;
             }
             if ((length - DB_AOA_HEADER_LENGTH) == db_usb_parser_payload_size) {
@@ -305,7 +307,7 @@ void process_db_usb_proto(unsigned char buffer[], int length) {
 }
 
 void callback_usb_async_complete(struct libusb_transfer *xfr) {
-    switch(xfr->status) {
+    switch (xfr->status) {
         case LIBUSB_TRANSFER_COMPLETED:
             switch (xfr->endpoint) {
                 case AOA_ACCESSORY_EP_IN:
@@ -340,8 +342,7 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
     }
     // Resubmit reading request no matter what happened
     if (xfr->endpoint == AOA_ACCESSORY_EP_IN) {
-        if(libusb_submit_transfer(xfr) < 0)
-        {
+        if (libusb_submit_transfer(xfr) < 0) {
             perror("DB_USB: Error submitting transfer");
             device_connected = false;
             libusb_free_transfer(xfr);
@@ -355,7 +356,7 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
  * @param accessory
  * @param usb_msg
  */
-void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t* usb_msg, long *last_write) {
+void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t *usb_msg, long *last_write) {
     if (!device_connected)
         return;
 //    LOG_SYS_STD(LOG_INFO, "DB_USB: Sending timeout wake\n");
@@ -365,8 +366,7 @@ void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t* usb_msg, lon
     struct libusb_transfer *xfr = libusb_alloc_transfer(0);
     libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, (unsigned char *) usb_msg,
                               (1 + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL, 100);
-    if(libusb_submit_transfer(xfr) < 0)
-    {
+    if (libusb_submit_transfer(xfr) < 0) {
         perror("DB_USB: Error submitting timeout wake transfer");
         device_connected = false;
         libusb_free_transfer(xfr);
@@ -383,8 +383,7 @@ void db_read_usb_async(struct accessory_t *accessory) {
     struct libusb_transfer *xfr = libusb_alloc_transfer(0);
     libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_IN, usb_in_data, USB_BUFFER_SIZ,
                               callback_usb_async_complete, NULL, 0);
-    if(libusb_submit_transfer(xfr) < 0)
-    {
+    if (libusb_submit_transfer(xfr) < 0) {
         perror("DB_USB: Error submitting transfer");
         device_connected = false;
         libusb_free_transfer(xfr);
@@ -399,7 +398,7 @@ void db_read_usb_async(struct accessory_t *accessory) {
  * @param data_length   Length of payload
  * @param port          Destination port of USB message. Use DB RAW protocol ports
  */
-void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t* usb_msg, uint16_t data_length, uint8_t port) {
+void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t *usb_msg, uint16_t data_length, uint8_t port) {
     usb_msg->port = port;
     uint16_t max_pack_size = get_db_usb_max_packet_size();
     if (data_length <= max_pack_size) {  // no splitting required
@@ -407,8 +406,7 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t* usb_msg,
         struct libusb_transfer *xfr = libusb_alloc_transfer(0);
         libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, (unsigned char *) usb_msg,
                                   (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL, 100);
-        if(libusb_submit_transfer(xfr) < 0)
-        {
+        if (libusb_submit_transfer(xfr) < 0) {
             perror("DB_USB: Error submitting transfer");
             device_connected = false;
             libusb_free_transfer(xfr);
@@ -416,12 +414,12 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t* usb_msg,
     } else {  // split into multiple transmissions. Only send header once
         uint16_t sent_data_length = 0;
         usb_msg->pay_lenght = data_length;
-        while(sent_data_length < data_length) {
+        while (sent_data_length < data_length) {
             struct libusb_transfer *xfr = libusb_alloc_transfer(0);
             libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, &raw_usb_msg_buff[sent_data_length],
-                    (usb_msg->pay_lenght + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,100);
-            if(libusb_submit_transfer(xfr) < 0)
-            {
+                                      (usb_msg->pay_lenght + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,
+                                      100);
+            if (libusb_submit_transfer(xfr) < 0) {
                 perror("DB_USB: Error submitting transfer");
                 device_connected = false;
                 libusb_free_transfer(xfr);
@@ -468,8 +466,9 @@ int main(int argc, char *argv[]) {
     struct timeval tv_libusb_events;
 
     ssize_t tcp_num_recv;
-    tv_libusb_events.tv_sec = 0; tv_libusb_events.tv_usec = 0;
-    struct libusb_pollfd ** usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
+    tv_libusb_events.tv_sec = 0;
+    tv_libusb_events.tv_usec = 0;
+    struct libusb_pollfd **usb_fds = (struct libusb_pollfd **) libusb_get_pollfds(NULL);
 
     struct poll_fd_count_t poll_fd_count;
     poll_fd_count.total_poll_fd_cnt = 0;
@@ -564,8 +563,8 @@ int main(int argc, char *argv[]) {
                             // TODO: Why are we landing here?!
                             LOG_SYS_STD(LOG_WARNING, "DB_USB: Poll got some on unknown socket %i (count: %i); "
                                                      "known sockets are: video: %i proxy %i status %i comm %i\n",
-                                                     poll_fds[i].fd, poll_fd_count.total_poll_fd_cnt, video_unix_socket,
-                                                     proxy_sock, status_sock, communication_sock);
+                                        poll_fds[i].fd, poll_fd_count.total_poll_fd_cnt, video_unix_socket,
+                                        proxy_sock, status_sock, communication_sock);
                         }
                     }
                 } else {
@@ -585,7 +584,7 @@ int main(int argc, char *argv[]) {
             send_timeout_wake(&accessory, usb_msg, &last_write);
             continue;
         } else {  // poll error
-            perror ("DB_USB: poll error");
+            perror("DB_USB: poll error");
             keeprunning = false;
             break;
         }

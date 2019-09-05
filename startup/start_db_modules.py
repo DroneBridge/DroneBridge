@@ -110,11 +110,9 @@ def start_gnd_modules():
                         "-r", str(video_fecs), "-f", str(video_blocklength), "-c", str(communication_id), "-p", "N",
                         "-v", str(fwd_stream_port), "-o"]
         receive_comm.extend(interface_video.split())
-        db_video_receive = Popen(receive_comm, stdout=subprocess.PIPE, stdin=None, stderr=None, close_fds=True,
-                                 shell=False, bufsize=0)
+        db_video_receive = Popen(receive_comm, stdout=subprocess.PIPE, close_fds=True, shell=False, bufsize=0)
         print(f"{GND_STRING_TAG} Starting video player...")
-        Popen([get_video_player(fps)], stdin=db_video_receive.stdout, stdout=None, stderr=None, close_fds=True,
-              shell=False)
+        Popen([get_video_player(fps)], stdin=db_video_receive.stdout, close_fds=True, shell=False)
 
 
 def start_uav_modules():

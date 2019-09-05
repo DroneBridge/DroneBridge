@@ -158,11 +158,11 @@ int main(int argc, char *argv[]) {
         }
         //add child sockets (tcp connection sockets) to set
         for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
-            int tcp_client_sd = tcp_clients[i];
-            if (tcp_client_sd > 0)
-                FD_SET(tcp_client_sd, &fd_socket_set);
-            if (tcp_client_sd > max_sd)
-                max_sd = tcp_client_sd;
+            if (tcp_clients[i] > 0) {
+                FD_SET(tcp_clients[i], &fd_socket_set);
+                if (tcp_clients[i] > max_sd)
+                    max_sd = tcp_clients[i];
+            }
         }
 
         select_return = select(max_sd + 1, &fd_socket_set, NULL, NULL, &socket_timeout);
@@ -201,13 +201,13 @@ int main(int argc, char *argv[]) {
                                              (socklen_t *) &tcp_addrlen)) < 0) {
                     perror("DB_STATUS_GND: Accepting new tcp connection failed");
                 } else {
-                    LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: New connection (%s:%d)\n",
-                            inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
-                            ntohs(status_tcp_server_info.servaddr.sin_port));
                     //add new socket to array of sockets
                     for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
                         if (tcp_clients[i] == 0) {   // if position is empty
                             tcp_clients[i] = new_tcp_client;
+                            LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: New connection (%s:%d)\n",
+                                        inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
+                                        ntohs(status_tcp_server_info.servaddr.sin_port));
                             break;
                         }
                     }
@@ -215,16 +215,15 @@ int main(int argc, char *argv[]) {
             }
             // handle messages from connected TCP clients
             for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
-                int current_client_sock = tcp_clients[i];
-                if (FD_ISSET(current_client_sock, &fd_socket_set)) {
-                    if (read(current_client_sock, tcp_message_buff, NET_BUFF_SIZE) == 0) {
+                if (FD_ISSET(tcp_clients[i], &fd_socket_set)) {
+                    if (read(tcp_clients[i], tcp_message_buff, NET_BUFF_SIZE) == 0) {
                         //Somebody disconnected , get his details and print
-                        getpeername(current_client_sock, (struct sockaddr *) &status_tcp_server_info.servaddr,
+                        getpeername(tcp_clients[i], (struct sockaddr *) &status_tcp_server_info.servaddr,
                                     (socklen_t *) &tcp_addrlen);
                         LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: Client disconnected (%s:%d)\n",
                                inet_ntoa(status_tcp_server_info.servaddr.sin_addr),
                                ntohs(status_tcp_server_info.servaddr.sin_port));
-                        close(current_client_sock);
+                        close(tcp_clients[i]);
                         tcp_clients[i] = 0;
                     } else {
                         // client sent us some information. Process it...

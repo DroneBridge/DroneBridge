@@ -231,10 +231,11 @@ int main(int argc, char *argv[]) {
         // add child sockets (tcp connection sockets) to set
         for (int i = 0; i < MAX_TCP_CLIENTS; i++) {
             int tcp_client_sd = tcp_clients[i];
-            if (tcp_client_sd > 0)
+            if (tcp_client_sd > 0) {
                 FD_SET(tcp_client_sd, &fd_socket_set);
-            if (tcp_client_sd > max_sd)
-                max_sd = tcp_client_sd;
+                if (tcp_client_sd > max_sd)
+                    max_sd = tcp_client_sd;
+            }
         }
 
         int select_return = select(max_sd + 1, &fd_socket_set, NULL, NULL, &select_timeout);

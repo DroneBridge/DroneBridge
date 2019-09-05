@@ -193,14 +193,14 @@ def setup_hotspot(interface):
         time.sleep(1)
         card = pyw.getcard(HOTSPOT_NIC)
         pyw.up(card)
-        # pyw.inetset(card, '192.168.2.1') done via dhcp service inside /etc/dhcpd.conf
+        pyw.inetset(card, '192.168.2.1')
         subprocess.run(["udhcpd -I 192.168.2.1 " + os.path.join(DRONEBRIDGE_BIN_PATH, "udhcpd-wifi.conf")], shell=True,
                        stdout=DEVNULL)
         subprocess.run(
             ["dos2unix -n " + os.path.join(DRONEBRIDGE_SETTINGS_PATH, "apconfig.txt") + " /tmp/apconfig.txt"],
             shell=True, stdout=DEVNULL)
         subprocess.Popen(["hostapd", "/tmp/apconfig.txt"], shell=False)
-        print("Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1 ")
+        print("Setup wifi hotspot: " + card.dev + " AP-IP: 192.168.2.1")
     else:
         print("Error: Could not find AP-adapter: " + str(interface) + ", unable to enable access point")
 

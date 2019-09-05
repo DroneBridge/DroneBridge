@@ -15,6 +15,13 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * Program to receive a continuous stream of data from the UAV unit. Stream is protected by FEC. This program decodes
+ * the FEC data and outputs the payload to various end-points. Endpoints are UDP (192.192.2.1) and a UNIX domain socket
+ * on /tmp/db_video_out (see db_protocol.h). The UDP destination address can be changed by sending a UDP packet of any
+ * content to this application on port 5000. The source address of that packet will be the new destination address.
+ * It is called a video destination hint packet.
+ */
 
 #include <stdbool.h>
 #include <sys/resource.h>
@@ -39,6 +46,7 @@
 #define MAX_USER_PACKET_LENGTH 1450
 #define MAX_DATA_OR_FEC_PACKETS_PER_BLOCK 32
 #define DEBUG 0
+#define UDP_BUFF_SIZE 2048
 
 int num_interfaces = 0;
 int dest_port_video, unix_sock;
@@ -79,6 +87,9 @@ long long current_timestamp() {
 }
 
 
+/**
+ * Init UDP socket bound to port 5000 for sending UDP video stream & for receiving video destination hints
+ */
 void init_outputs() {
     if (pass_through) dest_port_video = APP_PORT_VIDEO_FEC;
     if (udp_enabled) {
@@ -86,6 +97,17 @@ void init_outputs() {
         client_video_addr.sin_family = AF_INET;
         client_video_addr.sin_addr.s_addr = inet_addr(DB_AP_CLIENT_IP);
         client_video_addr.sin_port = htons(dest_port_video);
+        int optval = 1;
+        setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, (const void *) &optval, sizeof(int));
+
+        struct sockaddr_in udp_server_addr;
+        bzero((char *) &udp_server_addr, sizeof(udp_server_addr));
+        udp_server_addr.sin_family = AF_INET;
+        udp_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        udp_server_addr.sin_port = htons(APP_PORT_VIDEO);
+        if ((bind(udp_socket, (struct sockaddr *) &udp_server_addr, sizeof(udp_server_addr))) != 0) {
+            perror("DB_VIDEO_GND: UDP socket bind failed ");
+        }
     }
 }
 
@@ -99,7 +121,7 @@ void init_outputs() {
 void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
     if (output_to_usb_bridge) {
         // We assume the consumer is faster than the producer and that it will always be able to send
-        if(sendto(unix_sock, data, message_length, 0, (struct sockaddr *)&unix_socket_addr, server_length) < 0) {
+        if (sendto(unix_sock, data, message_length, 0, (struct sockaddr *) &unix_socket_addr, server_length) < 0) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 if (errno != ENOENT)  // ignore non existing dst socket addr. usbbridge might not have a connected dev
                     perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
@@ -175,9 +197,9 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
         if (tx_restart) {
             db_gnd_status->tx_restart_cnt++;
             LOG_SYS_STD(LOG_ERR,
-                    "TX RESTART: Detected blk %x that lies outside of the current retr block buffer window "
-                    "(max_block_num = %x) (if there was no tx restart, increase window size via -d)\n",
-                    block_num, max_block_num);
+                        "TX RESTART: Detected blk %x that lies outside of the current retr block buffer window "
+                        "(max_block_num = %x) (if there was no tx restart, increase window size via -d)\n",
+                        block_num, max_block_num);
             block_buffer_list_reset(block_buffer_list, param_block_buffers);
         }
         //first, find the minimum block num in the buffers list. this will be the block that we replace
@@ -469,22 +491,22 @@ void process_command_line_args(int argc, char *argv[]) {
                 break;
             default:
                 printf("Based of Wifibroadcast by befinitiv, based on packet spammer by Andy Green.  Licensed under GPL2\n"
-                        "This tool takes a data stream via the DroneBridge long range video port and outputs it via stdout, "
-                        "UDP or TCP"
-                        "\nIt uses the Reed-Solomon FEC code to repair lost or damaged packets."
-                        "\n\n\t-n Name of a network interface that should be used to receive the stream. Must be in monitor "
-                        "mode. Multiple interfaces supported by calling this option multiple times (-n inter1 -n inter2 -n interx)"
-                        "\n\t-c <communication id> Choose a number from 0-255. Same on ground station and UAV!."
-                        "\n\t-d Number of data packets in a block (default 8). Needs to match with tx."
-                        "\n\t-r Number of FEC packets per block (default 4). Needs to match with tx."
-                        "\n\t-f Bytes per packet (default %d. max %d). This is also the FEC "
-                        "block size. Needs to match with tx."
-                        "\n\t-u <Y|N> to enable or disable UDP forwarding of decoded data"
-                        "\n\t-i UDP DST IP overwrite: Ignore DroneBridge IP checker shared memory and send data to this IP"
-                        "\n\t-p <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
-                        "\n\t-v Destination port of video stream when set via UDP (IP checker address) or TCP"
-                        "\n\t-o Set to output to unix domain socket at %s so that DroneBridge USBBridge can forward it",
-                        1024, MAX_USER_PACKET_LENGTH, APP_PORT_VIDEO_FEC, DB_UNIX_DOMAIN_VIDEO_PATH);
+                       "This tool takes a data stream via the DroneBridge long range video port and outputs it via stdout, "
+                       "UDP or TCP"
+                       "\nIt uses the Reed-Solomon FEC code to repair lost or damaged packets."
+                       "\n\n\t-n Name of a network interface that should be used to receive the stream. Must be in monitor "
+                       "mode. Multiple interfaces supported by calling this option multiple times (-n inter1 -n inter2 -n interx)"
+                       "\n\t-c <communication id> Choose a number from 0-255. Same on ground station and UAV!."
+                       "\n\t-d Number of data packets in a block (default 8). Needs to match with tx."
+                       "\n\t-r Number of FEC packets per block (default 4). Needs to match with tx."
+                       "\n\t-f Bytes per packet (default %d. max %d). This is also the FEC "
+                       "block size. Needs to match with tx."
+                       "\n\t-u <Y|N> to enable or disable UDP forwarding of decoded data"
+                       "\n\t-i UDP DST IP overwrite: Ignore DroneBridge IP checker shared memory and send data to this IP"
+                       "\n\t-p <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
+                       "\n\t-v Destination port of video stream when set via UDP (IP checker address) or TCP"
+                       "\n\t-o Set to output to unix domain socket at %s so that DroneBridge USBBridge can forward it",
+                       1024, MAX_USER_PACKET_LENGTH, APP_PORT_VIDEO_FEC, DB_UNIX_DOMAIN_VIDEO_PATH);
                 abort();
         }
     }
@@ -497,6 +519,8 @@ int main(int argc, char *argv[]) {
     setpriority(PRIO_PROCESS, 0, -10);
     monitor_interface_t interfaces[MAX_PENUMBRA_INTERFACES];
     int i;
+    struct sockaddr_in udp_video_hint_src;
+    uint8_t udp_buff[UDP_BUFF_SIZE];
     block_buffer_t *block_buffer_list;
 
     process_command_line_args(argc, argv);
@@ -507,7 +531,7 @@ int main(int argc, char *argv[]) {
 
     if (pack_size > MAX_USER_PACKET_LENGTH) {
         LOG_SYS_STD(LOG_ERR, "Packet length is limited to %d bytes (you requested %d bytes)\n", MAX_USER_PACKET_LENGTH,
-                pack_size);
+                    pack_size);
         abort();
     }
 
@@ -526,7 +550,7 @@ int main(int argc, char *argv[]) {
     db_gnd_status->tx_restart_cnt = 0;
 
     // init DroneBridge raw sockets to listen for incoming data
-    for (int j = 0; j < num_interfaces; ++j) {
+/*    for (int j = 0; j < num_interfaces; ++j) {
         db_socket_t db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO, DB_FRAMETYPE_DATA);
         interfaces[j].selectable_fd = db_sock.db_socket;
         strcpy(db_gnd_status->adapter[j].name, adapters[j]);
@@ -534,7 +558,7 @@ int main(int argc, char *argv[]) {
         db_gnd_status->adapter[j].received_packet_cnt = 0;
         db_gnd_status->adapter[j].wrong_crc_cnt = 0;
         db_gnd_status->adapter[j].current_signal_dbm = -100;
-    }
+    }*/
     // init UNIX domain master socket to which local clients can connect & get video data in an UDP like fashion
     unix_sock = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (unix_sock < 0) {
@@ -545,6 +569,7 @@ int main(int argc, char *argv[]) {
     memset(&unix_socket_addr, 0x00, sizeof(unix_socket_addr));
     unix_socket_addr.sun_family = AF_UNIX;
     strcpy(unix_socket_addr.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH);
+    // UDP server socket to receive video dst hints
 
     //block buffers contain both the block_num as well as packet buffers for a block.
     block_buffer_list = malloc(sizeof(block_buffer_t) * param_block_buffers);
@@ -556,20 +581,33 @@ int main(int argc, char *argv[]) {
 
     LOG_SYS_STD(LOG_NOTICE, "DB_VIDEO_GND: started on %i interfaces\n", num_interfaces);
     fd_set readset;
+    unsigned int client_address_size = sizeof(udp_video_hint_src);
     while (keeprunning) {
         FD_ZERO(&readset);
 
-        int max_sd = interfaces[0].selectable_fd;
-        for (i = 0; i < num_interfaces; i++) {
+        int max_sd = udp_socket;
+        FD_SET(udp_socket, &readset);
+/*        for (i = 0; i < num_interfaces; i++) {
             FD_SET(interfaces[i].selectable_fd, &readset);
             if (interfaces[i].selectable_fd > max_sd)
                 max_sd = interfaces[i].selectable_fd;
-        }
+        }*/
 
         int select_return = select(max_sd + 1, &readset, NULL, NULL, NULL);
         if (select_return == -1) {
             perror("DB_VIDEO_GND: select() returned error: ");
         } else if (select_return > 0) {
+            if (FD_ISSET(udp_socket, &readset)) {
+                // received a video destination hint. Update video destination udp address
+                if (recvfrom(udp_socket, udp_buff, UDP_BUFF_SIZE, 0, (struct sockaddr *) &udp_video_hint_src,
+                             &client_address_size) > 0) {
+                    client_video_addr.sin_addr.s_addr = udp_video_hint_src.sin_addr.s_addr;
+                    char ip_str[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &(client_video_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
+                    LOG_SYS_STD(LOG_NOTICE, "Changed destination IP to %s\n", ip_str);
+                } else
+                    perror("DB_VIDEO_GND: Error receiving on UDP socket: ");
+            }
             for (i = 0; i < num_interfaces; i++) {
                 if (FD_ISSET(interfaces[i].selectable_fd, &readset)) {
                     process_packet(&interfaces[i], block_buffer_list, i);
