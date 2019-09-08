@@ -30,10 +30,10 @@
 #include <stdbool.h>
 #include <memory.h>
 #include <sys/time.h>
+#include <errno.h>
 #include "../common/db_protocol.h"
 #include "../common/db_raw_receive.h"
 #include "../common/shared_memory.h"
-#include "../common/db_utils.h"
 #include "../common/tcp_server.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_common.h"
@@ -95,6 +95,7 @@ int main(int argc, char *argv[]) {
     uint8_t seq_num_status = 0;
     uint16_t radiotap_length;
     uint8_t lr_buffer[DATA_UNI_LENGTH];
+    memset(lr_buffer, 0, DATA_UNI_LENGTH);
     uint8_t message_buff[DATA_UNI_LENGTH - DB_RAW_V2_HEADER_LENGTH];
     uint8_t tcp_message_buff[NET_BUFF_SIZE];
     int tcp_clients[MAX_TCP_CLIENTS] = {0};
@@ -128,10 +129,11 @@ int main(int argc, char *argv[]) {
     int number_cards = db_gnd_status_t->wifi_adapter_cnt;
 
     // set up long range receiving socket
-    db_socket_t raw_interfaces_status[DB_MAX_ADAPTERS] = {0};
+    db_socket_t raw_interfaces_status[DB_MAX_ADAPTERS];
+    memset(raw_interfaces_status, 0, DB_MAX_ADAPTERS);
     for (int i = 0; i < num_inf_status; i++) {
-        raw_interfaces_status[i] = open_db_socket(adapters[i], comm_id, db_mode, 6, DB_DIREC_DRONE, DB_PORT_STATUS,
-                DB_FRAMETYPE_DEFAULT);
+        raw_interfaces_status[i] = open_db_socket(adapters[i], comm_id, db_mode, 6, DB_DIREC_DRONE,
+                DB_PORT_STATUS, DB_FRAMETYPE_DEFAULT);
     }
 
     fd_set fd_socket_set;
@@ -164,9 +166,8 @@ int main(int argc, char *argv[]) {
                     max_sd = tcp_clients[i];
             }
         }
-
         select_return = select(max_sd + 1, &fd_socket_set, NULL, NULL, &socket_timeout);
-        if (select_return == -1) {
+        if (select_return == -1 && errno != EINTR) {
             perror("DB_STATUS_GROUND: select() returned error: ");
         } else if (select_return > 0) {
             for (int i = 0; i < num_inf_status; ++i) {
@@ -256,7 +257,7 @@ int main(int argc, char *argv[]) {
                 if (best_dbm < db_gnd_status_t->adapter[cardcounter].current_signal_dbm)
                     best_dbm = db_gnd_status_t->adapter[cardcounter].current_signal_dbm;
             }
-            db_uav_status->undervolt = get_undervolt();
+            // db_uav_status->undervolt = get_undervolt();
             db_sys_status_message.rssi_ground = best_dbm;
             db_sys_status_message.damaged_blocks_wbc = db_gnd_status_t->damaged_block_cnt;
             db_sys_status_message.lost_packets_wbc = db_gnd_status_t->lost_packet_cnt;

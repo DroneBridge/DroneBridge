@@ -1,12 +1,19 @@
 cmake_minimum_required(VERSION 3.3)
 project(db_common)
 
-if(TARGET db_common)
+IF (NOT CMAKE_BUILD_TYPE)
+    SET(CMAKE_BUILD_TYPE Release ... FORCE)
+ENDIF ()
 
-    message("db_common is already defined")
+IF (CMAKE_BUILD_TYPE MATCHES Release)
+    SET(CMAKE_C_FLAGS "-O3") ## Optimize
+    message(STATUS "${PROJECT_NAME} module: Release configuration")
+ELSE ()
+    message(STATUS "${PROJECT_NAME} module: Debug configuration")
+ENDIF ()
 
-else()
-
+if (TARGET db_common)
+else ()
     include_directories(${SHARED_LIB_INCLUDE_DIR})
 
     set(LIB_SRCS
@@ -24,8 +31,7 @@ else()
 
     add_library(db_common STATIC ${LIB_SRCS})
 
-    if(UNIX AND NOT APPLE)
+    if (UNIX AND NOT APPLE)
         target_link_libraries(db_common rt)
-    endif()
-
-endif()
+    endif ()
+endif ()

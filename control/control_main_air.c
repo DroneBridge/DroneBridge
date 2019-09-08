@@ -46,7 +46,7 @@
 #define RETRANSMISSION_RATE            2    // send every MAVLink transparent packet twice for better reliability
 #define STATUS_UPDATE_TIME    200    // send rc status to status module on groundstation every 200ms
 
-static volatile int keepRunning = 1;
+static volatile int keep_running = 1;
 uint8_t buf[BUF_SIZ];
 uint8_t mavlink_telemetry_buf[2048] = {0}, mavlink_message_buf[256] = {0};
 int mav_tel_message_counter = 0, mav_tel_buf_length = 0, cont_adhere_80211, num_inf = 0;
@@ -54,7 +54,7 @@ long double cpu_u_new[4], cpu_u_old[4], loadavg;
 float systemp, millideg;
 
 void intHandler(int dummy) {
-    keepRunning = 0;
+    keep_running = 0;
 }
 
 speed_t interpret_baud(int user_baud) {
@@ -94,9 +94,9 @@ void send_buffered_mavlink(int length_message, mavlink_message_t *mav_message, u
     mav_tel_buf_length += length_message;   // Overall length of buffer
     if (mav_tel_message_counter == 5) {
         for (int i = 0; i < num_inf; i++) {
-            send_packet_div(&raw_interfaces_telem[i], mavlink_telemetry_buf, DB_PORT_PROXY,
-                            (u_int16_t) mav_tel_buf_length, update_seq_num(proxy_seq_number),
-                            cont_adhere_80211);
+            db_send_div(&raw_interfaces_telem[i], mavlink_telemetry_buf, DB_PORT_PROXY,
+                        (u_int16_t) mav_tel_buf_length, update_seq_num(proxy_seq_number),
+                        cont_adhere_80211);
         }
         mav_tel_message_counter = 0;
         mav_tel_buf_length = 0;
@@ -174,7 +174,8 @@ uint8_t send_status_update(uint8_t *status_seq_number, db_socket_t *raw_interfac
         rc_packets_cnt = 0;
         *start_rc = (long) time_check.tv_sec * 1000 + (long) time_check.tv_usec / 1000;
     }
-    if ((*rightnow - *start) >= STATUS_UPDATE_TIME) {
+    LOG_SYS_STD(LOG_INFO, "Checking for status update to GND %i\n", ((*rightnow - *start) >= STATUS_UPDATE_TIME));
+    if (*rightnow - *start >= STATUS_UPDATE_TIME) {
         memset(rc_status_update_data, 0xff, 6);
         rc_status_update_data->rssi_rc_uav = rssi;
         // lost packets/second (it is a estimate)
@@ -183,8 +184,8 @@ uint8_t send_status_update(uint8_t *status_seq_number, db_socket_t *raw_interfac
         rc_status_update_data->cpu_temp_uav = get_cpu_temp();
         rc_status_update_data->uav_is_low_V = get_undervolt();
         for (int i = 0; i < num_inf; i++) {
-            send_packet_hp_div(&raw_interfaces_telem[i], DB_PORT_STATUS,
-                               (u_int16_t) 6, update_seq_num(status_seq_number));
+            db_send_hp_div(&raw_interfaces_telem[i], DB_PORT_STATUS,
+                           (u_int16_t) 6, update_seq_num(status_seq_number));
         }
 
         gettimeofday(&time_check, NULL);
@@ -410,7 +411,7 @@ int main(int argc, char *argv[]) {
     long last_serial_telem_reconnect_try = start; // [ms]
     start_rc = start;
     uint16_t radiotap_lenght;
-    while (keepRunning) {
+    while (keep_running) {
         socket_timeout.tv_sec = 0;
         socket_timeout.tv_usec = STATUS_UPDATE_TIME * 1000;
         FD_ZERO (&fd_socket_set);
@@ -433,7 +434,7 @@ int main(int argc, char *argv[]) {
 
         select_return = select(max_sd + 1, &fd_socket_set, NULL, NULL, &socket_timeout);
 
-        if (select_return == -1) {
+        if (select_return == -1 && errno != EINTR) {
             perror("DB_CONTROL_AIR: select returned error: ");
         } else if (select_return > 0) {
             // --------------------------------
@@ -517,9 +518,9 @@ int main(int argc, char *argv[]) {
                                     if (db_msp_port.c_state == MSP_COMMAND_RECEIVED) {
                                         continue_reading = 0; // stop reading from serial port --> got a complete message!
                                         for (int i = 0; i < num_inf; i++) {
-                                            send_packet_hp_div(&raw_interfaces_telem[i], DB_PORT_PROXY,
-                                                               (u_int16_t) serial_read_bytes,
-                                                               update_seq_num(&proxy_seq_number));
+                                            db_send_hp_div(&raw_interfaces_telem[i], DB_PORT_PROXY,
+                                                           (u_int16_t) serial_read_bytes,
+                                                           update_seq_num(&proxy_seq_number));
                                         }
                                     }
                                 } else {
@@ -547,8 +548,8 @@ int main(int argc, char *argv[]) {
                                     continue_reading = 0; // stop reading from serial port --> got a complete message!
                                     mavlink_msg_to_send_buffer(raw_buffer->bytes, &mavlink_message);
                                     for (int i = 0; i < num_inf; i++) {
-                                        send_packet_hp_div(&raw_interfaces_telem[i], DB_PORT_PROXY,
-                                                           (u_int16_t) chucksize, update_seq_num(&proxy_seq_number));
+                                        db_send_hp_div(&raw_interfaces_telem[i], DB_PORT_PROXY,
+                                                       (u_int16_t) chucksize, update_seq_num(&proxy_seq_number));
                                     }
                                 }
                             }
@@ -562,9 +563,9 @@ int main(int argc, char *argv[]) {
                             if (serial_read_bytes == chucksize) {
                                 for (int i = 0; i < num_inf; i++) {
                                     for (int r = 0; r < RETRANSMISSION_RATE; r++)
-                                        send_packet_div(&raw_interfaces_telem[i], transparent_buffer, DB_PORT_PROXY,
-                                                        (u_int16_t) chucksize, update_seq_num(&proxy_seq_number),
-                                                        cont_adhere_80211);
+                                        db_send_div(&raw_interfaces_telem[i], transparent_buffer, DB_PORT_PROXY,
+                                                    (u_int16_t) chucksize, update_seq_num(&proxy_seq_number),
+                                                    cont_adhere_80211);
                                 }
                                 serial_read_bytes = 0;
                             }

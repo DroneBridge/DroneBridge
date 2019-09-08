@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
     memset(payload, 1, payload_size);
 
     for (int i = 0; i < 100; ++i) {
-        send_packet_div(&socket, payload, 10, payload_size, 66, 1);
+        db_send_div(&socket, payload, 10, payload_size, 66, 1);
         printf(".");
         fflush(stdout);
         usleep((unsigned int) 1e6);

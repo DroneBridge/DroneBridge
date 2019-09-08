@@ -299,8 +299,8 @@ int main(int argc, char *argv[]) {
                         // client sent us some information. Process it...
                         memcpy(data_uni_to_drone->bytes, tcp_buffer, recv_length);
                         for (int j = 0; j < num_interfaces; j++)
-                            send_packet_hp_div(&raw_interfaces[j], DB_PORT_CONTROLLER, (u_int16_t) recv_length,
-                                               update_seq_num(&seq_num));
+                            db_send_hp_div(&raw_interfaces[j], DB_PORT_CONTROLLER, (u_int16_t) recv_length,
+                                           update_seq_num(&seq_num));
                     }
                 }
             }

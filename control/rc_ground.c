@@ -258,24 +258,24 @@ int send_rc_packet(uint16_t channel_data[]) {
     if (rc_protocol == 1) {
         generate_msp(channel_data);
         for (int i = 0; i < num_interfaces; i++) {
-            send_packet_hp_div(&raw_interfaces_rc[i], DB_PORT_CONTROLLER, MSP_DATA_LENTH,
-                               update_seq_num(&rc_seq_number));
+            db_send_hp_div(&raw_interfaces_rc[i], DB_PORT_CONTROLLER, MSP_DATA_LENTH,
+                           update_seq_num(&rc_seq_number));
         }
     } else if (rc_protocol == 2) {
         generate_mspv2(channel_data);
         for (int i = 0; i < num_interfaces; i++) {
-            send_packet_hp_div(&raw_interfaces_rc[i], DB_PORT_CONTROLLER, MSP_V2_DATA_LENGTH,
-                               update_seq_num(&rc_seq_number));
+            db_send_hp_div(&raw_interfaces_rc[i], DB_PORT_CONTROLLER, MSP_V2_DATA_LENGTH,
+                           update_seq_num(&rc_seq_number));
         }
     } else if (rc_protocol == 4) {
         for (int i = 0; i < num_interfaces; i++) {
-            send_packet_hp_div(&raw_interfaces_rc[i], DB_PORT_CONTROLLER, generate_mavlinkv2_rc_overwrite(channel_data),
-                               update_seq_num(&rc_seq_number));
+            db_send_hp_div(&raw_interfaces_rc[i], DB_PORT_CONTROLLER, generate_mavlinkv2_rc_overwrite(channel_data),
+                           update_seq_num(&rc_seq_number));
         }
     } else if (rc_protocol == 5) {
         generate_db_rc_message(channel_data);
         for (int i = 0; i < num_interfaces; i++) {
-            send_packet_hp_div(&raw_interfaces_rc[i], DB_PORT_RC, DB_RC_DATA_LENGTH, update_seq_num(&rc_seq_number));
+            db_send_hp_div(&raw_interfaces_rc[i], DB_PORT_RC, DB_RC_DATA_LENGTH, update_seq_num(&rc_seq_number));
         }
     }
     return 0;

@@ -550,7 +550,7 @@ int main(int argc, char *argv[]) {
     db_gnd_status->tx_restart_cnt = 0;
 
     // init DroneBridge raw sockets to listen for incoming data
-/*    for (int j = 0; j < num_interfaces; ++j) {
+    for (int j = 0; j < num_interfaces; ++j) {
         db_socket_t db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO, DB_FRAMETYPE_DATA);
         interfaces[j].selectable_fd = db_sock.db_socket;
         strcpy(db_gnd_status->adapter[j].name, adapters[j]);
@@ -558,7 +558,7 @@ int main(int argc, char *argv[]) {
         db_gnd_status->adapter[j].received_packet_cnt = 0;
         db_gnd_status->adapter[j].wrong_crc_cnt = 0;
         db_gnd_status->adapter[j].current_signal_dbm = -100;
-    }*/
+    }
     // init UNIX domain master socket to which local clients can connect & get video data in an UDP like fashion
     unix_sock = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (unix_sock < 0) {
@@ -587,20 +587,20 @@ int main(int argc, char *argv[]) {
 
         int max_sd = udp_socket;
         FD_SET(udp_socket, &readset);
-/*        for (i = 0; i < num_interfaces; i++) {
+        for (i = 0; i < num_interfaces; i++) {
             FD_SET(interfaces[i].selectable_fd, &readset);
             if (interfaces[i].selectable_fd > max_sd)
                 max_sd = interfaces[i].selectable_fd;
-        }*/
+        }
 
         int select_return = select(max_sd + 1, &readset, NULL, NULL, NULL);
-        if (select_return == -1) {
+        if (select_return == -1 && errno != EINTR) {
             perror("DB_VIDEO_GND: select() returned error: ");
         } else if (select_return > 0) {
             if (FD_ISSET(udp_socket, &readset)) {
                 // received a video destination hint. Update video destination udp address
                 if (recvfrom(udp_socket, udp_buff, UDP_BUFF_SIZE, 0, (struct sockaddr *) &udp_video_hint_src,
-                             &client_address_size) > 0) {
+                             &client_address_size) != -1) {
                     client_video_addr.sin_addr.s_addr = udp_video_hint_src.sin_addr.s_addr;
                     char ip_str[INET_ADDRSTRLEN];
                     inet_ntop(AF_INET, &(client_video_addr.sin_addr), ip_str, INET_ADDRSTRLEN);

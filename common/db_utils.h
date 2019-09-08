@@ -20,7 +20,10 @@
 #ifndef DRONEBRIDGE_DB_DEBUG_UTILS_H
 #define DRONEBRIDGE_DB_DEBUG_UTILS_H
 
+void clear_socket_buffer(int socket_fd);
+
 void print_buffer(uint8_t buffer[], int num_bytes);
+
 uint8_t get_undervolt(void);
 
 #endif //DRONEBRIDGE_DB_DEBUG_UTILS_H

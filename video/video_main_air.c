@@ -92,15 +92,15 @@ void transmit_packet(uint32_t seq_nr, const uint8_t *packet_data, uint data_leng
     if (best_adapter == 5) {
         for (int i = 0; i < num_interfaces; i++) {
             clock_gettime(CLOCK_MONOTONIC, &start_time);
-            if (send_packet_hp_div(&raw_sockets[i], DB_PORT_VIDEO, payload_length, update_seq_num(&db_vid_seqnum)) ==
+            if (db_send_hp_div(&raw_sockets[i], DB_PORT_VIDEO, payload_length, update_seq_num(&db_vid_seqnum)) ==
                 -1)
                 db_uav_status->injection_fail_cnt++;
             clock_gettime(CLOCK_MONOTONIC, &end_time);
         }
     } else {
         clock_gettime(CLOCK_MONOTONIC, &start_time);
-        if (send_packet_hp_div(&raw_sockets[best_adapter], DB_PORT_VIDEO, payload_length,
-                               update_seq_num(&db_vid_seqnum)) == -1)
+        if (db_send_hp_div(&raw_sockets[best_adapter], DB_PORT_VIDEO, payload_length,
+                           update_seq_num(&db_vid_seqnum)) == -1)
             db_uav_status->injection_fail_cnt++;
         clock_gettime(CLOCK_MONOTONIC, &end_time);
     }

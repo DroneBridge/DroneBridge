@@ -16,10 +16,6 @@
  *   limitations under the License.
  *
  */
-/**
- * ----------- Attention -----------
- * These sockets will only be able to receive data! If you need to send data use "db_raw_send_receive.c"
- */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -41,6 +37,7 @@ int expected_seq_num;
 
 /**
  * Set a BPF filter on the socket (DroneBridge raw protocol v2)
+ *
  * @param newsocket The socket file descriptor on which the BPF filter should be set
  * @param new_comm_id The communication ID that we filter for
  * @param direction Packets with what kind of directions (DB_DIREC_DRONE or DB_V2_DIREC_GROUND) are allowed to pass the filter
@@ -88,6 +85,7 @@ int setBPF(int newsocket, const uint8_t new_comm_id, uint8_t direction, uint8_t 
 
 /**
  * Bind the socket to a network interface
+ *
  * @param newsocket The socket to be bound
  * @param the_mode The DroneBridge mode we are in (monitor or wifi (unsupported))
  * @param new_ifname The name of the interface we want the socket to bind to
@@ -130,6 +128,7 @@ int set_socket_nonblocking(int the_socketfd) {
     } else {
         return the_socketfd;
     }
+    return the_socketfd;
 }
 
 /**
@@ -149,6 +148,7 @@ int set_socket_timeout(int the_socketfd, int time_out_s, int time_out_us) {
 
 /**
  * Counts the lost packets. Protocol fails if we lost more than 255 packets at once
+ *
  * @param last_seq_num The sequence number of the previous packet we received
  * @param received_seq_num The sequence number of the packet we received "right now"
  * @return The number of packets we lost in between the previous packet and the most current one
@@ -163,6 +163,7 @@ uint8_t count_lost_packets(uint8_t last_seq_num, uint8_t received_seq_num) {
 
 /**
  * Gets the payload from a received packet buffer of a raw socket (DB raw socket)
+ *
  * @param receive_buffer: The buffer filled by the raw socket during recv()
  * @param receive_length: The length of the received raw packet (return value of recv())
  * @param payload_buffer: The buffer we write the DroneBridge payload into.
@@ -178,7 +179,7 @@ uint16_t get_db_payload(uint8_t *receive_buffer, ssize_t receive_length, uint8_t
     // estimate if the packet was sent with offset payload. 4 FCS bytes may or may not be supplied at end of frame.
     if ((receive_length - *radiotap_length - DB_RAW_V2_HEADER_LENGTH) <= (payload_length + 4))
         memcpy(payload_buffer, &receive_buffer[*radiotap_length + DB_RAW_V2_HEADER_LENGTH], payload_length);
-    else
+    else if (payload_length <= DATA_UNI_LENGTH)
         memcpy(payload_buffer, &receive_buffer[*radiotap_length + DB_RAW_V2_HEADER_LENGTH + DB_RAW_OFFSET],
                payload_length);
     return payload_length;

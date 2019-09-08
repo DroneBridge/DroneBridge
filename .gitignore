@@ -16,6 +16,7 @@ status/cmake-build-debug/
 \.idea/
 
 cmake-build-debug/
+cmake-build-release/
 
 status/common_lib/CMakeFiles/
 

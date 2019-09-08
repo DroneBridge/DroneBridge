@@ -341,9 +341,9 @@ int main(int argc, char *argv[]) {
                                 // Always buffer two LTM messages and send them together
                                 ltm_frame_size += read_remaining_ltm_frame(ltm_frame_buffer_pos);
                                 if (ltm_frame_buffer_pos>0) {
-                                    send_packet_div(&tel_db_socket, ltm_frame_buf, DB_PORT_TELEMETRY,
-                                                    (u_int16_t) ltm_frame_size, update_seq_num(&tel_seq_number),
-                                                    tel_adhere_80211);
+                                    db_send_div(&tel_db_socket, ltm_frame_buf, DB_PORT_TELEMETRY,
+                                                (u_int16_t) ltm_frame_size, update_seq_num(&tel_seq_number),
+                                                tel_adhere_80211);
                                     //print_buffer(ltm_frame_buf, ltm_frame_size);
                                     ltm_frame_buffer_pos=0;
                                     ltm_frame_size = 0;
@@ -353,9 +353,9 @@ int main(int argc, char *argv[]) {
                             } else {
                                 // Send one LTM message per packet over long range link
                                 ltm_frame_size = read_remaining_ltm_frame(0);
-                                send_packet_div(&tel_db_socket, ltm_frame_buf, DB_PORT_TELEMETRY,
-                                                (u_int16_t) ltm_frame_size, update_seq_num(&tel_seq_number),
-                                                tel_adhere_80211);
+                                db_send_div(&tel_db_socket, ltm_frame_buf, DB_PORT_TELEMETRY,
+                                            (u_int16_t) ltm_frame_size, update_seq_num(&tel_seq_number),
+                                            tel_adhere_80211);
                                 //print_buffer(ltm_frame_buf, ltm_frame_size);
                             }
                         }
@@ -368,8 +368,8 @@ int main(int argc, char *argv[]) {
         } else {
             // fully transparent telemetry downstream for non-LTM stream
             read_bytes_from_serial(transparent_chunksize, transparent_buffer);
-            send_packet_div(&tel_db_socket, transparent_buffer, DB_PORT_TELEMETRY,
-                            (u_int16_t) transparent_chunksize, update_seq_num(&tel_seq_number), tel_adhere_80211);
+            db_send_div(&tel_db_socket, transparent_buffer, DB_PORT_TELEMETRY,
+                        (u_int16_t) transparent_chunksize, update_seq_num(&tel_seq_number), tel_adhere_80211);
         }
     }
     close(serial_socket);
