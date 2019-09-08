@@ -106,12 +106,6 @@ void render(telemetry_data_t *td, uint8_t cpuload_gnd, uint8_t temp_gnd, uint8_t
     Start(width, height); // render start
     setfillstroke();
     BackgroundRGBA(0, 0, 0, 0);
-    if (td->rx_status_sysair->undervolt == 1)
-        draw_message(0, "Undervoltage on TX", "Check wiring/power-supply", "Bitrate limited to 1 Mbit", WARNING_POS_X,
-                     WARNING_POS_Y, GLOBAL_SCALE);
-    if (undervolt == 1)
-        draw_message(0, "Undervoltage on RX", "Check wiring/power-supply", " ", WARNING_POS_X, WARNING_POS_Y,
-                     GLOBAL_SCALE);
 
 #if defined(FRSKY)
     //we assume that we have a fix if we get the NS and EW values from frsky protocol
@@ -318,7 +312,8 @@ void render(telemetry_data_t *td, uint8_t cpuload_gnd, uint8_t temp_gnd, uint8_t
 
     no_signal = false;
     for (i = 0; i < ac; ++i) { // find out which card has best signal (and if at least one card has a signal)
-        if (td->rx_status->adapter[i].current_signal_dbm > best_dbm && td->rx_status->adapter[i].current_signal_dbm != 0)
+        if (td->rx_status->adapter[i].current_signal_dbm > best_dbm &&
+            td->rx_status->adapter[i].current_signal_dbm != 0)
             best_dbm = td->rx_status->adapter[i].current_signal_dbm;
     }
 
@@ -862,6 +857,13 @@ void draw_sys(uint8_t cpuload_air, uint8_t temp_air, uint8_t cpuload_gnd, uint8_
             text_scale);
     Fill(COLOR);
     Stroke(OUTLINECOLOR);
+
+    if (td->rx_status_sysair->undervolt == 1)
+        draw_message(0, "Undervoltage on UAV", "Check wiring/power-supply", " ", WARNING_POS_X,
+                     WARNING_POS_Y, GLOBAL_SCALE);
+    if (undervolt == 1)
+        draw_message(0, "Undervoltage on GND", "Check wiring/power-supply", " ", WARNING_POS_X,
+                     WARNING_POS_Y, GLOBAL_SCALE);
 }
 
 
@@ -986,8 +988,7 @@ void draw_compass(float heading, float home_heading, float pos_x, float pos_y, f
     if (rel_home < 0) rel_home += 360;
     if ((rel_home > 90) && (rel_home <= 180)) {
         TextMid(getWidth(pos_x) + width_ladder / 2 * 1.2, getHeight(pos_y), "", osdicons, text_scale * 0.8);
-    }
-    else if ((rel_home > 180) && (rel_home < 270)) {
+    } else if ((rel_home > 180) && (rel_home < 270)) {
         TextMid(getWidth(pos_x) - width_ladder / 2 * 1.2, getHeight(pos_y), "", osdicons, text_scale * 0.8);
     }
 

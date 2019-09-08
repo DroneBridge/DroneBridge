@@ -23,7 +23,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <net/if.h>
-#include <netinet/ether.h>
 #include <termios.h>    // POSIX terminal control definitionss
 #include <fcntl.h>      // File control definitions
 #include <errno.h>      // Error number definitions
@@ -169,13 +168,12 @@ uint8_t send_status_update(uint8_t *status_seq_number, db_socket_t *raw_interfac
                            long *start_rc, uint8_t rc_packets_tmp, uint8_t rc_packets_cnt,
                            struct uav_rc_status_update_message_t *rc_status_update_data, long *rightnow) {
     struct timeval time_check;
-    if (*rightnow - *start_rc >= 1000) {
+    if ((*rightnow - *start_rc) >= 1000) {
         rc_packets_tmp = rc_packets_cnt; // save received packets/seconds to temp variable
         rc_packets_cnt = 0;
         *start_rc = (long) time_check.tv_sec * 1000 + (long) time_check.tv_usec / 1000;
     }
-    LOG_SYS_STD(LOG_INFO, "Checking for status update to GND %i\n", ((*rightnow - *start) >= STATUS_UPDATE_TIME));
-    if (*rightnow - *start >= STATUS_UPDATE_TIME) {
+    if ((*rightnow - *start) >= STATUS_UPDATE_TIME) {
         memset(rc_status_update_data, 0xff, 6);
         rc_status_update_data->rssi_rc_uav = rssi;
         // lost packets/second (it is a estimate)
