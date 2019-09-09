@@ -179,7 +179,7 @@ void render(telemetry_data_t *td, uint8_t cpuload_gnd, uint8_t temp_gnd, uint8_t
 
 #ifdef SYS
     draw_sys(td->rx_status_sysair->cpuload, td->rx_status_sysair->temp, cpuload_gnd, temp_gnd, SYS_POS_X, SYS_POS_Y,
-             SYS_SCALE * GLOBAL_SCALE);
+             SYS_SCALE * GLOBAL_SCALE, undervolt, td);
 #endif
 
 
@@ -781,7 +781,7 @@ void draw_kbitrate(int cts, int kbitrate, uint16_t kbitrate_measured_tx, uint16_
 
 
 void draw_sys(uint8_t cpuload_air, uint8_t temp_air, uint8_t cpuload_gnd, uint8_t temp_gnd, float pos_x, float pos_y,
-              float scale) {
+              float scale, uint8_t undervolt, telemetry_data_t *td) {
     float text_scale = getWidth(2) * scale;
     VGfloat height_text = TextHeight(myfont, text_scale) + getHeight(0.3) * scale;
     VGfloat width_value = TextWidth("00", myfont, text_scale) + getWidth(0.5) * scale;
