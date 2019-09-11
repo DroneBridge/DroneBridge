@@ -258,6 +258,16 @@ struct data_uni *get_hp_raw_buffer(int adhere_to_80211_header) {
         return (struct data_uni *) (monitor_framebuffer + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH);
 }
 
+static inline void check_payload_length(const uint16_t *payload_length) {
+    if (*payload_length < DB_MIN_PAYLOAD_LENGTH_RTS && db_raw_header->fcf_duration[0] == 0xb4)
+        LOG_SYS_STD(LOG_ERR, "DroneBridgeCommon: Payload too short (<%i) for specified frame type\n",
+                    DB_MIN_PAYLOAD_LENGTH_RTS);
+    else if (*payload_length <
+             DB_MIN_PAYLOAD_LENGTH_DATA_BEACON)  // short check works since we only allow for 3 frame types
+        LOG_SYS_STD(LOG_ERR, "DroneBridgeCommon: Payload too short (<%i) for specified frame type\n",
+                    DB_MIN_PAYLOAD_LENGTH_DATA_BEACON);
+}
+
 /**
  * This function works the same as send_packet with the difference that it allows for soft. diversity transmission.
  * You can specify a socket (bound to an interface) that should be used to send the packet.
@@ -270,8 +280,9 @@ struct data_uni *get_hp_raw_buffer(int adhere_to_80211_header) {
  *                               802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!
  * @return: 0 on success or -1 on failure
  */
-int db_send_div(db_socket_t *a_db_socket, uint8_t *payload, uint8_t dest_port, u_int16_t payload_length,
+int db_send_div(db_socket_t *a_db_socket, uint8_t *payload, uint8_t dest_port, uint16_t payload_length,
                 uint8_t new_seq_num, int adhere_80211_header) {
+    check_payload_length(&payload_length);
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & (uint8_t) 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> (uint8_t) 8) & (uint8_t) 0xFF);
     db_raw_header->port = dest_port;
@@ -305,7 +316,8 @@ int db_send_div(db_socket_t *a_db_socket, uint8_t *payload, uint8_t dest_port, u
  * @param new_seq_num Specify the sequence number of the packet
  * @return 0 on success or -1 on failure
  */
-int db_send_hp_div(db_socket_t *a_db_socket, uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num) {
+int db_send_hp_div(db_socket_t *a_db_socket, uint8_t dest_port, uint16_t payload_length, uint8_t new_seq_num) {
+    check_payload_length(&payload_length);
     db_raw_header->payload_length[0] = (uint8_t) (payload_length & (uint8_t) 0xFF);
     db_raw_header->payload_length[1] = (uint8_t) ((payload_length >> (uint8_t) 8) & (uint8_t) 0xFF);
     db_raw_header->port = dest_port;

@@ -281,11 +281,11 @@ int init_db_accessory(db_accessory_t *db_acc) {
                     continue;
                 }
                 usleep(10000);
-                if (db_acc->handle != NULL) {
-                    int rett;
-                    if ((rett = libusb_release_interface(db_acc->handle, 0)) < 0)
-                        LOG_SYS_STD(LOG_ERR, "AOA_USB: Error releasing interface %s\n", libusb_error_name(rett));
-                }
+//                if (db_acc->handle != NULL) {
+//                    int rett;
+//                    if ((rett = libusb_release_interface(db_acc->handle, 0)) < 0)
+//                        LOG_SYS_STD(LOG_ERR, "AOA_USB: Error releasing interface %s\n", libusb_error_name(rett));
+//                }
                 libusb_close(db_acc->handle);
 
                 usleep(100000);
@@ -327,8 +327,13 @@ void exit_close_aoa_device(db_accessory_t *db_acc) {
     memset(raw_usb_msg_buff, 0, DB_AOA_MAX_MSG_LENGTH);
     if (db_acc->handle != NULL) {
         int ret;
-        if ((ret = libusb_release_interface(db_acc->handle, 0)) != 0)
-            LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - releasing interface: %s\n", libusb_error_name(ret));
+        if ((ret = libusb_release_interface(db_acc->handle, 0)) != 0) {
+            if (ret == LIBUSB_ERROR_NO_DEVICE)
+                LOG_SYS_STD(LOG_WARNING, "AOA_USB: Device disconnected. Could not release interface: %s\n",
+                            libusb_error_name(ret));
+            else
+                LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - releasing interface: %s\n", libusb_error_name(ret));
+        }
         libusb_close(db_acc->handle);
         LOG_SYS_STD(LOG_INFO, "AOA_USB: Devices closed!\n");
     }

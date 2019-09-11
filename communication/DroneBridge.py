@@ -101,6 +101,7 @@ class DroneBridge:
         self.mode = mode
         self.tag = tag
         self.comm_direction = comm_direction
+        self.frame_type = frame_type
         if type(dronebridge_port) is bytes:
             self.db_port = dronebridge_port
         elif type(dronebridge_port) is DBPort:
@@ -152,14 +153,18 @@ class DroneBridge:
             cypher = AES.new(self.aes_key, AES.MODE_EAX)
             text, tag = cypher.encrypt_and_digest(data_bytes)
             data_bytes = cypher.nonce + tag + data_bytes
-        if len(data_bytes) >= 1480:
-            db_log(f"{self.tag}: WARNING - Payload might be too big for a single transmission! {len(data_bytes)}>=1480")
+        payload_length = len(data_bytes)
+        if payload_length >= 1480:
+            db_log(f"{self.tag}: WARNING - Payload might be too big for a single transmission! {payload_length}>=1480")
+        elif (payload_length < 6 and self.frame_type == 1) or (payload_length < 14 and self.frame_type > 1):
+            db_log(f"{self.tag}: ERROR - Payload length too small for specified frame type (min. payload length -> "
+                   f"RTS: 6 bytes, DATA/BEACON: 14 bytes)")
         if self._seq_num == 255:
             self._seq_num = 0
         else:
             self._seq_num += 1
         db_v2_raw_header = bytes(bytearray(self.fcf + direction + self.comm_id + port_bytes +
-                                           bytes(len(data_bytes).to_bytes(2, byteorder='little', signed=False)) +
+                                           bytes(payload_length.to_bytes(2, byteorder='little', signed=False)) +
                                            bytes([self._seq_num])))
         if self.adhere_80211_header:
             raw_buffer = self.rth + db_v2_raw_header + DB_RAW_OFFSET_BYTES + data_bytes

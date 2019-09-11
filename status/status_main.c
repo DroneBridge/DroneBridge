@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
     struct tcp_server_info_t status_tcp_server_info = create_tcp_server_socket(APP_PORT_STATUS);
     int tcp_addrlen = sizeof(status_tcp_server_info.servaddr);
 
-    LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: started!\n");
+    LOG_SYS_STD(LOG_INFO, "DB_STATUS_GND: Started!\n");
     gettimeofday(&timecheck, NULL);
     start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000;
     while (keeprunning) {
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
         }
         select_return = select(max_sd + 1, &fd_socket_set, NULL, NULL, &socket_timeout);
         if (select_return == -1 && errno != EINTR) {
-            perror("DB_STATUS_GROUND: select() returned error: ");
+            perror("DB_STATUS_GROUND: select() returned error");
         } else if (select_return > 0) {
             for (int i = 0; i < num_inf_status; ++i) {
                 if (FD_ISSET(raw_interfaces_status[i].db_socket, &fd_socket_set)) {

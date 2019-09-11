@@ -111,7 +111,7 @@ uint8_t get_cpu_usage() {
     FILE *fp;
     fp = fopen("/proc/stat", "r");
     if (fscanf(fp, "%*s %Lf %Lf %Lf %Lf", &cpu_u_new[0], &cpu_u_new[1], &cpu_u_new[2], &cpu_u_new[3]) < 4)
-        perror("DB_CONTROL_AIR: Could not read CPU usage\n");
+        perror("DB_CONTROL_AIR: Could not read CPU usage");
     fclose(fp);
     loadavg = ((cpu_u_old[0] + cpu_u_old[1] + cpu_u_old[2]) - (cpu_u_new[0] + cpu_u_new[1] + cpu_u_new[2])) /
               ((cpu_u_old[0] + cpu_u_old[1] + cpu_u_old[2] + cpu_u_old[3]) -
@@ -128,11 +128,14 @@ uint8_t get_cpu_usage() {
 uint8_t get_cpu_temp() {
     FILE *thermal;
     thermal = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
-    if (fscanf(thermal, "%f", &millideg) < 1)
-        perror("DB_CONTROL_AIR: Could not read CPU temperature\n");
-    fclose(thermal);
-    systemp = millideg / 1000;
-    return (uint8_t) systemp;
+    if (thermal == NULL || fscanf(thermal, "%f", &millideg) < 1)
+        perror("DB_CONTROL_AIR: Could not read CPU temperature");
+    else {
+        fclose(thermal);
+        systemp = millideg / 1000;
+        return (uint8_t) systemp;
+    }
+    return 0;
 }
 
 int8_t get_rssi(uint8_t *payload_buffer, int radiotap_length) {
@@ -183,7 +186,7 @@ uint8_t send_status_update(uint8_t *status_seq_number, db_socket_t *raw_interfac
         rc_status_update_data->uav_is_low_V = get_undervolt();
         for (int i = 0; i < num_inf; i++) {
             db_send_hp_div(&raw_interfaces_telem[i], DB_PORT_STATUS,
-                           (u_int16_t) 6, update_seq_num(status_seq_number));
+                           (u_int16_t) 14, update_seq_num(status_seq_number));
         }
 
         gettimeofday(&time_check, NULL);
@@ -347,6 +350,7 @@ int main(int argc, char *argv[]) {
     }
     conf_rc_serial_protocol_air(serial_protocol_control, use_sumd);
     open_rc_rx_shm(); // open/init shared memory to write RC values into it
+
 // -------------------------------
 // Setting up network interface
 // -------------------------------
@@ -378,7 +382,7 @@ int main(int argc, char *argv[]) {
 // ----------------------------------
     int sentbytes = 0, command_length = 0, errsv, select_return, continue_reading, chunck_left = chucksize,
             serial_read_bytes = 0, max_sd = 0;
-    int8_t rssi = 0, last_recv_rc_seq_num = 0, last_recv_cont_seq_num = 0;
+    int8_t rssi = -128, last_recv_rc_seq_num = 0, last_recv_cont_seq_num = 0;
     long start; // start time for status report update
     long start_rc; // start time for measuring the recv RC packets/second
 

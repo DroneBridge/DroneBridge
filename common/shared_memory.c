@@ -32,7 +32,7 @@ db_gnd_status_t *db_gnd_status_memory_open(void) {
         if(fd > 0) {
             break;
         }
-        perror("db_gnd_status_t: Waiting for ground station video to be started ... %s");
+        perror("db_gnd_status_t");
         usleep((__useconds_t) 1e5);
     }
 
@@ -56,7 +56,7 @@ db_rc_status_t *db_rc_status_memory_open(void) {
         if(fd > 0) {
             break;
         }
-        perror("db_rc_status_memory_open: Waiting for ground station video to be started ... %s");
+        perror("db_rc_status_memory_open");
         usleep((__useconds_t) 1e5);
     }
 

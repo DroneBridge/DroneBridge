@@ -60,6 +60,9 @@ typedef u32 __le32;
 #define DB_FRAMETYPE_BEACON     3
 #define DB_FRAMETYPE_DEFAULT    DB_FRAMETYPE_DATA
 
+#define DB_MIN_PAYLOAD_LENGTH_RTS           6
+#define DB_MIN_PAYLOAD_LENGTH_DATA_BEACON   14
+
 #define NUM_CHANNELS            14      // max number of channels sent over DroneBridge control module (ground)
 #define DB_RC_NUM_CHANNELS      12      // number of channels supported by DroneBridge RC protocol
 
@@ -100,7 +103,7 @@ struct uav_rc_status_update_message_t {
     uint8_t cpu_usage_uav;
     uint8_t cpu_temp_uav;
     uint8_t uav_is_low_V;
-    uint8_t empty_unused;
+    uint8_t empty_unused[9];
 }__attribute__((packed));
 
 struct radiotap_header {

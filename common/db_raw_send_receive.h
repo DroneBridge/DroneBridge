@@ -43,9 +43,9 @@ uint8_t update_seq_num(uint8_t *old_seq_num);
 
 struct data_uni *get_hp_raw_buffer(int adhere_to_80211_header);
 
-int db_send_div(db_socket_t *a_db_socket, uint8_t *payload, uint8_t dest_port, u_int16_t payload_length,
+int db_send_div(db_socket_t *a_db_socket, uint8_t *payload, uint8_t dest_port, uint16_t payload_length,
                 uint8_t new_seq_num, int adhere_80211_header);
 
-int db_send_hp_div(db_socket_t *a_db_socket, uint8_t dest_port, u_int16_t payload_length, uint8_t new_seq_num);
+int db_send_hp_div(db_socket_t *a_db_socket, uint8_t dest_port, uint16_t payload_length, uint8_t new_seq_num);
 
 #endif //CONTROL_DB_RAW_SEND_H

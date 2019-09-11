@@ -13,7 +13,7 @@
 
 declare -a DBModuleNames=("osd" "video_air" "video_gnd" "db_pi_player" "db_pi_player_30" "db_pi_player_48"
 "db_pi_player_240" "db_status" "db_proxy" "control_air" "control_ground" "db_communication_air.py"
-"db_communication_gnd.py" "init_wifi.py" "start_db_modules.py" "usbbridge")
+"db_communication_gnd.py" "init_wifi.py" "start_db_modules.py" "usbbridge" "db_syslog_server")
 
 RED='\033[0;31m'
 GRN='\033[1;32m'

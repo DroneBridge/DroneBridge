@@ -327,7 +327,7 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
             device_connected = false;
             break;
         case LIBUSB_TRANSFER_TIMED_OUT:
-            LOG_SYS_STD(LOG_INFO, "DB_USB: Transfer timed out on endpoint 0x%02x!\n", xfr->endpoint);
+            LOG_SYS_STD(LOG_DEBUG, "DB_USB: Transfer timed out on endpoint 0x%02x!\n", xfr->endpoint);
             break;
         case LIBUSB_TRANSFER_ERROR:
             LOG_SYS_STD(LOG_WARNING, "DB_USB: Transfer error!\n");
