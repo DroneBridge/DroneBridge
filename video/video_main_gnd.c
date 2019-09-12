@@ -52,7 +52,7 @@ int num_interfaces = 0;
 int dest_port_video, unix_sock;
 uint8_t comm_id, num_data_block, num_fec_block;
 uint8_t lr_buffer[MAX_DB_DATA_LENGTH] = {0};
-bool pass_through, udp_enabled = true, output_to_usb_bridge = false;
+bool pass_through, udp_enabled = true, output_to_usb_bridge = false, send_to_std_out = true;
 volatile bool keeprunning = true;
 int param_block_buffers = 1;
 int pack_size = MAX_USER_PACKET_LENGTH;
@@ -123,7 +123,8 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
         // We assume the consumer is faster than the producer and that it will always be able to send
         if (sendto(unix_sock, data, message_length, 0, (struct sockaddr *) &unix_socket_addr, server_length) < 0) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
-                if (errno != ENOENT)  // ignore non existing dst socket addr. usbbridge might not have a connected dev
+                // ignore non existing dst socket addr. usbbridge might not have a connected dev
+                if (errno != ENOENT && errno != ECONNREFUSED)
                     perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
                 // else: usbbridge might not started or device not connected
             } // else
@@ -135,7 +136,7 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
                    sizeof(client_video_addr)) < message_length)
             perror("DB_VIDEO_GND: Not all data sent via UDP\n");
     }
-    if (fec_decoded) {
+    if (send_to_std_out && fec_decoded) {
         // only output decoded fec packets to stdout so that video player can read data stream directly
         if (write(STDOUT_FILENO, data, message_length) < 0)
             LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error writing to stdout %s\n", strerror(errno));
@@ -448,10 +449,10 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
 }
 
 void process_command_line_args(int argc, char *argv[]) {
-    num_interfaces = 0, comm_id = DEFAULT_V2_COMMID, pass_through = false, udp_enabled = true;
+    num_interfaces = 0, comm_id = DEFAULT_V2_COMMID, pass_through = false, udp_enabled = true, send_to_std_out = true;
     num_data_block = 8, num_fec_block = 4, pack_size = 1024, dest_port_video = APP_PORT_VIDEO;
     int c;
-    while ((c = getopt(argc, argv, "n:c:r:f:p:d:u:v:i:o")) != -1) {
+    while ((c = getopt(argc, argv, "n:c:r:f:p:d:u:v:i:os")) != -1) {
         switch (c) {
             case 'n':
                 strncpy(adapters[num_interfaces], optarg, IFNAMSIZ);
@@ -489,6 +490,9 @@ void process_command_line_args(int argc, char *argv[]) {
             case 'o':
                 output_to_usb_bridge = true;
                 break;
+            case 's':
+                send_to_std_out = false;
+                break;
             default:
                 printf("Based of Wifibroadcast by befinitiv, based on packet spammer by Andy Green.  Licensed under GPL2\n"
                        "This tool takes a data stream via the DroneBridge long range video port and outputs it via stdout, "
@@ -505,7 +509,8 @@ void process_command_line_args(int argc, char *argv[]) {
                        "\n\t-i UDP DST IP overwrite: Ignore DroneBridge IP checker shared memory and send data to this IP"
                        "\n\t-p <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
                        "\n\t-v Destination port of video stream when set via UDP (IP checker address) or TCP"
-                       "\n\t-o Set to output to unix domain socket at %s so that DroneBridge USBBridge can forward it",
+                       "\n\t-o Send to output to unix domain socket at %s so that DroneBridge USBBridge can forward it"
+                       "\n\t-s Disable decoded output to stdout",
                        1024, MAX_USER_PACKET_LENGTH, APP_PORT_VIDEO_FEC, DB_UNIX_DOMAIN_VIDEO_PATH);
                 abort();
         }

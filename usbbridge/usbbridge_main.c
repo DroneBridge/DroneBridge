@@ -41,7 +41,7 @@
 
 
 #define USB_BUFFER_SIZ  1024
-#define MAX_WRITE_TIMEOUT   200  // max time [ms] that the USBBridge is allowed to not send data to the GCS. Send wake to stop blocking android accessory api
+#define MAX_WRITE_TIMEOUT   300  // max time [ms] that the USBBridge is allowed to not send data to the GCS. Send wake to stop blocking android accessory api
 
 // Super handy to get to understand how libusb and how to use the provided file descriptors
 // https://libusbx-devel.narkive.com/M0EVVFb7/question-about-libusb-get-pollfds#post8
@@ -327,7 +327,8 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
             device_connected = false;
             break;
         case LIBUSB_TRANSFER_TIMED_OUT:
-            LOG_SYS_STD(LOG_DEBUG, "DB_USB: Transfer timed out on endpoint 0x%02x!\n", xfr->endpoint);
+//            LOG_SYS_STD(LOG_DEBUG, "DB_USB: Transfer timed out (%i bytes) on endpoint 0x%02x!\n", xfr->length,
+//                    xfr->endpoint);
             break;
         case LIBUSB_TRANSFER_ERROR:
             LOG_SYS_STD(LOG_WARNING, "DB_USB: Transfer error!\n");
@@ -405,20 +406,41 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t *usb_msg,
         usb_msg->pay_lenght = data_length;
         struct libusb_transfer *xfr = libusb_alloc_transfer(0);
         libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, (unsigned char *) usb_msg,
-                                  (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL, 100);
+                                  (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL, 1000);
         if (libusb_submit_transfer(xfr) < 0) {
             perror("DB_USB: Error submitting transfer");
             device_connected = false;
             libusb_free_transfer(xfr);
         }
     } else {  // split into multiple transmissions. Only send header once
+//        printf("Request to send %i bytes + (%i bytes for header) to USB device\n", data_length, DB_AOA_HEADER_LENGTH);
         uint16_t sent_data_length = 0;
         usb_msg->pay_lenght = data_length;
-        while (sent_data_length < data_length) {
+        // send first chuck containing header & using max packet length
+        struct libusb_transfer *xfr = libusb_alloc_transfer(0);
+        libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, &raw_usb_msg_buff[sent_data_length],
+                                  max_pack_size, callback_usb_async_complete, NULL, 1000);
+        // printf("Sending %i bytes to USB device\n", max_pack_size);
+        if (libusb_submit_transfer(xfr) < 0) {
+            perror("DB_USB: Error submitting transfer");
+            device_connected = false;
+            libusb_free_transfer(xfr);
+            return;
+        }
+        sent_data_length += max_pack_size;
+
+        // send rest of the chucks not containing any header. Pure data
+        uint16_t chuck_size;
+        while (sent_data_length < (data_length + DB_AOA_HEADER_LENGTH)) {
+            if (((data_length + DB_AOA_HEADER_LENGTH) - sent_data_length) <=
+                max_pack_size)  // does it fit into one packet?
+                chuck_size = data_length - sent_data_length + DB_AOA_HEADER_LENGTH;  // last chuck
+            else
+                chuck_size = max_pack_size;
             struct libusb_transfer *xfr = libusb_alloc_transfer(0);
             libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, &raw_usb_msg_buff[sent_data_length],
-                                      (usb_msg->pay_lenght + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL,
-                                      100);
+                                      chuck_size, callback_usb_async_complete, NULL, 100);
+            // printf("Sending %i bytes to USB device\n", chuck_size);
             if (libusb_submit_transfer(xfr) < 0) {
                 perror("DB_USB: Error submitting transfer");
                 device_connected = false;
@@ -426,7 +448,7 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t *usb_msg,
                 return;
             }
 
-            sent_data_length += usb_msg->pay_lenght; // (num_trans - DB_AOA_HEADER_LENGTH);
+            sent_data_length += chuck_size; // (num_trans - DB_AOA_HEADER_LENGTH);
         }
     }
 }
