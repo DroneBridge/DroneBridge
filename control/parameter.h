@@ -2,5 +2,6 @@
 #define PARAMETER_H_INCLUDED
 
 #define JOY_INTERFACE           0
+#define CALI_COMM_SIZE          500
 
 #endif // PARAMETER_H_INCLUDED

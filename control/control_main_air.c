@@ -168,19 +168,21 @@ int8_t get_rssi(uint8_t *payload_buffer, int radiotap_length) {
  * @return
  */
 uint8_t send_status_update(uint8_t *status_seq_number, db_socket_t *raw_interfaces_telem, int8_t rssi, long *start,
-                           long *start_rc, uint8_t rc_packets_tmp, uint8_t rc_packets_cnt,
-                           struct uav_rc_status_update_message_t *rc_status_update_data, long *rightnow) {
+                           long *start_rc, uint8_t *rc_packets_tmp, uint8_t rc_packets_cnt,
+                           struct uav_rc_status_update_message_t *rc_status_update_data, const long *rightnow) {
     struct timeval time_check;
     if ((*rightnow - *start_rc) >= 1000) {
-        rc_packets_tmp = rc_packets_cnt; // save received packets/seconds to temp variable
+        *rc_packets_tmp = rc_packets_cnt; // save received packets/seconds to temp variable
         rc_packets_cnt = 0;
+        gettimeofday(&time_check, NULL);
         *start_rc = (long) time_check.tv_sec * 1000 + (long) time_check.tv_usec / 1000;
     }
     if ((*rightnow - *start) >= STATUS_UPDATE_TIME) {
         memset(rc_status_update_data, 0xff, 6);
         rc_status_update_data->rssi_rc_uav = rssi;
         // lost packets/second (it is a estimate)
-        rc_status_update_data->recv_pack_sec = rc_packets_tmp;
+        printf("%i\n", *rc_packets_tmp);
+        rc_status_update_data->recv_pack_sec = *rc_packets_tmp;
         rc_status_update_data->cpu_usage_uav = get_cpu_usage();
         rc_status_update_data->cpu_temp_uav = get_cpu_temp();
         rc_status_update_data->uav_is_low_V = get_undervolt();
@@ -449,18 +451,19 @@ int main(int argc, char *argv[]) {
                     // --------------------------------
                     length = recv(raw_interfaces_rc[i].db_socket, buf, BUF_SIZ, 0);
                     if (length > 0) {
+                        rc_packets_cnt++;
                         rssi = get_rssi(buf, buf[2]);
                         get_db_payload(buf, length, commandBuf, &seq_num_rc, &radiotap_lenght);
                         if (last_recv_rc_seq_num != seq_num_rc) {  // diversity duplicate protection
                             last_recv_rc_seq_num = seq_num_rc;
                             command_length = generate_rc_serial_message(commandBuf);
-                            if (command_length > 0) {
-                                rc_packets_cnt++;
+                            if (command_length > 0 && rc_serial_socket > 0) {
                                 sentbytes = (int) write(rc_serial_socket, serial_data_buffer, (size_t) command_length);
                                 errsv = errno;
                                 tcdrain(rc_serial_socket);
                                 if (sentbytes <= 0) {
-                                    LOG_SYS_STD(LOG_WARNING, "RC NOT WRITTEN because of error: %s\n", strerror(errsv));
+                                    LOG_SYS_STD(LOG_WARNING, "RC not written to serial interface %s\n",
+                                                strerror(errsv));
                                 }
                                 // TODO: check if necessary. It shouldn't as we use blocking UART socket
                                 // tcflush(rc_serial_socket, TCOFLUSH);
@@ -584,7 +587,7 @@ int main(int argc, char *argv[]) {
         // Send a status update to status module on ground station
         // --------------------------------
         rc_packets_cnt = send_status_update(&status_seq_number, raw_interfaces_telem, rssi, &start, &start_rc,
-                                            rc_packets_tmp, rc_packets_cnt, rc_status_update_data, &rightnow);
+                                            &rc_packets_tmp, rc_packets_cnt, rc_status_update_data, &rightnow);
         // --------------------------------
         // Check for open telemetry serial socket
         // --------------------------------

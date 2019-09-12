@@ -17,13 +17,14 @@
  *
  */
 
-#include <arpa/inet.h>
 #include <stdint.h>
 #include <unistd.h>
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_crc.h"
 #include "../common/shared_memory.h"
 #include "../common/mavlink/c_library_v2/common/mavlink.h"
+#include "parameter.h"
+#include "../common/db_common.h"
 
 
 int rc_protocol;
@@ -205,13 +206,47 @@ void generate_db_rc_message(uint16_t channels[NUM_CHANNELS]) {
     monitor_databuffer->bytes[15] = (uint8_t) (crc_rc & 0xff);
 }
 
+void get_joy_interface_path(char *dst_joy_interface_path, int joy_interface_indx) {
+    char path[] = "/dev/input/js";
+    sprintf(dst_joy_interface_path, "%s%d", path, joy_interface_indx);
+}
+
+/**
+ * Restore prev. calibration or calibrate using default calibration command. All based on jscal & jscal-store
+ *
+ * @param calibrate_comm Default calibration command eg. jscal -s xxx
+ * @param joy_interface_indx Interface index of connected RC
+ */
+void do_calibration(char *calibrate_comm, int joy_interface_indx) {
+    char cali_restore_command[CALI_COMM_SIZE];
+    char joy_interface_path[CALI_COMM_SIZE];
+    // try to restore prev. calibration
+    get_joy_interface_path(joy_interface_path, joy_interface_indx);
+    sprintf(cali_restore_command, "%s %s", "jscal-restore", joy_interface_path);
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Calibrating -> %s\n", cali_restore_command);
+    if (system(cali_restore_command) == 0) {
+        LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Calibrated RC interface (restored old calibration)\n");
+        return;
+    } else {
+        // failed to restore. Calibrate using default calibration
+        if (system(calibrate_comm) == 0) {
+            LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Calibrated RC interface with default calibration\n");
+            char cali_store_comm[CALI_COMM_SIZE];
+            sprintf(cali_store_comm, "%s %s", "jscal-store", joy_interface_path);
+            LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Storing calibration data -> %s\n", cali_store_comm);
+            system(cali_store_comm);
+        } else
+            LOG_SYS_STD(LOG_WARNING, "DB_CONTROL_GND: Could not calibrate RC interface with %s\n", calibrate_comm);
+    }
+}
+
 /**
  * Sets the desired RC protocol. Opens DroneBridge raw protocol sockets for transmission
  * @param new_rc_protocol 1:MSPv1, 2:MSPv2, 3:MAVLink v1, 4:MAVLink v2, 5:DB-RC
  * @param allow_rc_overwrite Set to 'Y' if you want to allow the overwrite of RC channels via a shm/external app
  * @return
  */
-int conf_rc(char adapters[DB_MAX_ADAPTERS][IFNAMSIZ], int num_inf_rc, int comm_id, int db_mode, int bitrate_op,
+int conf_rc(char adapters[DB_MAX_ADAPTERS][IFNAMSIZ], int num_inf_rc, int comm_id, char db_mode, int bitrate_op,
             int frame_type, int new_rc_protocol, char allow_rc_overwrite, int adhere_80211) {
     rc_protocol = new_rc_protocol;
     en_rc_overwrite = allow_rc_overwrite == 'Y' ? true : false;
@@ -281,7 +316,7 @@ int send_rc_packet(uint16_t channel_data[]) {
     return 0;
 }
 
-void close_raw_interfaces(){
+void close_raw_interfaces() {
     for (int i = 0; i < DB_MAX_ADAPTERS; i++) {
         if (raw_interfaces_rc[i].db_socket != -1)
             close(raw_interfaces_rc[i].db_socket);

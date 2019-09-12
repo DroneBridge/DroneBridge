@@ -1,11 +1,10 @@
 import argparse
 import os
+import pyric.pyw as pyw
+import pyric.utils.hardware as iwhw
 import subprocess
 from socket import *
 from subprocess import Popen
-
-import pyric.pyw as pyw
-import pyric.utils.hardware as iwhw
 
 from Chipset import is_atheros_card, is_realtek_card, is_ralink_card
 from common_helpers import read_dronebridge_config, PI3_WIFI_NIC, HOTSPOT_NIC, get_bit_rate
@@ -89,11 +88,12 @@ def start_gnd_modules():
 
     if en_control == 'Y':
         print(f"{GND_STRING_TAG} Starting control module...")
-        Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_ground'), interface_control, "-j",
-               str(joy_interface), "-m", "m", "-v", str(rc_proto), "-o", str(en_rc_overwrite), "-c",
-               str(communication_id), "-t", str(frametype), "-b", str(get_bit_rate(datarate)), "-a",
-               str(compatibility_mode)],
-              shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
+        comm_control = [os.path.join(DRONEBRIDGE_BIN_PATH, 'control', 'control_ground'), "-j",
+                        str(joy_interface), "-m", "m", "-v", str(rc_proto), "-o", str(en_rc_overwrite), "-c",
+                        str(communication_id), "-t", str(frametype), "-b", str(get_bit_rate(datarate)), "-a",
+                        str(compatibility_mode)]
+        comm_control.extend(interface_control.split())
+        Popen(comm_control, shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_plugin == 'Y':
         print(GND_STRING_TAG + "Starting plugin module...")

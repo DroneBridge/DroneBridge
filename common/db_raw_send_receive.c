@@ -205,7 +205,7 @@ db_socket_t open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int b
     if (ioctl(socket_fd, SIOCGIFINDEX, &raw_if_idx) < 0) {
         perror("DroneBridgeCommon: SIOCGIFINDEX");
         new_socket.db_socket = -1;
-        LOG_SYS_STD(LOG_ERR, "%s", raw_if_idx.ifr_name);
+        LOG_SYS_STD(LOG_ERR, "Error with opening socket on '%s'", raw_if_idx.ifr_name);
         return new_socket;
     }
     /* Get the MAC address of the interface to send on */

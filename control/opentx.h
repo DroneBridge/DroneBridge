@@ -29,6 +29,6 @@
 #define DEFAULT_OPENTX_CALIBRATION "jscal -s 8,1,0,0,0,5534751,5534751,1,0,0,0,5534751,5534751,1,0,0,0,5534751,5534751,1,0,0,0,5534751,5534751,1,0,0,0,5534751,5534751,1,0,0,0,5534751,5534751,1,0,0,0,5534751,5534751,1,0,0,0,5534751,5534751 /dev/input/js0"
 #define taranis_descriptor           "FrSky FrSky Taranis Joystick"
 
-int opentx(int Joy_IF, char calibrate_comm[]);
+void opentx(int Joy_IF, struct timespec frequency_sleep);
 
 #endif //DB_JOYSTIC_TEST_OPENTX_H

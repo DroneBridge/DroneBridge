@@ -22,6 +22,6 @@
 #define DEFAULT_i6S_CALIBRATION     "jscal -s 6,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750,1,0,127,127,4260750,4260750 /dev/input/js0"
 #define i6S_descriptor              "Flysky FS-i6S emulator"
 
-int i6S(int Joy_IF, char calibrate_comm[]);
+void i6S(int Joy_IF, struct timespec frequency_sleep);
 
 #endif //CONTROL_I6S_H
