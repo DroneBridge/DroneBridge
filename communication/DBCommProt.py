@@ -40,6 +40,9 @@ class DBCommProt(Enum):
 
     DB_DST_GND = 1
     DB_DST_GND_UAV = 2
-    DB_DST_PER = 3
+    DB_DST_PER = 3  # peripherals
     DB_DST_GCS = 4
     DB_DST_UAV = 5
+
+    DB_HWID_PI = 0
+    DB_HWID_ESP32 = 1

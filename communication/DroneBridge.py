@@ -175,18 +175,18 @@ class DroneBridge:
         for writeable_sock in writeable:
             writeable_sock.sendall(raw_buffer)
 
-    def receive_data(self, receive_timeout=1.5) -> bytes or False:
+    def receive_data(self, receive_timeout=0) -> bytes:
         """
         Select on all long range sockets and receive packet with diversity
 
-        :param receive_timeout: Max time [s] to wait for a packet. Returns False on timeout
+        :param receive_timeout: Max time [s] to wait for a packet. 0 for blocking. Returns no bytes on timeout
         :return: False on timeout, packet payload on success
         """
         if self.mode is DBMode.WIFI:
             raise NotImplementedError("Wifi mode is currently not supported by DroneBridge")
         else:
             try:
-                payload = False
+                payload = b''
                 readable, _, _ = select(self.list_lr_sockets, [], [], receive_timeout)
                 for readable_socket in readable:  # receive on all sockets to clear buffers
                     data, seq_num = self.parse_packet(bytearray(readable_socket.recv(self.MONITOR_BUFFERSIZE_COMM)))
@@ -196,10 +196,10 @@ class DroneBridge:
                 return payload
             except timeout as t:
                 db_log(f"{self.tag}: Socket timed out. No response received from drone (monitor mode) -> {t}")
-                return False
+                return b''
             except Exception as e:
                 db_log(f"{self.tag}: Error receiving data form drone (monitor mode) -> {e}")
-                return False
+                return b''
 
     def set_transmission_bitrate(self, new_bitrate: int):
         """

@@ -107,12 +107,14 @@ def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
     complete_response['id'] = loaded_json['id']
     if loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_DB.value:
         if 'settings' in loaded_json:
-            complete_response = read_dronebridge_settings(complete_response, True, loaded_json)
+            complete_response = read_dronebridge_settings(complete_response, True, loaded_json)  # can return None
         else:
-            complete_response = read_dronebridge_settings(complete_response, False, None)
+            complete_response = read_dronebridge_settings(complete_response, False, None)  # can return None
     elif loaded_json['request'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
-        db_log("ERROR: WBC settings read unsupported!", ident=LOG_ERR)
+        db_log("DB_COMM_PROTO: ERROR - WBC settings read unsupported!", ident=LOG_ERR)
         return new_error_response_message("WBC settings read unsupported", origin, loaded_json['id'])
+    if complete_response is None:
+        return new_error_response_message("Could not read DroneBridge config", origin, loaded_json['id'])
     response = json.dumps(complete_response)
     crc32 = binascii.crc32(str.encode(response))
     a = ""
@@ -166,7 +168,7 @@ def change_settings_db(loaded_json: json) -> bool:
             file.flush()
             os.fsync(file.fileno())
     except Exception as ex:
-        db_log(f"Error writing DroneBridge settings: {ex}", ident=LOG_ERR)
+        db_log(f"DB_COMM_PROTO: Error writing DroneBridge settings: {ex}", ident=LOG_ERR)
         return False
     return True
 
@@ -177,7 +179,7 @@ def change_settings(loaded_json: json, origin: int) -> bytes:
     if loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_DB.value:
         worked = change_settings_db(loaded_json)
     elif loaded_json['change'] == DBCommProt.DB_REQUEST_TYPE_WBC.value:
-        db_log("Error: WBC settings change not supported", ident=LOG_ERR)
+        db_log("DB_COMM_PROTO: Error - WBC settings change not supported", ident=LOG_ERR)
         worked = False
     if worked:
         return new_settingschangesuccess_message(origin, loaded_json['id'])
@@ -186,20 +188,20 @@ def change_settings(loaded_json: json, origin: int) -> bytes:
 
 
 def get_firmware_id() -> int:
-    version_num = 0
+    firmware_id = 0
     with open(PATH_DB_VERSION, 'r') as version_file:
-        version_num = int(version_file.readline())
-    return version_num
+        firmware_id = int(version_file.readline())
+    return firmware_id
 
 
 def create_sys_ident_response(requested_id: int, origin: int) -> bytes:
     command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SYS_IDENT_RESPONSE.value, 'origin': origin,
-                          'HID': 0, 'FID': get_firmware_id(), 'id': requested_id})
+                          'HID': DBCommProt.DB_HWID_PI, 'FID': get_firmware_id(), 'id': requested_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
-def read_dronebridge_settings(response_header: dict, specific_request: bool, requested_settings: json) -> json:
+def read_dronebridge_settings(response_header: dict, specific_request: bool, requested_settings: json) -> json or None:
     """
     Read settings from file and create a valid packet
 
@@ -212,6 +214,9 @@ def read_dronebridge_settings(response_header: dict, specific_request: bool, req
     config.optionxform = str
     response_settings = {}  # settings object that gets sent
     config.read(PATH_DRONEBRIDGE_SETTINGS)
+    if not config.read(PATH_DRONEBRIDGE_SETTINGS):
+        db_log("DB_COMM_PROTO: Error reading DroneBridge config", LOG_ERR)
+        return None
 
     if specific_request:
         for section in requested_settings['settings']:
@@ -300,10 +305,10 @@ def normalize_jscal_axis(device="/dev/input/js0"):
             correction_coeff_max = int(536854528 / (maximum - center_value))
             calibration_string = calibration_string + ",1,0," + str(center_value) + "," + str(center_value) + "," \
                                  + str(correction_coeff_min) + "," + str(correction_coeff_max)
-        db_log("Calibrating:")
+        db_log("DB_COMM_PROTO: Calibrating:")
         db_log(calibration_string)
         call(["jscal", device, "-s", calibration_string])
-        db_log("Saving calibration")
+        db_log("DB_COMM_PROTO: Saving calibration")
         call(["jscal-store", device])
 
 
@@ -319,14 +324,14 @@ def parse_comm_message(raw_data_encoded: bytes) -> None or json:
     try:
         loaded_json = json.loads(extracted_info[0].decode())
         if not comm_crc_correct(extracted_info):  # Check CRC
-            db_log("Communication message: invalid CRC", ident=LOG_ERR)
+            db_log("DB_COMM_PROTO: Communication message: invalid CRC", ident=LOG_ERR)
             return None
         return loaded_json
     except UnicodeDecodeError:
-        db_log("Invalid command: Could not decode json message", ident=LOG_ERR)
+        db_log("DB_COMM_PROTO: Invalid command: Could not decode json message", ident=LOG_ERR)
         return None
     except ValueError:
-        db_log("ValueError on decoding json", ident=LOG_ERR)
+        db_log("DB_COMM_PROTO: ValueError on decoding json", ident=LOG_ERR)
         return None
 
 

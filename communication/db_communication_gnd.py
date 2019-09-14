@@ -16,10 +16,11 @@
 #   limitations under the License.
 #
 import argparse
+import signal
 
 from select import select, error
 from socket import socket, AF_INET, SOCK_STREAM, SO_REUSEADDR, SOL_SOCKET
-from syslog import LOG_ERR, LOG_WARNING
+from syslog import LOG_ERR, LOG_WARNING, LOG_DEBUG
 
 from DBCommProt import DBCommProt
 from DroneBridge import DBMode, DBPort, DBDir, DroneBridge
@@ -53,7 +54,7 @@ def open_tcp_socket() -> socket:
     tcp_socket = socket(AF_INET, SOCK_STREAM)
     tcp_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     tcp_socket.bind(('', 1603))
-    tcp_socket.setblocking(False)
+    # tcp_socket.setblocking(False)
     tcp_socket.listen(5)
     return tcp_socket
 
@@ -84,7 +85,7 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
                     sendto_tcp_clients(message, _tcp_connections)
                     db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
                 else:
-                    db_log(f"Destination 2 (GND & UAV) is only supported for ping response messages", ident=LOG_WARNING)
+                    db_log(f"DB_COMM_GND: Destination 2 (GND & UAV) is only supported for ping messages", ident=LOG_WARNING)
                     message = new_error_response_message('Destination 2 (GND & UAV) is unsupported for non ping msgs',
                                                          DBCommProt.DB_ORIGIN_GND.value, comm_json['id'])
                     sendto_tcp_clients(message, _tcp_connections)
@@ -93,6 +94,7 @@ def process_comm_proto(db_comm_message_bytes: bytes, _tcp_connections: list):
             elif comm_json['destination'] == DBCommProt.DB_DST_GCS.value:
                 sendto_tcp_clients(db_comm_message_bytes, _tcp_connections)
             elif comm_json['destination'] == DBCommProt.DB_DST_UAV.value:
+                db_log("DB_COMM_GND: Forwarding msg to UAV", LOG_DEBUG)
                 db.sendto_uav(db_comm_message_bytes, DBPort.DB_PORT_COMMUNICATION)
             else:
                 db_log("DB_COMM_GND: Unknown message type", ident=LOG_ERR)
@@ -114,20 +116,23 @@ def sendto_tcp_clients(data_bytes: bytes, _tcp_connections: list):
     :param data_bytes: Payload to send
     :param _tcp_connections: List of socket objects to use for sending
     """
-    db_log("Responding ...")
+    db_log("DB_COMM_GND: Responding ...")
     for connected_socket in _tcp_connections:
         if connected_socket.sendall(data_bytes) is not None:
-            db_log("\tShit!", ident=LOG_ERR)
+            db_log("DB_COMM_GND:\tShit!", ident=LOG_ERR)
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     parsedArgs = parse_arguments()
     mode = parsedArgs.mode
     list_interfaces = parsedArgs.DB_INTERFACES
     comm_id = bytes([parsedArgs.comm_id])
     comp_mode = parsedArgs.comp_mode
     frame_type = int(parsedArgs.frametype)
-    db_log("DB_COMM_GND: Communication ID: " + str(comm_id))
+    db_log("DB_COMM_GND: Communication ID: " + str(int.from_bytes(comm_id, byteorder='little')) +
+           " (" + str(comm_id.hex()) + ")")
     db = DroneBridge(DBDir.DB_TO_GND, list_interfaces, DBMode.MONITOR, comm_id, DBPort.DB_PORT_COMMUNICATION,
                      tag="DB_COMM_GND", db_blocking_socket=False, frame_type=frame_type, compatibility_mode=comp_mode)
     # We use a stupid tcp implementation where all connected clients receive the data sent by the UAV. GCS must
@@ -137,15 +142,15 @@ if __name__ == "__main__":
     TCP_BUFFER_SIZE = 2048
     MONITOR_BUFFERSIZE = 2048
     db.clear_socket_buffers()
+    prev_seq_num = None
 
     db_log("DB_COMM_GND: started!")
     while keep_running:
         read_sockets = [tcp_master]
         read_sockets.extend(db.list_lr_sockets)
         read_sockets.extend(tcp_connections)
-        prev_seq_num = None
         try:
-            r, w, e = select(read_sockets, tcp_connections, tcp_connections)
+            r, w, e = select(read_sockets, [], tcp_connections, 0.5)  # timeout for proper termination?!
             for readable_sock in r:
                 if readable_sock is tcp_master:  # new connection
                     conn, addr = readable_sock.accept()
@@ -171,6 +176,8 @@ if __name__ == "__main__":
                 db_log("DB_COMM_GND: A TCP socket encountered an error: " + error_tcp_sock.getpeername(), ident=LOG_ERR)
                 tcp_connections.remove(error_tcp_sock)
                 error_tcp_sock.close()
+        except InterruptedError:
+            keep_running = False
         except error:
             db_log("DB_COMM_GND: Select got an error. That should not happen.", ident=LOG_ERR)
     db.close_sockets()

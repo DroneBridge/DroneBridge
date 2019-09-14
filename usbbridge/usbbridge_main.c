@@ -385,7 +385,7 @@ void db_read_usb_async(struct accessory_t *accessory) {
     libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_IN, usb_in_data, USB_BUFFER_SIZ,
                               callback_usb_async_complete, NULL, 0);
     if (libusb_submit_transfer(xfr) < 0) {
-        perror("DB_USB: Error submitting transfer");
+        perror("DB_USB: Error submitting read transfer");
         device_connected = false;
         libusb_free_transfer(xfr);
     }
@@ -582,7 +582,6 @@ int main(int argc, char *argv[]) {
                                 last_write = get_time();
                             }
                         } else {
-                            // TODO: Why are we landing here?!
                             LOG_SYS_STD(LOG_WARNING, "DB_USB: Poll got some on unknown socket %i (count: %i); "
                                                      "known sockets are: video: %i proxy %i status %i comm %i\n",
                                         poll_fds[i].fd, poll_fd_count.total_poll_fd_cnt, video_unix_socket,

@@ -17,7 +17,7 @@
 
 import argparse
 import signal
-from syslog import LOG_ERR
+from syslog import LOG_ERR, LOG_INFO
 
 from DroneBridge import DroneBridge, DBDir, DBMode, DBPort
 from db_comm_messages import parse_comm_message, new_error_response_message, process_db_comm_protocol
@@ -52,13 +52,15 @@ def signal_handler(signal, frame):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     parsedArgs = parse_arguments()
     mode = parsedArgs.mode
     list_interfaces = parsedArgs.DB_INTERFACES
     comm_id = bytes([parsedArgs.comm_id])
     comp_mode = parsedArgs.comp_mode
     frame_type = int(parsedArgs.frametype)
-    db_log("DB_COMM_AIR: Communication ID: " + str(comm_id))
+    db_log("DB_COMM_AIR: Communication ID: " + str(int.from_bytes(comm_id, byteorder='little')) +
+           " (" + str(comm_id.hex()) + ")")
     db = DroneBridge(DBDir.DB_TO_GND, list_interfaces, DBMode.MONITOR, comm_id, DBPort.DB_PORT_COMMUNICATION,
                      tag="DB_COMM_AIR", db_blocking_socket=True, frame_type=frame_type, compatibility_mode=comp_mode)
     first_run = True
@@ -67,13 +69,16 @@ if __name__ == "__main__":
             db.clear_socket_buffers()
             first_run = False
         db_comm_message_bytes = db.receive_data()
-        if db_comm_message_bytes != False:
+        if db_comm_message_bytes:
             try:
                 comm_json = parse_comm_message(db_comm_message_bytes)
                 if comm_json is not None:
+                    db_log("DB_COMM_AIR: Got: " + str(comm_json), LOG_INFO)
                     response_msg = process_db_comm_protocol(comm_json, DBDir.DB_TO_GND)
+                    db_log("DB_COMM_AIR: Responding...", LOG_INFO)
                     db.sendto_ground_station(response_msg, DBPort.DB_PORT_COMMUNICATION)
                 else:
+                    db_log("DB_COMM_AIR: Got corrupt message", LOG_INFO)
                     error_resp = new_error_response_message('DB_COMM_AIR: Corrupt message', DBDir.DB_TO_GND.value, 0000)
                     db.sendto_ground_station(error_resp, DBPort.DB_PORT_COMMUNICATION)
             except (UnicodeDecodeError, ValueError):
