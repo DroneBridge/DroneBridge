@@ -73,13 +73,13 @@ class DroneBridge:
     list_lr_sockets = []
     MONITOR_BUFFERSIZE_COMM = 2048
 
-    def __init__(self, comm_direction: DBDir, interfaces: list, mode: DBMode, communication_id: int or bytes,
+    def __init__(self, send_direction: DBDir, interfaces: list, mode: DBMode, communication_id: int or bytes,
                  dronebridge_port: DBPort or bytes, tag="MyDBApplication", db_blocking_socket=True, frame_type=1,
                  transmission_bitrate=36, compatibility_mode=False, encryption_key=None):
         """
         Class that handles communication between multiple wifi cards in monitor mode using the DroneBridge raw protocol
 
-        :param comm_direction: Direction in that the packets will be sent (to UAV or to ground station)
+        :param send_direction: Direction in that the packets will be sent (to UAV or to ground station)
         :param interfaces: List of wifi interfaces in monitor mode used to send & receive data
         :param mode: DroneBridge operating mode. Only 'm' for monitor supported for now
         :param communication_id: [0-255] to identify a communication link. Must be same on all communication partners
@@ -94,13 +94,13 @@ class DroneBridge:
             the HEX bytes of the secret key. Must have a length of 32, 48 or 64 characters representing 128bit, 192bit
             and 256bit AES encryption. Eg. "3373367639792442264528482B4D6251" for 128bit encryption
         """
-        assert type(comm_direction) is DBDir
+        assert type(send_direction) is DBDir
         assert type(mode) is DBMode
         assert type(dronebridge_port) is (DBPort or bytes)
         assert type(transmission_bitrate) is int
         self.mode = mode
         self.tag = tag
-        self.comm_direction = comm_direction
+        self.comm_direction = send_direction
         self.frame_type = frame_type
         if type(dronebridge_port) is bytes:
             self.db_port = dronebridge_port
@@ -121,11 +121,14 @@ class DroneBridge:
             self.fcf = b'\x08\x00\x00\x00'  # Data frame
         self.rth = self.generate_radiotap_header(6)
         self.set_transmission_bitrate(transmission_bitrate)
+        self.use_encryption = False
         if encryption_key is not None and len(encryption_key) == (32 or 48 or 64):
-            self.use_encryption = True
-            self.aes_key = bytes.fromhex(encryption_key)
-        else:
-            self.use_encryption = False
+            if isinstance(encryption_key, bytes):
+                self.aes_key = encryption_key
+                self.use_encryption = True
+            elif isinstance(encryption_key, str):
+                self.aes_key = bytes.fromhex(encryption_key)
+                self.use_encryption = True
 
     def sendto_ground_station(self, data_bytes: bytes, db_port: DBPort):
         """Convenient function. Send stuff to the ground station"""
@@ -152,7 +155,7 @@ class DroneBridge:
         if self.use_encryption:
             cypher = AES.new(self.aes_key, AES.MODE_EAX)
             text, tag = cypher.encrypt_and_digest(data_bytes)
-            data_bytes = cypher.nonce + tag + data_bytes
+            data_bytes = cypher.nonce + tag + text
         payload_length = len(data_bytes)
         if payload_length >= 1480:
             db_log(f"{self.tag}: WARNING - Payload might be too big for a single transmission! {payload_length}>=1480")
@@ -171,15 +174,15 @@ class DroneBridge:
         else:
             raw_buffer = self.rth + db_v2_raw_header + data_bytes
 
-        _, writeable, _ = select([], self.list_lr_sockets, [], 0)  # send on all free cards but at least on one of them
+        _, writeable, _ = select([], self.list_lr_sockets, [])  # send on all free cards but at least on one of them
         for writeable_sock in writeable:
             writeable_sock.sendall(raw_buffer)
 
-    def receive_data(self, receive_timeout=0) -> bytes:
+    def receive_data(self, receive_timeout=None) -> bytes:
         """
         Select on all long range sockets and receive packet with diversity
 
-        :param receive_timeout: Max time [s] to wait for a packet. 0 for blocking. Returns no bytes on timeout
+        :param receive_timeout: Max time [s] to wait for a packet. None for blocking. Returns empty bytes on timeout
         :return: False on timeout, packet payload on success
         """
         if self.mode is DBMode.WIFI:
@@ -243,16 +246,16 @@ class DroneBridge:
             tag = packet[(payload_start + DB_RAW_ENCRYPT_NONCE_LENGTH):(
                     payload_start + DB_RAW_ENCRYPT_NONCE_LENGTH + DB_RAW_ENCRYPT_MAC_LENGTH)]
             cypher = AES.new(self.aes_key, AES.MODE_EAX, nonce)
-            data_bytes = cypher.decrypt(packet[(payload_start + DB_RAW_ENCRYPT_HEADER_LENGTH):(
-                    payload_start + DB_RAW_ENCRYPT_HEADER_LENGTH + db_v2_payload_length)])
+            data_bytes = cypher.decrypt(
+                packet[(payload_start + DB_RAW_ENCRYPT_HEADER_LENGTH):(payload_start + db_v2_payload_length)])
             try:
                 cypher.verify(tag)
-                return data_bytes, int(packet[packet[2] + 10])
+                return data_bytes, int(packet[packet[2] + 9])
             except ValueError:
                 db_log(f"{self.tag}: ERROR - Can not decrypt payload. Key incorrect or message corrupt")
-            return b'', int(packet[packet[2] + 10])
+            return b'', int(packet[packet[2] + 9])
         else:
-            return packet[payload_start:(payload_start + db_v2_payload_length)], int(packet[packet[2] + 10])
+            return packet[payload_start:(payload_start + db_v2_payload_length)], int(packet[packet[2] + 9])
 
     @staticmethod
     def generate_radiotap_header(rate: int) -> bytes:
