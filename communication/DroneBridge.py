@@ -19,6 +19,7 @@
 from enum import Enum
 from select import select
 from socket import socket, AF_PACKET, SOCK_RAW, htons, timeout
+from syslog import LOG_WARNING
 
 from Cryptodome.Cipher import AES
 
@@ -100,7 +101,11 @@ class DroneBridge:
         assert type(transmission_bitrate) is int
         self.mode = mode
         self.tag = tag
-        self.comm_direction = send_direction
+        self.send_direction = send_direction
+        if self.send_direction == DBDir.DB_TO_GND:
+            self.recv_direction = DBDir.DB_TO_UAV
+        else:
+            self.recv_direction = DBDir.DB_TO_GND
         self.frame_type = frame_type
         if type(dronebridge_port) is bytes:
             self.db_port = dronebridge_port
@@ -234,6 +239,10 @@ class DroneBridge:
         :return: Tuple: packet payload as bytes, packet sequence number
         """
         # packet[2]: Length of radiotap header
+        if packet[packet[2] + 4] != self.recv_direction.int_val:
+            db_log(f"{self.tag}: Parser - Packet not addressed to us (Receive direction: {self.recv_direction} "
+                   f"{self.recv_direction.int_val}, Packet direction: {packet[packet[2] + 4]}). Ignoring", LOG_WARNING)
+            return b'', int(packet[packet[2] + 9])
         db_v2_payload_length = int.from_bytes(packet[(packet[2] + 7):(packet[2] + 8)] +
                                               packet[(packet[2] + 8):(packet[2] + 9)],
                                               byteorder='little', signed=False)
@@ -286,10 +295,7 @@ class DroneBridge:
         raw_socket = socket(AF_PACKET, SOCK_RAW, htons(0x0004))
         raw_socket.bind((network_interface, 0))
         raw_socket.setblocking(blocking)
-        if self.comm_direction == DBDir.DB_TO_GND:
-            raw_socket = attach_filter(raw_socket, byte_comm_id=self.comm_id, byte_direction=DBDir.DB_TO_UAV.value,
-                                       byte_port=self.db_port)  # filter for packets TO_DRONE
-        else:
-            raw_socket = attach_filter(raw_socket, byte_comm_id=self.comm_id, byte_direction=DBDir.DB_TO_GND.value,
-                                       byte_port=self.db_port)  # filter for packets TO_GROUND
+        assert (isinstance(self.recv_direction.value, bytes))
+        raw_socket = attach_filter(raw_socket, byte_comm_id=self.comm_id, byte_direction=self.recv_direction.value,
+                                   byte_port=self.db_port)
         return raw_socket

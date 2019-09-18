@@ -22,8 +22,8 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <linux/filter.h> // BPF
-#include <linux/if_packet.h> // sockaddr_ll
-#include <fcntl.h> // File control definitions
+#include <linux/if_packet.h>
+#include <fcntl.h>
 #include <netinet/ether.h>
 #include <sys/ioctl.h>
 #include <net/if.h>

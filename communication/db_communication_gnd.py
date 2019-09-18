@@ -133,7 +133,7 @@ if __name__ == "__main__":
     frame_type = int(parsedArgs.frametype)
     db_log("DB_COMM_GND: Communication ID: " + str(int.from_bytes(comm_id, byteorder='little')) +
            " (" + str(comm_id.hex()) + ")")
-    db = DroneBridge(DBDir.DB_TO_GND, list_interfaces, DBMode.MONITOR, comm_id, DBPort.DB_PORT_COMMUNICATION,
+    db = DroneBridge(DBDir.DB_TO_UAV, list_interfaces, DBMode.MONITOR, comm_id, DBPort.DB_PORT_COMMUNICATION,
                      tag="DB_COMM_GND", db_blocking_socket=False, frame_type=frame_type, compatibility_mode=comp_mode)
     # We use a stupid tcp implementation where all connected clients receive the data sent by the UAV. GCS must
     # identify the relevant messages based on the id in every communication message. Robust & multiple clients possible
@@ -145,21 +145,23 @@ if __name__ == "__main__":
     prev_seq_num = None
 
     db_log("DB_COMM_GND: started!")
+
+    read_sockets = [tcp_master]
+    read_sockets.extend(db.list_lr_sockets)
     while keep_running:
-        read_sockets = [tcp_master]
-        read_sockets.extend(db.list_lr_sockets)
-        read_sockets.extend(tcp_connections)
         try:
             r, w, e = select(read_sockets, [], tcp_connections, 0.5)  # timeout for proper termination?!
             for readable_sock in r:
                 if readable_sock is tcp_master:  # new connection
                     conn, addr = readable_sock.accept()
                     tcp_connections.append(conn)
+                    read_sockets.append(conn)
                     db_log(f"DB_COMM_GND: TCP client connected {addr}")
                 elif readable_sock in tcp_connections:
                     received_data = readable_sock.recv(TCP_BUFFER_SIZE)
                     if len(received_data) == 0:
                         tcp_connections.remove(readable_sock)
+                        read_sockets.remove(readable_sock)
                         readable_sock.close()
                         db_log("DB_COMM_GND: Client disconnected")
                     else:
@@ -167,7 +169,7 @@ if __name__ == "__main__":
                 elif readable_sock in db.list_lr_sockets:
                     received_data, seq_num = db.parse_packet(bytearray(readable_sock.recv(MONITOR_BUFFERSIZE)))
                     # Prevent processing of the same message received over different network adapters
-                    if prev_seq_num is None or prev_seq_num is not seq_num:
+                    if received_data and (prev_seq_num is None or prev_seq_num is not seq_num):
                         process_comm_proto(received_data, tcp_connections)
                         prev_seq_num = seq_num
                 else:
@@ -175,6 +177,10 @@ if __name__ == "__main__":
             for error_tcp_sock in e:
                 db_log("DB_COMM_GND: A TCP socket encountered an error: " + error_tcp_sock.getpeername(), ident=LOG_ERR)
                 tcp_connections.remove(error_tcp_sock)
+                try:
+                    read_sockets.remove(error_tcp_sock)
+                except ValueError:
+                    pass  # socket was not among read sockets
                 error_tcp_sock.close()
         except InterruptedError:
             keep_running = False

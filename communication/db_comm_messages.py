@@ -100,7 +100,7 @@ def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
     :return: a complete response packet as bytes
     """
     complete_response = {}
-    complete_response['destination'] = 4
+    complete_response['destination'] = DBCommProt.DB_DST_GCS.value
     complete_response['type'] = DBCommProt.DB_TYPE_SETTINGS_RESPONSE.value
     complete_response['response'] = loaded_json['request']
     complete_response['origin'] = origin
@@ -123,7 +123,7 @@ def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
 
 def new_settingschangesuccess_message(origin: int, new_id: int) -> bytes:
     """returns a settings change success message"""
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SETTINGS_SUCCESS.value, 'origin': origin,
+    command = json.dumps({'destination': DBCommProt.DB_DST_GCS.value, 'type': DBCommProt.DB_TYPE_SETTINGS_SUCCESS.value, 'origin': origin,
                           'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
@@ -131,22 +131,22 @@ def new_settingschangesuccess_message(origin: int, new_id: int) -> bytes:
 
 def new_ack_message(origin: int, new_id: int) -> bytes:
     """returns a ACK message"""
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_ACK.value, 'origin': origin, 'id': new_id})
+    command = json.dumps({'destination': DBCommProt.DB_DST_GCS.value, 'type': DBCommProt.DB_TYPE_ACK.value, 'origin': origin, 'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
 def new_ping_response_message(request_id: int, origin: int) -> bytes:
     """returns a ping response message"""
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_PING_RESPONSE.value, 'origin': origin,
-                          'id': request_id})
+    command = json.dumps({'destination': DBCommProt.DB_DST_GCS.value, 'type': DBCommProt.DB_TYPE_PING_RESPONSE.value,
+                          'origin': origin, 'id': request_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 
 def new_error_response_message(error_message: str, origin: int, new_id: int) -> bytes:
     """returns a error response message"""
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_ERROR.value, 'message': error_message,
+    command = json.dumps({'destination': DBCommProt.DB_DST_GCS.value, 'type': DBCommProt.DB_TYPE_ERROR.value, 'message': error_message,
                           'origin': origin, 'id': new_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
@@ -195,7 +195,7 @@ def get_firmware_id() -> int:
 
 
 def create_sys_ident_response(requested_id: int, origin: int) -> bytes:
-    command = json.dumps({'destination': 4, 'type': DBCommProt.DB_TYPE_SYS_IDENT_RESPONSE.value, 'origin': origin,
+    command = json.dumps({'destination': DBCommProt.DB_DST_GCS.value, 'type': DBCommProt.DB_TYPE_SYS_IDENT_RESPONSE.value, 'origin': origin,
                           'HID': DBCommProt.DB_HWID_PI, 'FID': get_firmware_id(), 'id': requested_id})
     crc32 = binascii.crc32(str.encode(command))
     return command.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
