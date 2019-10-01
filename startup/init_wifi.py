@@ -6,6 +6,7 @@ import sys
 import time
 from subprocess import DEVNULL
 
+import pyric
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
 
@@ -92,6 +93,8 @@ def setup_network_interfaces(setup_gnd: bool, config: configparser.ConfigParser)
                     setup_card(winterface_name, list_man_freqs[list_man_nics.index(winterface_name)], datarate)
                 except ValueError:
                     print("Unknown adapter " + winterface_name + " - could not set it up.")
+                except pyric.error as e:
+                    print("Error setting up card. " + str(e.strerror))
 
 
 def setup_card(interface_name, frequency, data_rate=2):

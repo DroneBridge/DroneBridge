@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <linux/if_ether.h>
 #include <string.h>
-#include <stdlib.h>
 #include <zconf.h>
 #include <linux/if_packet.h>
 #include <errno.h>

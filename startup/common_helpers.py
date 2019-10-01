@@ -4,10 +4,10 @@ from pathlib import Path
 
 PATH_CONFIG_FILE = os.path.join(os.sep, "DroneBridge", "DroneBridgeConfig.ini")
 PI3_WIFI_NIC = 'wlan0'
-HOTSPOT_NIC = 'wifihotspot0'
+HOTSPOT_NIC = 'intwifi0'
 
 
-def read_dronebridge_config() -> configparser.ConfigParser:
+def read_dronebridge_config() -> configparser.ConfigParser or None:
     """
     Reads the DroneBridge config file
     :return: A configparser object containing the config
@@ -23,7 +23,7 @@ def read_dronebridge_config() -> configparser.ConfigParser:
         return None
 
 
-def get_bit_rate(datarate_index):
+def get_bit_rate(datarate_index) -> str:
     """
     Convert the data rate index given in the config file to the respective numeric data rate.
 
