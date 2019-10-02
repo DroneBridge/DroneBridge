@@ -366,8 +366,10 @@ def determine_frametype(cts_protection, interface_name):
 
 
 if __name__ == "__main__":
+    print("---- Starting modules")
     parsed_args = parse_arguments()
     if parsed_args.gnd:
         start_gnd_modules()
     else:
         start_uav_modules()
+    print("---- Done with startup")

@@ -3,8 +3,8 @@ import os
 from pathlib import Path
 
 PATH_CONFIG_FILE = os.path.join(os.sep, "DroneBridge", "DroneBridgeConfig.ini")
-PI3_WIFI_NIC = 'wlan0'
-HOTSPOT_NIC = 'intwifi0'
+PI3_WIFI_NIC = 'intwifi0'
+HOTSPOT_NIC = 'wifihotspot0'
 
 
 def read_dronebridge_config() -> configparser.ConfigParser or None:

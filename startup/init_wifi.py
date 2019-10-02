@@ -1,14 +1,13 @@
 import argparse
 import configparser
 import os
+import pyric
+import pyric.pyw as pyw
+import pyric.utils.hardware as iwhw
 import subprocess
 import sys
 import time
 from subprocess import DEVNULL
-
-import pyric
-import pyric.pyw as pyw
-import pyric.utils.hardware as iwhw
 
 from Chipset import is_atheros_card, is_realtek_card
 from common_helpers import read_dronebridge_config, get_bit_rate, HOTSPOT_NIC, PI3_WIFI_NIC
@@ -37,11 +36,10 @@ def main():
     config = read_dronebridge_config()
     if parsed_args.gnd:
         setup_gnd = True
-        print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for ground station")
+        print("---- Initializing adapters for ground station (DB v" + str(get_firmware_id() * 0.01) + ")")
     else:
-        print("Setting up DroneBridge v" + str(get_firmware_id() * 0.01) + " for UAV")
+        print("---- Initializing adapters for UAV (DB v" + str(get_firmware_id() * 0.01) + ")")
     print("Settings up network interfaces")
-    # TODO: check for USB Stick?!
     setup_network_interfaces(setup_gnd, config)  # blocks until interface becomes available
     if setup_gnd and config.get(GROUND, 'wifi_ap') == 'Y':
         setup_hotspot(config.get(GROUND, 'wifi_ap_if'))
@@ -55,7 +53,7 @@ def setup_network_interfaces(setup_gnd: bool, config: configparser.ConfigParser)
     section = UAV
     list_man_nics = [None] * 4
     list_man_freqs = [None] * 4
-    wifi_ap_blacklist = []
+    wifi_ap_blacklist = [PI3_WIFI_NIC]
 
     if setup_gnd:
         section = GROUND
@@ -65,7 +63,6 @@ def setup_network_interfaces(setup_gnd: bool, config: configparser.ConfigParser)
         list_man_freqs[3] = config.getint(GROUND, 'frq_4')
         wifi_ap_blacklist.append(config.get(GROUND, 'wifi_ap_if'))
         wifi_ap_blacklist.append(HOTSPOT_NIC)
-        wifi_ap_blacklist.append(PI3_WIFI_NIC)
 
     if config.has_option(COMMON, 'blacklist_ap'):
         wifi_ap_blacklist.append(config.get(COMMON, 'blacklist_ap'))
@@ -84,17 +81,17 @@ def setup_network_interfaces(setup_gnd: bool, config: configparser.ConfigParser)
 
     for winterface_name in winterfaces:
         if winterface_name not in wifi_ap_blacklist:  # Leave ap-if alone
-            if freq_ovr == 'N':
-                # Set one frequency for each adapter
-                setup_card(winterface_name, freq, datarate)
-            else:
-                # Set adapter specific frequencies
-                try:
+            try:
+                if freq_ovr == 'N':
+                    # Set one frequency for each adapter
+                    setup_card(winterface_name, freq, datarate)
+                else:
+                    # Set adapter specific frequencies
                     setup_card(winterface_name, list_man_freqs[list_man_nics.index(winterface_name)], datarate)
-                except ValueError:
-                    print("Unknown adapter " + winterface_name + " - could not set it up.")
-                except pyric.error as e:
-                    print("Error setting up card. " + str(e.strerror))
+            except ValueError:
+                print("Unknown adapter " + winterface_name + " - could not set it up.")
+            except pyric.error as e:
+                print("Error setting up card. " + str(e.strerror))
 
 
 def setup_card(interface_name, frequency, data_rate=2):
@@ -164,7 +161,7 @@ def waitfor_network_adapters(wifi_ap_blacklist=None):
     :param wifi_ap_blacklist: List of wifi adapters that will be ignored and not set to monitor mode
     """
     keep_waiting = True
-    print("Waiting for wifi adapters to be detected ", end="")
+    print("Waiting for wifi adapters to be detected ", end="", flush=True)
     while keep_waiting:
         winterfaces = pyw.winterfaces()
 
@@ -179,7 +176,7 @@ def waitfor_network_adapters(wifi_ap_blacklist=None):
             keep_waiting = False
             print("\n")
         else:
-            print(".", end="")
+            print(".", end="", flush=True)
             time.sleep(1)
     time.sleep(2)
 

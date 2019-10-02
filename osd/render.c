@@ -697,13 +697,16 @@ void draw_gpsspeed(int gpsspeed, float pos_x, float pos_y, float scale) {
 void draw_rc_signal(int8_t rc_signal, int rc_pack_per_sec, float pos_x, float pos_y, float scale) {
     float text_scale = getWidth(2) * scale;
     VGfloat height_text = TextHeight(myfont, text_scale * 0.6) + getHeight(0.3) * scale;
-    VGfloat width_value = TextWidth("-00", myfont, text_scale);
+    VGfloat width_value = TextWidth("-000", myfont, text_scale);
     VGfloat width_symbol = TextWidth(" ", osdicons, text_scale * 0.7);
 
     StrokeWidth(OUTLINEWIDTH);
     Fill(COLOR);
     Stroke(OUTLINECOLOR);
-    sprintf(buffer, "%02d", rc_signal);
+    if (rc_signal != -128)
+        sprintf(buffer, "%02d", rc_signal);
+    else
+        strcpy(buffer, "-");
 
     TextEnd(getWidth(pos_x), getHeight(pos_y), buffer, myfont, text_scale);
 
