@@ -290,7 +290,7 @@ int db_send_div(db_socket_t *a_db_socket, uint8_t *payload, uint8_t dest_port, u
     memcpy(monitor_databuffer_internal->bytes, payload, payload_length);
     if (sendto(a_db_socket->db_socket, monitor_framebuffer, (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH +
                                                                       payload_length + db_raw_offset), 0,
-               (struct sockaddr *) &a_db_socket->db_socket_addr, sizeof(struct sockaddr_ll)) < 0) {
+               (struct sockaddr *) &a_db_socket->db_socket_addr, sizeof(struct sockaddr_ll)) <= 0) {
         LOG_SYS_STD(LOG_ERR, "DroneBridgeCommon: Send failed (monitor): %s\n", strerror(errno));
         return -1;
     }
@@ -323,7 +323,7 @@ int db_send_hp_div(db_socket_t *a_db_socket, uint8_t dest_port, uint16_t payload
     db_raw_header->seq_num = new_seq_num;
     if (sendto(a_db_socket->db_socket, monitor_framebuffer,
                (size_t) (RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH + payload_length + db_raw_offset), 0,
-               (struct sockaddr *) &a_db_socket->db_socket_addr, sizeof(struct sockaddr_ll)) < 0) {
+               (struct sockaddr *) &a_db_socket->db_socket_addr, sizeof(struct sockaddr_ll)) <= 0) {
         LOG_SYS_STD(LOG_ERR, "DroneBridgeCommon: Send failed (monitor): %s\n", strerror(errno));
         return -1;
     }

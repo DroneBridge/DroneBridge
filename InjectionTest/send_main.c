@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, int_handler);
     signal(SIGTERM, int_handler);
     char interface[IFNAMSIZ];
-    strcpy(interface, INTERFACE);
+    strcpy(interface, argv[1]);
 
     db_socket_t raw_socket = open_db_socket(interface, COMMID, 'm', DATARATE, DB_DIREC_GROUND,
                                             RECV_PORT, (uint8_t) FRAME_TYPE);
