@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "db_protocol.h"
+#include "radiotap/radiotap_iter.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
 int expected_seq_num;
@@ -183,4 +184,27 @@ uint16_t get_db_payload(uint8_t *receive_buffer, ssize_t receive_length, uint8_t
         memcpy(payload_buffer, &receive_buffer[*radiotap_length + DB_RAW_V2_HEADER_LENGTH + DB_RAW_OFFSET],
                payload_length);
     return payload_length;
+}
+
+/**
+ * Extract RSSI value from radiotap header
+ * 
+ * @param payload_buffer Buffer containing the received packet data including radiotap header
+ * @param radiotap_length Length of radiotap header
+ * @return RSSI of received packet
+ */
+int8_t get_rssi(uint8_t *payload_buffer, int radiotap_length) {
+    struct ieee80211_radiotap_iterator rti;
+    if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *) payload_buffer, radiotap_length,
+                                         NULL) < 0)
+        return 0;
+    while ((ieee80211_radiotap_iterator_next(&rti)) == 0) {
+        switch (rti.this_arg_index) {
+            case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+                return (int8_t) (*rti.this_arg);
+            default:
+                break;
+        }
+    }
+    return 0;
 }

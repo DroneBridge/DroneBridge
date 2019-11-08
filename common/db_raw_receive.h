@@ -29,6 +29,8 @@ int set_socket_nonblocking(int the_socket);
 int set_socket_timeout(int the_socketfd, int time_out_s ,int time_out_us);
 uint16_t get_db_payload(uint8_t *receive_buffer, ssize_t receive_length, uint8_t *payload_buffer, uint8_t *seq_num,
         uint16_t *radiotap_length);
+
+int8_t get_rssi(uint8_t *payload_buffer, int radiotap_length);
 uint8_t count_lost_packets(uint8_t last_seq_num, uint8_t received_seq_num);
 
 #endif //STATUS_DB_RECEIVE_H

@@ -138,22 +138,6 @@ uint8_t get_cpu_temp() {
     return 0;
 }
 
-int8_t get_rssi(uint8_t *payload_buffer, int radiotap_length) {
-    struct ieee80211_radiotap_iterator rti;
-    if (ieee80211_radiotap_iterator_init(&rti, (struct ieee80211_radiotap_header *) payload_buffer, radiotap_length,
-                                         NULL) < 0)
-        return 0;
-    while ((ieee80211_radiotap_iterator_next(&rti)) == 0) {
-        switch (rti.this_arg_index) {
-            case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
-                return (int8_t) (*rti.this_arg);
-            default:
-                break;
-        }
-    }
-    return 0;
-}
-
 /**
  * Send status update to status module
  *
@@ -452,8 +436,8 @@ int main(int argc, char *argv[]) {
                     length = recv(raw_interfaces_rc[i].db_socket, buf, BUF_SIZ, 0);
                     if (length > 0) {
                         rc_packets_cnt++;
-                        rssi = get_rssi(buf, buf[2]);
                         get_db_payload(buf, length, commandBuf, &seq_num_rc, &radiotap_lenght);
+                        rssi = get_rssi(buf, radiotap_lenght);
                         if (last_recv_rc_seq_num != seq_num_rc) {  // diversity duplicate protection
                             last_recv_rc_seq_num = seq_num_rc;
                             command_length = generate_rc_serial_message(commandBuf);

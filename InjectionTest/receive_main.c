@@ -70,7 +70,9 @@ int main(int argc, char *argv[]) {
         uint16_t radiotap_length = 0;
         ssize_t received_bytes = recv(raw_interfaces[0].db_socket, buffer, BUFFER_SIZE, 0);
         uint16_t payload_length = get_db_payload(buffer, received_bytes, payload_buff, &seq_num, &radiotap_length);
-        printf("Received raw frame with %zi bytes & %i bytes of payload\n", received_bytes, payload_length);
+        int8_t rssi = get_rssi(buffer, radiotap_length);
+        printf("Received raw frame with %zi bytes & %i bytes of payload (%i dBm)\n", received_bytes,
+               payload_length, rssi);
     }
     for (int i = 0; i < DB_MAX_ADAPTERS; i++)
         close(raw_interfaces[i].db_socket);
