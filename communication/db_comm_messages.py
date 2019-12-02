@@ -80,6 +80,11 @@ def process_db_comm_protocol(loaded_json: json, comm_direction: DBDir) -> bytes:
     elif loaded_json['type'] == DBCommProt.DB_TYPE_ADJUSTRC.value:
         normalize_jscal_axis(loaded_json['device'])
         message = new_ack_message(DBCommProt.DB_ORIGIN_GND.value, loaded_json['id'])
+    elif loaded_json['type'] == DBCommProt.DB_TYPE_PARAM_REQ.value:
+        if comm_direction == DBDir.DB_TO_UAV:
+            message = new_settings_param_response(loaded_json['id'], DBCommProt.DB_ORIGIN_GND.value)
+        else:
+            message = new_settings_param_response(loaded_json['id'], DBCommProt.DB_ORIGIN_UAV.value)
     else:
         if comm_direction == DBDir.DB_TO_UAV:
             message = new_error_response_message('unsupported message type', DBCommProt.DB_ORIGIN_GND.value,
@@ -89,6 +94,17 @@ def process_db_comm_protocol(loaded_json: json, comm_direction: DBDir) -> bytes:
                                                  loaded_json['id'])
         db_log("DB_COMM_PROTO: Unknown message type", ident=LOG_ERR)
     return message
+
+
+def new_settings_param_response(loaded_json: json, origin: int) -> bytes:
+    """
+    Return a message with a list of all changeable setting parameters without their values
+
+    :param loaded_json:
+    :param origin: is this a response of drone or ground station
+    :return: message with a list of all changeable setting parameters without their values
+    """
+    return new_error_response_message("Not supported for now", origin, loaded_json['id'])
 
 
 def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
@@ -117,7 +133,6 @@ def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
         return new_error_response_message("Could not read DroneBridge config", origin, loaded_json['id'])
     response = json.dumps(complete_response)
     crc32 = binascii.crc32(str.encode(response))
-    a = ""
     return response.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
 
 

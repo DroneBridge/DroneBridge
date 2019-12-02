@@ -41,12 +41,15 @@
 #define TCP_BUFFER_SIZE (DATA_UNI_LENGTH-DB_RAW_V2_HEADER_LENGTH)
 #define MAX_TCP_CLIENTS 10
 #define MAX_TIRES_OSD_FIFO_OPEN 10
+#define DEFAULT_LOG_PATH "/DroneBridge/log/"
+#define MAX_PATH_LENGTH 1000
 
 bool volatile keeprunning = true;
 char db_mode, write_to_osdfifo;
 uint8_t comm_id = DEFAULT_V2_COMMID, frame_type;
 int bitrate_op, prox_adhere_80211, num_interfaces;
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
+char log_path[MAX_PATH_LENGTH];
 uint8_t tel_msg_log_buff[MAVLINK_MAX_PACKET_LEN + sizeof(uint64_t)];
 
 void int_handler(int dummy) {
@@ -68,8 +71,9 @@ void process_command_line_args(int argc, char *argv[]) {
     bitrate_op = 1;
     prox_adhere_80211 = 0;
     frame_type = DB_FRAMETYPE_DEFAULT;
+    strcpy(log_path, DEFAULT_LOG_PATH);
     int c;
-    while ((c = getopt(argc, argv, "n:m:c:b:o:f:a:?")) != -1) {
+    while ((c = getopt(argc, argv, "n:m:c:b:o:f:a:l:?")) != -1) {
         switch (c) {
             case 'n':
                 if (num_interfaces < DB_MAX_ADAPTERS) {
@@ -92,26 +96,33 @@ void process_command_line_args(int argc, char *argv[]) {
             case 'f':
                 frame_type = (uint8_t) strtol(optarg, NULL, 10);
                 break;
+            case 'l':
+                strncpy(log_path, optarg, MAX_PATH_LENGTH);
+                break;
             case 'a':
                 prox_adhere_80211 = (int) strtol(optarg, NULL, 10);
                 break;
             case '?':
-                LOG_SYS_STD(LOG_INFO, "DroneBridge Proxy module is used to do any UDP <-> DB_CONTROL_AIR routing. UDP IP given by "
-                       "IP-checker module. Use"
-                       "\n\t-n [network_IF_proxy_module] "
-                       "\n\t-m [w|m] DroneBridge mode - wifi - monitor mode (default: m) (wifi not supported yet!)"
-                       "\n\t-c <communication id> Choose a number from 0-255. Same on groundstation and drone!"
-                       "\n\t-o [Y|N] Write telemetry to /root/telemetryfifo1 FIFO (default: Y)"
-                       "\n\t-f [1|2] DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)"
-                       "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
-                       "supported with Ralink chipsets)"
-                       "\n\t-a [0|1] to disable/enable. Offsets the payload by some bytes so that it sits outside "
-                       "then 802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!");
+                LOG_SYS_STD(LOG_INFO,
+                            "DroneBridge Proxy module is used to do any UDP <-> DB_CONTROL_AIR routing. UDP IP given by "
+                            "IP-checker module. Use"
+                            "\n\t-n [network_IF_proxy_module] "
+                            "\n\t-m [w|m] DroneBridge mode - wifi - monitor mode (default: m) (wifi not supported yet!)"
+                            "\n\t-c [communication id] Choose a number from 0-255. Same on groundstation and drone!"
+                            "\n\t-l Path to store the telemetry log files. Default /DroneBridge/log/"
+                            "\n\t-o [Y|N] Write telemetry to /root/telemetryfifo1 FIFO (default: Y)"
+                            "\n\t-f [1|2] DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)"
+                            "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
+                            "supported with Ralink chipsets)"
+                            "\n\t-a [0|1] to disable/enable. Offsets the payload by some bytes so that it sits outside "
+                            "then 802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!");
                 break;
             default:
                 abort();
         }
     }
+    if (strlen(log_path) > 0 && log_path[strlen(log_path) - 1] != '/')
+        strcat(log_path, "/");
 }
 
 bool file_exists(char fname[]) {
@@ -127,7 +138,10 @@ struct log_file_t open_telemetry_log_file() {
 
     time_t now = time(NULL);
     timenow = localtime(&now);
-    strftime(log_file.file_name, sizeof(log_file.file_name), "/DroneBridge/log/DB_TELEMETRY_%F_%H%M", timenow);
+    char file_name[MAX_PATH_LENGTH];
+    strftime(file_name, sizeof(file_name), "DB_TELEMETRY_%F_%H%M", timenow);
+    strcat(log_path, file_name);
+    strcpy(log_file.file_name, log_path);
     if (file_exists(log_file.file_name)) {
         for (int i = 0; i < 10; i++) {
             char str[12];

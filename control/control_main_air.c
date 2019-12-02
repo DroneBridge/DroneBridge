@@ -43,6 +43,7 @@
 #define BUF_SIZ                      512    // should be enough?!
 #define COMMAND_BUF_SIZE            1024
 #define RETRANSMISSION_RATE            2    // send every MAVLink transparent packet twice for better reliability
+#define DB_TRANSPARENT_READBUF         8    // bytes to read at once from serial port
 #define STATUS_UPDATE_TIME    200    // send rc status to status module on groundstation every 200ms
 
 static volatile int keep_running = 1;
@@ -164,8 +165,6 @@ uint8_t send_status_update(uint8_t *status_seq_number, db_socket_t *raw_interfac
     if ((*rightnow - *start) >= STATUS_UPDATE_TIME) {
         memset(rc_status_update_data, 0xff, 6);
         rc_status_update_data->rssi_rc_uav = rssi;
-        // lost packets/second (it is a estimate)
-        printf("%i\n", *rc_packets_tmp);
         rc_status_update_data->recv_pack_sec = *rc_packets_tmp;
         rc_status_update_data->cpu_usage_uav = get_cpu_usage();
         rc_status_update_data->cpu_temp_uav = get_cpu_temp();
@@ -209,6 +208,7 @@ int open_serial_sumd(const char *sumd_interface) {
     options_rc.c_cflag |= CS8;
     tcflush(serial_socket, TCIFLUSH);
     tcsetattr(serial_socket, TCSANOW, &options_rc);
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: Opened SUMD interface on %s\n", sumd_interface);
     return serial_socket;
 }
 
@@ -241,6 +241,7 @@ int open_serial_telem(int baud_rate, const char *telem_inf) {
         options.c_cc[VTIME] = 0;           // timeout 0 second
         tcflush(socket_control_serial, TCIFLUSH);
         tcsetattr(socket_control_serial, TCSANOW, &options);
+        LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: Opened telemetry serial port %s\n", telem_inf);
     }
     return socket_control_serial;
 }
@@ -306,7 +307,7 @@ int main(int argc, char *argv[]) {
             case '?':
                 printf("Invalid commandline arguments. Use "
                        "\n\t-n <Network interface name - multiple <-n interface> possible> "
-                       "\n\t-u <MSP/MAVLink_Interface_TO_FC> - UART or VCP interface that is connected to FC"
+                       "\n\t-u [MSP/MAVLink_Interface_TO_FC] - UART or VCP interface that is connected to FC"
                        "\n\t-m [w|m] (m = default, w = unsupported) DroneBridge mode - wifi/monitor"
                        "\n\t-v Protocol over serial port [1|2|3|4]:\n"
                        "\t\t1 = MSPv1 [Betaflight/Cleanflight]\n"
@@ -323,10 +324,10 @@ int main(int argc, char *argv[]) {
                        "\n\t-c <communication_id> Choose a number from 0-255. Same on groundstation and drone!"
                        "\n\t-r Baud rate of the serial interface -u (MSP/MAVLink) (2400, 4800, 9600, 19200, "
                        "38400, 57600, 115200 (default: %i))"
-                       "\n\t-t <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
+                       "\n\t-t [1|2] DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)\n"
                        "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
                        "supported with Ralink chipsets)"
-                       "\n\t-a <0|1> to disable/enable. Offsets the payload by some bytes so that it sits outside "
+                       "\n\t-a [0|1] to disable/enable. Offsets the payload by some bytes so that it sits outside "
                        "then 802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!",
                        chucksize, baud_rate);
                 break;
@@ -368,6 +369,7 @@ int main(int argc, char *argv[]) {
 // ----------------------------------
     int sentbytes = 0, command_length = 0, errsv, select_return, continue_reading, chunck_left = chucksize,
             serial_read_bytes = 0, max_sd = 0;
+    uint8_t serial_bytes[DB_TRANSPARENT_READBUF];
     int8_t rssi = -128, last_recv_rc_seq_num = 0, last_recv_cont_seq_num = 0;
     long start; // start time for status report update
     long start_rc; // start time for measuring the recv RC packets/second
@@ -490,6 +492,7 @@ int main(int argc, char *argv[]) {
                 // --------------------------------
                 // The FC sent us a MSP/MAVLink message - LTM telemetry will be ignored!
                 // --------------------------------
+                ssize_t read_bytes;
                 switch (serial_protocol_control) {
                     default:
                     case 1:
@@ -546,14 +549,17 @@ int main(int argc, char *argv[]) {
                         break;
                     case 5:
                         // MAVLink plain pass through - no parsing. Send packets with length of chuck size
-                        if (read(socket_control_serial, &serial_byte, 1) > 0) {
-                            transparent_buffer[serial_read_bytes] = serial_byte;
-                            serial_read_bytes++;
-                            if (serial_read_bytes == chucksize) {
+                        read_bytes = read(socket_control_serial, &serial_bytes, DB_TRANSPARENT_READBUF);
+                        if (read_bytes > 0) {
+                            memcpy(&transparent_buffer[serial_read_bytes], &serial_bytes, read_bytes);
+                            serial_read_bytes += read_bytes;
+                            if (serial_read_bytes >= chucksize) {
                                 for (int i = 0; i < num_inf; i++) {
+                                    LOG_SYS_STD(LOG_DEBUG, "DB_CONTROL_AIR: Sending transparent packet %i\n",
+                                                serial_read_bytes);
                                     for (int r = 0; r < RETRANSMISSION_RATE; r++)
                                         db_send_div(&raw_interfaces_telem[i], transparent_buffer, DB_PORT_PROXY,
-                                                    (u_int16_t) chucksize, update_seq_num(&proxy_seq_number),
+                                                    serial_read_bytes, update_seq_num(&proxy_seq_number),
                                                     cont_adhere_80211);
                                 }
                                 serial_read_bytes = 0;

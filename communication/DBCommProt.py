@@ -35,6 +35,8 @@ class DBCommProt(Enum):
     DB_TYPE_ACK = 'ack'
     DB_TYPE_SETTINGS_REQUEST = 'settingsrequest'
     DB_TYPE_SETTINGS_RESPONSE = 'settingsresponse'
+    DB_TYPE_PARAM_REQ = 'settingsparamreq'
+    DB_TYPE_PARAM_RES = 'settingsparamres'
     DB_REQUEST_TYPE_WBC = 'wbc'
     DB_REQUEST_TYPE_DB = 'db'
 
