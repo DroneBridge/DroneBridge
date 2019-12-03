@@ -555,8 +555,8 @@ int main(int argc, char *argv[]) {
                             serial_read_bytes += read_bytes;
                             if (serial_read_bytes >= chucksize) {
                                 for (int i = 0; i < num_inf; i++) {
-                                    LOG_SYS_STD(LOG_DEBUG, "DB_CONTROL_AIR: Sending transparent packet %i\n",
-                                                serial_read_bytes);
+                                    //LOG_SYS_STD(LOG_DEBUG, "DB_CONTROL_AIR: Sending transparent packet %i\n",
+                                    //            serial_read_bytes);
                                     for (int r = 0; r < RETRANSMISSION_RATE; r++)
                                         db_send_div(&raw_interfaces_telem[i], transparent_buffer, DB_PORT_PROXY,
                                                     serial_read_bytes, update_seq_num(&proxy_seq_number),

@@ -3,11 +3,11 @@ import os
 import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
 import subprocess
-from socket import *
-from subprocess import Popen
-
+import time
 from Chipset import is_atheros_card, is_realtek_card, is_ralink_card
 from common_helpers import read_dronebridge_config, PI3_WIFI_NIC, HOTSPOT_NIC, get_bit_rate
+from socket import *
+from subprocess import Popen
 
 COMMON = 'COMMON'
 GROUND = 'GROUND'
@@ -277,25 +277,36 @@ def get_all_monitor_interfaces(formatted=False):
         return formated_str[1:]
 
 
-def measure_available_bandwidth(video_blocks, video_fecs, video_blocklength, video_frametype, datarate,
-                                interface_video):
+def measure_available_bandwidth(video_data_packets, video_fecs_packets, packet_size, video_frametype, datarate,
+                                interface_video) -> float:
     """
-    Measure available network capacity.
+    Measure available network capacity. This function respects the FEC overhead. The returned value is bandwidth - FEC.
+    In other words: How much payload data can I send & protect with FEC within the given environment
 
-    :param video_blocks:
-    :param video_fecs:
-    :param video_blocklength:
+    :param video_data_packets:  Data packets per block
+    :param video_fecs_packets:  FEC packets per blocl
+    :param packet_size:   Packet size
     :param video_frametype:
     :param datarate:
     :param interface_video:
     :return: Capacity in bit per second
     """
     print(f"{UAV_STRING_TAG} Measuring available bitrate")
-    tx_measure = Popen(os.path.join(DRONEBRIDGE_BIN_PATH, 'video', 'legacy', 'tx_measure') + " -p 77 -b "
-                       + str(video_blocks) + " -r " + str(video_fecs) + " -f " + str(video_blocklength) + " -t "
-                       + str(video_frametype) + " -d " + str(get_bit_rate(datarate)) + " -y 0 " + interface_video,
-                       stdout=subprocess.PIPE, shell=True, stdin=None, stderr=None, close_fds=True)
-    return int(tx_measure.stdout.readline())
+    from DroneBridge import DroneBridge, DBDir, DBMode, DBPort
+    packet_real_size = 4 + packet_size  # FEC header + data
+    dummy_data = [1] * packet_real_size
+    sent_data_bytes = 0
+    measure_time = 2  # seconds
+
+    dronebridge = DroneBridge(DBDir.DB_TO_GND, [interface_video], DBMode.MONITOR, 200, DBPort.DB_PORT_VIDEO,
+                              tag="BitrateMeasure", db_blocking_socket=True, frame_type=video_frametype,
+                              transmission_bitrate=datarate)
+    dronebridge.sendto_ground_station(dummy_data, DBPort.DB_PORT_VIDEO)  # first measurement may be flawed
+    start = time.time()
+    while (time.time() - start) < measure_time:
+        dronebridge.sendto_ground_station(dummy_data, DBPort.DB_PORT_VIDEO)
+        sent_data_bytes += packet_real_size
+    return ((sent_data_bytes * (video_data_packets / (video_data_packets + video_fecs_packets))) * 8) / measure_time
 
 
 def get_video_player(fps):

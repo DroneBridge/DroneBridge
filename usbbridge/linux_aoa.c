@@ -165,7 +165,7 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
     libusb_device *found_device = NULL;
     ssize_t cnt = libusb_get_device_list(NULL, &device_list);
 
-    LOG_SYS_STD(LOG_DEBUG, "AOA_USB: Checking %zi USB devices\n", cnt);
+//    LOG_SYS_STD(LOG_DEBUG, "AOA_USB: Checking %zi USB devices\n", cnt);
     for (ssize_t i = 0; i < cnt; i++) {
         libusb_device *device = device_list[i];
         if (supports_aoa(device, db_acc)) {

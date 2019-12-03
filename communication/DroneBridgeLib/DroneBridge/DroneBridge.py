@@ -1,5 +1,5 @@
 #
-# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+# This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2019 Wolfgang Christl
 #
@@ -66,7 +66,7 @@ DB_RAW_ENCRYPT_HEADER_LENGTH = DB_RAW_ENCRYPT_NONCE_LENGTH + DB_RAW_ENCRYPT_MAC_
 
 class DroneBridge:
     """
-    Handles all data transmission using the DroneBridge raw protocol. Creates sockets and supplies methods for sending
+    Handles all data transmission using the DroneBridgeLib raw protocol. Creates sockets and supplies methods for sending
     and receiving messages. Support for diversity transmission and receiving. Support for AES128, AES192 & AES256
     """
 
@@ -78,13 +78,13 @@ class DroneBridge:
                  dronebridge_port: DBPort or bytes, tag="MyDBApplication", db_blocking_socket=True, frame_type=1,
                  transmission_bitrate=36, compatibility_mode=False, encryption_key=None):
         """
-        Class that handles communication between multiple wifi cards in monitor mode using the DroneBridge raw protocol
+        Class that handles communication between multiple wifi cards in monitor mode using the DroneBridgeLib raw protocol
 
         :param send_direction: Direction in that the packets will be sent (to UAV or to ground station)
         :param interfaces: List of wifi interfaces in monitor mode used to send & receive data
-        :param mode: DroneBridge operating mode. Only 'm' for monitor supported for now
+        :param mode: DroneBridgeLib operating mode. Only 'm' for monitor supported for now
         :param communication_id: [0-255] to identify a communication link. Must be same on all communication partners
-        :param dronebridge_port: DroneBridge port to listen for incoming packets
+        :param dronebridge_port: DroneBridgeLib port to listen for incoming packets
         :param tag: Name db_loged in front of every log message
         :param db_blocking_socket: Should the opened sockets block on receiving
         :param frame_type: [1|2] for RTS|DATA. 80211 frame type used to send message. Data & RTS frames supported
@@ -138,24 +138,24 @@ class DroneBridge:
     def sendto_ground_station(self, data_bytes: bytes, db_port: DBPort):
         """Convenient function. Send stuff to the ground station"""
         if self.mode is DBMode.WIFI:
-            raise NotImplementedError("Wifi mode is currently not supported by DroneBridge")
+            raise NotImplementedError("Wifi mode is currently not supported by DroneBridgeLib")
         else:
             self.send_monitor(data_bytes, db_port.value, DBDir.DB_TO_GND.value)
 
     def sendto_uav(self, data_bytes: bytes, db_port: DBPort):
         """Convenient function. Send stuff to the UAV"""
         if self.mode is DBMode.WIFI:
-            raise NotImplementedError("Wifi mode is currently not supported by DroneBridge")
+            raise NotImplementedError("Wifi mode is currently not supported by DroneBridgeLib")
         else:
             self.send_monitor(data_bytes, db_port.value, DBDir.DB_TO_UAV.value)
 
     def send_monitor(self, data_bytes: bytes, port_bytes: bytes, direction: bytes):
         """
-        Send a packet in monitor mode using DroneBridge raw protocol v2
+        Send a packet in monitor mode using DroneBridgeLib raw protocol v2
 
         :param data_bytes: Payload
-        :param port_bytes: DroneBridge raw protocol destination port
-        :param direction: DroneBridge raw protocol direction
+        :param port_bytes: DroneBridgeLib raw protocol destination port
+        :param direction: DroneBridgeLib raw protocol direction
         """
         if self.use_encryption:
             cypher = AES.new(self.aes_key, AES.MODE_EAX)
@@ -191,7 +191,7 @@ class DroneBridge:
         :return: False on timeout, packet payload on success
         """
         if self.mode is DBMode.WIFI:
-            raise NotImplementedError("Wifi mode is currently not supported by DroneBridge")
+            raise NotImplementedError("Wifi mode is currently not supported by DroneBridgeLib")
         else:
             try:
                 payload = b''
@@ -227,13 +227,13 @@ class DroneBridge:
             read_sock.recv(8192)
 
     def close_sockets(self):
-        """Close all DroneBridge raw sockets"""
+        """Close all DroneBridgeLib raw sockets"""
         for sock in self.list_lr_sockets:
             sock.close()
 
     def parse_packet(self, packet: bytes) -> (bytes, int):
         """
-        Parse DroneBridge raw protocol v2. Returns packet payload and sequence number. Decrypts packet if necessary
+        Parse DroneBridgeLib raw protocol v2. Returns packet payload and sequence number. Decrypts packet if necessary
 
         :param packet: Bytes of a received packet via monitor mode including radiotap header
         :return: Tuple: packet payload as bytes, packet sequence number
@@ -277,16 +277,16 @@ class DroneBridge:
         return b'\x00\x00\x0c\x00\x04\x80\x00\x00' + bytes([rate * 2]) + b'\x00\x18\x00'
 
     def _open_comm_sock(self, network_interface: str, blocking_socket=True) -> socket:
-        """Opens a socket that uses monitor mode and DroneBridge raw protocol"""
+        """Opens a socket that uses monitor mode and DroneBridgeLib raw protocol"""
         if self.mode is DBMode.WIFI:
-            raise NotImplementedError("Wifi mode is currently not supported by DroneBridge")
+            raise NotImplementedError("Wifi mode is currently not supported by DroneBridgeLib")
         else:
             return self._open_monitor_socket(network_interface, blocking=blocking_socket)
 
     def _open_monitor_socket(self, network_interface: str, blocking=True) -> socket:
         """
         Opens a socket on an interface set into monitor mode. Applies a Bercley Packet Filter to the socket so that only
-        DroneBridge raw protocol packets can be received.
+        DroneBridgeLib raw protocol packets can be received.
 
         :param network_interface: Name of the network interface to bind the socket to
         :param blocking: Blocking behavior of the socket

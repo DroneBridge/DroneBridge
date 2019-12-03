@@ -1,5 +1,5 @@
 #
-# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+# This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2018 Wolfgang Christl
 #
@@ -18,15 +18,15 @@
 
 import base64
 import json
+import select
 from enum import Enum
 from socket import *
-import select
 from subprocess import call
 
 from DBCommProt import DBCommProt
 from bpf import attach_filter
 from db_comm_messages import change_settings, new_settingsresponse_message, comm_message_extract_info, \
-    comm_crc_correct, change_settings_gopro, create_sys_ident_response, new_error_response_message, \
+    comm_crc_correct, create_sys_ident_response, new_error_response_message, \
     new_ping_response_message, new_ack_message, change_cam_selection, init_cam_gpios, normalize_jscal_axis
 from db_ip_checker import DB_IP_GETTER
 
@@ -216,7 +216,7 @@ class DBProtocol:
 
     @staticmethod
     def parse_packet(packet):
-        """Pars DroneBridge raw protocol v2. Returns False if not OK or return packet payload if it is!"""
+        """Pars DroneBridgeLib raw protocol v2. Returns False if not OK or return packet payload if it is!"""
         rth_length = packet[2]
         db_v2_payload_length = int.from_bytes(packet[(rth_length + 7):(rth_length + 8)] +
                                               packet[(rth_length + 8):(rth_length + 9)],
@@ -236,7 +236,7 @@ class DBProtocol:
         return thelast_keepalive
 
     def _route_db_comm_protocol(self, raw_data_encoded):
-        """Routing of the DroneBridge communication protocol packets. Only write to local settings if we get a positive
+        """Routing of the DroneBridgeLib communication protocol packets. Only write to local settings if we get a positive
         response from the drone! Ping requests are a exception!"""
         status = False
         extracted_info = comm_message_extract_info(raw_data_encoded)  # returns json bytes [0] and crc bytes [1]
@@ -294,7 +294,7 @@ class DBProtocol:
             if self.comm_direction == DBDir.DB_TO_UAV:
                 status = self.sendto_uav(raw_data_encoded, DBPort.DB_PORT_COMMUNICATION.value)
             else:
-                change_settings_gopro(loaded_json)
+                pass
         elif loaded_json['destination'] == 4:
             if self.comm_direction == DBDir.DB_TO_UAV:
                 status = self.sendto_smartphone(raw_data_encoded, self.APP_PORT_COMM)
@@ -310,7 +310,7 @@ class DBProtocol:
         return status
 
     def _process_db_comm_protocol_type(self, loaded_json):
-        """Execute the command given in the DroneBridge communication packet"""
+        """Execute the command given in the DroneBridgeLib communication packet"""
         message = ""
         if loaded_json['type'] == DBCommProt.DB_TYPE_MSP.value:
             # deprecated
@@ -389,7 +389,7 @@ class DBProtocol:
         return num
 
     def _send_monitor(self, data_bytes, port_bytes, direction):
-        """Send a packet in monitor mode using DroneBridge raw protocol v2. Return None on success"""
+        """Send a packet in monitor mode using DroneBridgeLib raw protocol v2. Return None on success"""
         payload_length_bytes = bytes(len(data_bytes).to_bytes(2, byteorder='little', signed=False))
         if self.seq_num == 255:
             self.seq_num = 0
@@ -410,7 +410,7 @@ class DBProtocol:
             return self._open_comm_monitorsocket()
 
     def _open_comm_udpsocket(self):
-        print(self.tag + "Opening UDP-Socket for DroneBridge communication")
+        print(self.tag + "Opening UDP-Socket for DroneBridgeLib communication")
         sock = socket(AF_INET, SOCK_DGRAM)
         server_address = ('', self.udp_port_rx)
         sock.bind(server_address)

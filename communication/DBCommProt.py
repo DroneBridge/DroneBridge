@@ -1,5 +1,5 @@
 #
-# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+# This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2018 Wolfgang Christl
 #
@@ -35,6 +35,8 @@ class DBCommProt(Enum):
     DB_TYPE_ACK = 'ack'
     DB_TYPE_SETTINGS_REQUEST = 'settingsrequest'
     DB_TYPE_SETTINGS_RESPONSE = 'settingsresponse'
+    DB_TYPE_SECTION_REQ = 'settingssectionreq'
+    DB_TYPE_SECTION_RES = 'settingssectionres'
     DB_TYPE_PARAM_REQ = 'settingsparamreq'
     DB_TYPE_PARAM_RES = 'settingsparamres'
     DB_REQUEST_TYPE_WBC = 'wbc'

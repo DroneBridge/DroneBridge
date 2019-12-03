@@ -1,5 +1,5 @@
 #
-#   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+#   This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2019 Wolfgang Christl
 #
@@ -15,8 +15,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #
-
-from DroneBridge import DroneBridge, DBDir, DBMode, DBPort
+from DroneBridge import DroneBridge, DBPort, DBDir, DBMode
 
 list_wifi_interfaces = ['wlx8416f916382c']  # must be in monitor mode
 communication_id = 22

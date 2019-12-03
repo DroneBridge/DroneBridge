@@ -1,5 +1,5 @@
 #
-# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+# This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2018 Wolfgang Christl
 #
@@ -17,9 +17,9 @@
 #
 
 import argparse
-from legacy.DroneBridge_Protocol import DBProtocol, DBPort, DBDir
 import time
 
+from legacy.DroneBridge_Protocol import DBProtocol, DBPort, DBDir
 
 UDP_Port_RX = 1604  # Port for communication with RX (Drone)
 IP_RX = '192.168.3.1'  # Target IP address (IP address of the Pi on the Drone: needs fixed one)

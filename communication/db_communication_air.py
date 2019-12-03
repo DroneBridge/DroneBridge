@@ -1,5 +1,5 @@
 #
-# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+# This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2019 Wolfgang Christl
 #
@@ -19,7 +19,8 @@ import argparse
 import signal
 from syslog import LOG_ERR, LOG_INFO
 
-from DroneBridge import DroneBridge, DBDir, DBMode, DBPort
+from DroneBridge import DroneBridge, DBPort, DBDir, DBMode
+
 from db_comm_messages import parse_comm_message, new_error_response_message, process_db_comm_protocol
 from db_helpers import db_log, str2bool
 
@@ -40,7 +41,7 @@ def parse_arguments():
                         help='Communication ID must be the same on drone and groundstation. A number between 0-255 '
                              'Example: "125"', default='111')
     parser.add_argument('-f', action='store', type=int, dest='frametype', required=False,
-                        help='[1|2] DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)',
+                        help='[1|2] DroneBridgeLib v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)',
                         default='2')
     return parser.parse_args()
 

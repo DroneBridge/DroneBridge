@@ -197,20 +197,25 @@ void process_command_line_args(int argc, char *argv[]) {
                        "\nIt uses the Reed-Solomon FEC code to repair lost or damaged packets."
                        "\n\n\t-n Name of a network interface that should be used to receive the stream. Must be in monitor "
                        "mode. Multiple interfaces supported by calling this option multiple times (-n inter1 -n inter2 -n interx)"
-                       "\n\t-c <communication id> Choose a number from 0-255. Same on ground station and UAV!."
+                       "\n\t-c [communication id] Choose a number from 0-255. Same on ground station and UAV!."
                        "\n\t-d Number of data packets in a block (default 8). Needs to match with tx."
                        "\n\t-r Number of FEC packets per block (default 4). Needs to match with tx."
                        "\n\t-f Bytes per packet (default %d. max %d). This is also the FEC "
                        "block size. Needs to match with tx."
                        "\n\t-b bit rate:\tin Mbps (1|2|5|6|9|11|12|18|24|36|48|54)\n\t\t(bitrate option only "
                        "supported with Ralink chipsets)"
-                       "\n\t-t <1|2> DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)"
-                       "\n\t-a <0|1> disable/enable. Offsets the payload by some bytes so that it sits outside the "
+                       "\n\t-t [1|2] DroneBridge v2 raw protocol packet/frame type: 1=RTS, 2=DATA (CTS protection)"
+                       "\n\t-a [0|1] disable/enable. Offsets the payload by some bytes so that it sits outside the "
                        "802.11 header. Set this to 1 if you are using a non DB-Rasp Kernel!\n", 1024, DATA_UNI_LENGTH);
                 abort();
         }
     }
 }
+
+// Transmission scheme: 4 Data, 2 FEC packet per block
+// |-------------- Block -----------------|
+// |Data - FEC - Data - FEC - Data - Data |
+//  1024   1024  1024   1024  1024   1024
 
 int main(int argc, char *argv[]) {
     signal(SIGINT, int_handler);

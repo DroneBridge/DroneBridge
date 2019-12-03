@@ -1,5 +1,5 @@
 #
-# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+# This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2018 Wolfgang Christl
 #
@@ -23,12 +23,12 @@ from legacy.DroneBridge_Protocol import DBProtocol, DBDir
 
 def main():
     """
-    Example of how to use the DroneBridge python lib to send & receive your custom data.
+    Example of how to use the DroneBridgeLib python lib to send & receive your custom data.
      -- Run using root privileges! --
      -- set interface_drone_comm to your wifi adapter! --
 
-    Run on UAV using the DroneBridge image. If used with EZ-WBC image you need to install some extra packages for
-    python3. If not executed on DroneBridge/WBC rpi-image the wifi adapters must be in monitor mode and patched with
+    Run on UAV using the DroneBridgeLib image. If used with EZ-WBC image you need to install some extra packages for
+    python3. If not executed on DroneBridgeLib/WBC rpi-image the wifi adapters must be in monitor mode and patched with
     patches provided by EZ-WBC project.
     :return:
     """
@@ -37,7 +37,7 @@ def main():
     udp_port_smartphone = udp_port_rx  # not used - choose any
 
     comm_direction = DBDir.DB_TO_GND  # On UAV we want to send stuff to ground station (do not change)
-    interface_drone_comm = "000ee8dcaa2c"  # Interface name of your wifi adapter (with DroneBridge & WBC it is the MAC)
+    interface_drone_comm = "000ee8dcaa2c"  # Interface name of your wifi adapter (with DroneBridgeLib & WBC it is the MAC)
     mode = "m"  # not used - tell him to use long range link and not wifi - wifi will be implemented in a later stage
     communication_id = 201  # Must be same on ground and UAV - identifies a link - choose a number between 0-255
 

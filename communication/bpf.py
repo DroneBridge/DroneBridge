@@ -1,5 +1,5 @@
 #
-# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+# This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2018 Wolfgang Christl
 #
@@ -41,7 +41,7 @@ class BpfInstruction(ctypes.Structure):
 
 
 def attach_filter(sock, byte_comm_id: bytes, byte_direction: bytes, byte_port: bytes):
-    """Build a BPF filter for DroneBridge raw protocol v2"""
+    """Build a BPF filter for DroneBridgeLib raw protocol v2"""
     # first byte of dst_mac must be 0x01, we overwrite it here to be sure
     u32_port = int.from_bytes(b'\x00\x00\x00' + byte_port, byteorder='big', signed=False)
     u32_direction_comm = int.from_bytes(b'\x00\x00' + byte_direction + byte_comm_id, byteorder='big', signed=False)

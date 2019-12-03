@@ -1,5 +1,5 @@
 #
-# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+# This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2017 Wolfgang Christl
 #
@@ -17,8 +17,9 @@
 #
 
 import time
-import sysv_ipc
+
 import netifaces
+import sysv_ipc
 
 # memory map
 # 111111 = smartphone ip

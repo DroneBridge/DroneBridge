@@ -1,5 +1,5 @@
 #
-#   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+#   This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2019 Wolfgang Christl
 #
@@ -18,7 +18,7 @@
 
 import time
 
-from DroneBridge import DroneBridge, DBDir, DBMode, DBPort
+from DroneBridge import DroneBridge, DBPort, DBDir, DBMode
 
 list_wifi_interfaces = ['wlx00c0ca973410']  # must be in monitor mode
 communication_id = 22  # idents a link, multiple systems with same ports on same frequency possible

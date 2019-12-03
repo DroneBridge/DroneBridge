@@ -1,5 +1,5 @@
 #
-# This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+# This file is part of DroneBridgeLib: https://github.com/seeul8er/DroneBridge
 #
 #   Copyright 2018 Wolfgang Christl
 #
@@ -15,23 +15,23 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #
-import json
-import configparser
 import binascii
+import configparser
+import json
 import os
 # import RPi.GPIO as gp
 from subprocess import call
 from syslog import LOG_ERR
 
 import evdev
+from DroneBridge import DBDir
 
 from DBCommProt import DBCommProt
-from DroneBridge import DBDir
 from db_helpers import db_log
 
 tag = 'DB_COMM_MESSAGE: '
-PATH_DRONEBRIDGE_SETTINGS = "/DroneBridge/DroneBridgeConfig.ini"
-PATH_DB_VERSION = "/DroneBridge/db_version.txt"
+PATH_DRONEBRIDGE_SETTINGS = "/DroneBridgeLib/DroneBridgeConfig.ini"
+PATH_DB_VERSION = "/DroneBridgeLib/db_version.txt"
 
 # Used with general settings requests
 wbc_settings_blacklist = ["TXMODE", "MAC_RX[0]", "FREQ_RX[0]", "MAC_RX[1]", "FREQ_RX[1]", "MAC_RX[2]", "FREQ_RX[2]",
@@ -47,7 +47,7 @@ db_settings_blacklist = ["ip_drone", "interface_selection", "interface_control",
 
 def process_db_comm_protocol(loaded_json: json, comm_direction: DBDir) -> bytes:
     """
-    Execute the command given in the DroneBridge communication packet
+    Execute the command given in the DroneBridgeLib communication packet
 
     :param loaded_json: The message to process
     :param comm_direction: The direction of the local program instance in which it is sending
@@ -85,6 +85,11 @@ def process_db_comm_protocol(loaded_json: json, comm_direction: DBDir) -> bytes:
             message = new_settings_param_response(loaded_json['id'], DBCommProt.DB_ORIGIN_GND.value)
         else:
             message = new_settings_param_response(loaded_json['id'], DBCommProt.DB_ORIGIN_UAV.value)
+    elif loaded_json['type'] == DBCommProt.DB_TYPE_SECTION_REQ.value:
+        if comm_direction == DBDir.DB_TO_UAV:
+            message = new_settings_section_response(loaded_json['id'], DBCommProt.DB_ORIGIN_GND.value)
+        else:
+            message = new_settings_section_response(loaded_json['id'], DBCommProt.DB_ORIGIN_UAV.value)
     else:
         if comm_direction == DBDir.DB_TO_UAV:
             message = new_error_response_message('unsupported message type', DBCommProt.DB_ORIGIN_GND.value,
@@ -104,7 +109,19 @@ def new_settings_param_response(loaded_json: json, origin: int) -> bytes:
     :param origin: is this a response of drone or ground station
     :return: message with a list of all changeable setting parameters without their values
     """
-    return new_error_response_message("Not supported for now", origin, loaded_json['id'])
+    return new_error_response_message("Section parameter request not supported in this version", origin,
+                                      loaded_json['id'])
+
+
+def new_settings_section_response(loaded_json: json, origin: int) -> bytes:
+    """
+    Return a message with a list of all changeable setting parameters without their values
+
+    :param loaded_json:
+    :param origin: is this a response of drone or ground station
+    :return: message with a list of all changeable setting parameters without their values
+    """
+    return new_error_response_message("Section request not supported in this version", origin, loaded_json['id'])
 
 
 def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
@@ -130,7 +147,7 @@ def new_settingsresponse_message(loaded_json: json, origin: int) -> bytes:
         db_log("DB_COMM_PROTO: ERROR - WBC settings read unsupported!", ident=LOG_ERR)
         return new_error_response_message("WBC settings read unsupported", origin, loaded_json['id'])
     if complete_response is None:
-        return new_error_response_message("Could not read DroneBridge config", origin, loaded_json['id'])
+        return new_error_response_message("Could not read DroneBridgeLib config", origin, loaded_json['id'])
     response = json.dumps(complete_response)
     crc32 = binascii.crc32(str.encode(response))
     return response.encode() + crc32.to_bytes(4, byteorder='little', signed=False)
@@ -183,7 +200,7 @@ def change_settings_db(loaded_json: json) -> bool:
             file.flush()
             os.fsync(file.fileno())
     except Exception as ex:
-        db_log(f"DB_COMM_PROTO: Error writing DroneBridge settings: {ex}", ident=LOG_ERR)
+        db_log(f"DB_COMM_PROTO: Error writing DroneBridgeLib settings: {ex}", ident=LOG_ERR)
         return False
     return True
 
@@ -230,7 +247,7 @@ def read_dronebridge_settings(response_header: dict, specific_request: bool, req
     response_settings = {}  # settings object that gets sent
     config.read(PATH_DRONEBRIDGE_SETTINGS)
     if not config.read(PATH_DRONEBRIDGE_SETTINGS):
-        db_log("DB_COMM_PROTO: Error reading DroneBridge config", LOG_ERR)
+        db_log("DB_COMM_PROTO: Error reading DroneBridgeLib config", LOG_ERR)
         return None
 
     if specific_request:
