@@ -1,3 +1,4 @@
+
 # DroneBridge
 ![DroneBridge](https://raw.githubusercontent.com/seeul8er/DroneBridge/nightly/wiki/DroneBridgeLogo_text.png)
 
@@ -7,18 +8,23 @@ DroneBridge features support for **Raspberry Pi**, **ESP32** on the UAV/ground s
 
 Visit **["Not just another drone project"](http://wolfgangchristl.de/not-just-another-drone-project/)** for additional information about the project and its goals
 
-## DroneBridge Beta 0.5 released!
+## Releases
+Please read the **[getting started guide](https://dronebridge.gitbook.io/docs/dronebridge-for-raspberry-pi/getting-started)**  
+The v0.6 release is recommended since v0.5 is deprecated.
 
-**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.5)**
+**Disclaimer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals.  
+The user is responsible for:**
+  - **Operating the system within legal limits (e. g. frequency, equivalent isotropically radiated power (EIRP) etc.)**
+  - **Any harm or damage caused by using the provided software or parts of it.**
 
+### v0.6 Alpha
+Use with caution. Image and RC link is not field tested.  
+**[DroneBridge Alpha v0.6 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.6)**  
+**[DroneBridge for Android 2.0.0](NotThereYet)**
+
+### v0.5 Beta (deprecated)
+**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.5)**  
 **[DroneBridge for Android 1.2.4](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/Ec38kmt91ilNvYx6xnFwwQgBb9UDGDCGt6L34zZZ9YeMlw)**
-
-**[Get started](https://github.com/seeul8er/DroneBridge/wiki/Setup-Guide)**
-
-To set it up please read the wiki and check out: [WifiBroadcast installation guide](https://github.com/bortek/EZ-WifiBroadcast/wiki#installation--setup)
-
-
-**Discalmer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals. The pilot is responsible for any harm or damage caused by using the provided software or parts of it.**
 
 ## One System. One digital radio link to rule them all.
 ![DroneBridge concept](https://github.com/seeul8er/DroneBridge/blob/master/wiki/oneforall.jpg)
@@ -26,59 +32,61 @@ To set it up please read the wiki and check out: [WifiBroadcast installation gui
 * **300 m - 14+ km range*** (500 m - 2 km with standard hardware)
 * **1080p video**
 * **110ms glass to glass latency** (using android app)
-* **cheap**: starting at 80€ for hardware
+* **Cheap**: starting at 80€ for hardware
 * **12 channel RC**
-* **LTM & MAVLink telemetry** - Use with mwptools, QGroundControl, Mission Planner etc.
+* **MAVLink support** - LTM telemetry deprecated. Use with mwptools, QGroundControl, Mission Planner etc.
 * **iNAV** & **MAVLink** based flight controller support
-* **bidirectional**
-* full featured **Android app**
+* **Bidirectional**
+* Fully integrated **app for Android**
 * **OSD**
-* **multi camera support**
-* **extendability**
+* **Modular - Write your own powerful plugins**
 
-*Range strongly depends on your setup and environment. The user must ensure that the system is operated within the legal framework of the respective country.
+*Range strongly depends on your setup, environment and legal framework.
 
-<h2>DroneBridge for Android</h2>
+## DroneBridge for Android
 
 ![DroneBridge for Android app interface](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/dp_app-map-2017-10-29-kleiner.png)
 
 * Easy to use UI & end point of the whole DroneBridge system
 * Low latency video decoding
-* Change settings, calibrate the RC, view telemetry from within the app
+* Change settings, calibrate the RC, view telemetry
 
-**[Learn more about the app](https://github.com/seeul8er/DroneBridge/wiki/Android-App)**
+**[Learn more about the app](https://dronebridge.gitbook.io/docs/dronebridge-for-android/dronebridge-for-android)**
 
 ## Exemplary hardware setup
-### long range setup
+DroneBridge is available for the Raspberry Pi & ESP32 (no video, telemetry only - WiFi based)
+By compiling the libraries on your Linux computer any device can become an AIR or GND unit. This means DroneBridge is not restricted to the Raspberry Pi. However many single board computers do not offer the same kind of stability and hardware/software support as the Raspberry Pi (camera, H.264 en-/decoding etc.).
+
+### Raspberry Pi/Linux (Long Range Setup)
 ![DroneBridge long range hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/longrange_setup.png)
 
 ### DroneBridge for ESP32
+For further information have a look at the [DB for ESP32 main page](https://github.com/DroneBridge/ESP32)  
 ![DroneBridge for ESP32 hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/db_ESP32_setup.png)
 
 ## DroneBridge Modules
 
-DroneBridge is highly modularized to provide flexebility and make development easy. There is a common library for Python3 and C that handles everything involving the DroneBridge raw protocol. It configures the sockets, inits the protocol and provides methods for easy transmission.
+DroneBridge is highly modularized to provide flexebility and make development easy. There is a common library for Python 3 and C/C++ that handles everything involving the DroneBridge raw protocol. It configures the sockets, inits the protocol and provides methods for easy transmission.  
+Instead of the Android app any other GCS can be used.
 
-[Read more in the Wiki](https://github.com/seeul8er/DroneBridge/wiki)
+[Read more in the Wiki](https://dronebridge.gitbook.io/docs/developer-guide/dronebridge-lib-example-usage)
 
-## Blackbox concept
-![Blackbox](https://github.com/seeul8er/DroneBridge/blob/master/wiki/Blackbox.png)
+## System Architecture
+![Blackbox](https://raw.githubusercontent.com/DroneBridge/Docs/master/.gitbook/assets/DB_GCS_NetConf.jpg)
 
-## coming up:
- - more documentation
- - add MavLink and MSP waypoint missions
- - make DroneBridge more indipendent of WifiBroadcast
+[Read more in the wiki](https://dronebridge.gitbook.io/docs/developer-guide/system-architecture)
+
+## Coming Up:
+ - More documentation
+ - Add MavLink and MSP waypoint missions editor to Android App
  - DroneBridge Cockpit: A client/OS for x86 systems to monitor and control your UAV
- - See **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milestones)**
+ - See **[milestones](https://dronebridge.gitbook.io/docs/dronebridge-for-raspberry-pi/milestones)**
 
-<h2>You are a developer?</h2>
-
-Check out the **[wiki](https://github.com/seeul8er/DroneBridge/wiki)**
-
-Check out the **[milestones](https://github.com/seeul8er/DroneBridge/wiki/Milestones)** and suggest new ones!
-
+## You are a developer?
+Check out the **[wiki](https://dronebridge.gitbook.io/docs/)**  
+Check out the **[milestones](https://dronebridge.gitbook.io/docs/dronebridge-for-raspberry-pi/milestones)** and suggest new ones!  
 Join the **[Gitter room](https://gitter.im/DroneBridge/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)** and discuss issues, ask questions or give feedback
 
 There is a nightly branch with the most up to date code! It is not guaranteed that the code in that branch is working or even compiling!
 
-**Feel free to ask questions and criticize each and everything!**
+**Feel free to ask questions & contribute**
