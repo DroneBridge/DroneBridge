@@ -20,9 +20,9 @@ import signal
 from syslog import LOG_ERR, LOG_INFO
 
 from DroneBridge import DroneBridge, DBPort, DBDir, DBMode
+from DroneBridge.db_helpers import db_log, str2bool
 
 from db_comm_messages import parse_comm_message, new_error_response_message, process_db_comm_protocol
-from db_helpers import db_log, str2bool
 
 keep_running = True
 

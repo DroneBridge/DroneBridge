@@ -23,8 +23,8 @@ from syslog import LOG_WARNING
 
 from Cryptodome.Cipher import AES
 
-from bpf import attach_filter
-from db_helpers import db_log
+from .bpf import attach_filter
+from .db_helpers import db_log
 
 
 class DBPort(Enum):

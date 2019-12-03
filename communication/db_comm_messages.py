@@ -25,9 +25,9 @@ from syslog import LOG_ERR
 
 import evdev
 from DroneBridge import DBDir
+from DroneBridge.db_helpers import db_log
 
 from DBCommProt import DBCommProt
-from db_helpers import db_log
 
 tag = 'DB_COMM_MESSAGE: '
 PATH_DRONEBRIDGE_SETTINGS = "/DroneBridgeLib/DroneBridgeConfig.ini"

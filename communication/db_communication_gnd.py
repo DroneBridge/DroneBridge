@@ -22,10 +22,10 @@ from socket import socket, AF_INET, SOCK_STREAM, SO_REUSEADDR, SOL_SOCKET
 from syslog import LOG_ERR, LOG_WARNING, LOG_DEBUG
 
 from DroneBridge import DroneBridge, DBPort, DBDir, DBMode
+from DroneBridge.db_helpers import str2bool, db_log
 
 from DBCommProt import DBCommProt
 from db_comm_messages import parse_comm_message, new_error_response_message, process_db_comm_protocol
-from db_helpers import str2bool, db_log
 
 keep_running = True
 

@@ -99,3 +99,15 @@ plugins/example_read_rc/readrc
 plugins/rc_to_gpio_mapper/rc_gpio_map
 
 TCPTest/
+
+communication/DroneBridgeLib/DroneBridge/__pycache__/
+
+InjectionTest/db_common/
+
+InjectionTest/it
+
+InjectionTest/receive
+
+InjectionTest/send
+
+InjectionTest/cmake_install.cmake

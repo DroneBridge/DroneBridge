@@ -23,8 +23,9 @@ from enum import Enum
 from socket import *
 from subprocess import call
 
+from DroneBridge.bpf import attach_filter
+
 from DBCommProt import DBCommProt
-from bpf import attach_filter
 from db_comm_messages import change_settings, new_settingsresponse_message, comm_message_extract_info, \
     comm_crc_correct, create_sys_ident_response, new_error_response_message, \
     new_ping_response_message, new_ack_message, change_cam_selection, init_cam_gpios, normalize_jscal_axis
