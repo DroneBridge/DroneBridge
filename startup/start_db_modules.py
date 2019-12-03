@@ -4,6 +4,9 @@ import pyric.pyw as pyw
 import pyric.utils.hardware as iwhw
 import subprocess
 import time
+
+from DroneBridge import db_log
+
 from Chipset import is_atheros_card, is_realtek_card, is_ralink_card
 from common_helpers import read_dronebridge_config, PI3_WIFI_NIC, HOTSPOT_NIC, get_bit_rate
 from socket import *
@@ -294,9 +297,9 @@ def measure_available_bandwidth(video_data_packets, video_fecs_packets, packet_s
     print(f"{UAV_STRING_TAG} Measuring available bitrate")
     from DroneBridge import DroneBridge, DBDir, DBMode, DBPort
     packet_real_size = 4 + packet_size  # FEC header + data
-    dummy_data = [1] * packet_real_size
+    dummy_data = bytes([1] * packet_real_size)
     sent_data_bytes = 0
-    measure_time = 2  # seconds
+    measure_time = 4  # seconds
 
     dronebridge = DroneBridge(DBDir.DB_TO_GND, [interface_video], DBMode.MONITOR, 200, DBPort.DB_PORT_VIDEO,
                               tag="BitrateMeasure", db_blocking_socket=True, frame_type=video_frametype,
@@ -306,6 +309,7 @@ def measure_available_bandwidth(video_data_packets, video_fecs_packets, packet_s
     while (time.time() - start) < measure_time:
         dronebridge.sendto_ground_station(dummy_data, DBPort.DB_PORT_VIDEO)
         sent_data_bytes += packet_real_size
+    dronebridge.close_sockets()
     return ((sent_data_bytes * (video_data_packets / (video_data_packets + video_fecs_packets))) * 8) / measure_time
 
 
@@ -340,7 +344,7 @@ def exists_wifi_traffic(wifi_interface):
     try:
         received_data = raw_socket.recv(2048)
         if len(received_data) > 0:
-            print("Detected WiFi traffic on channel")
+            db_log("Detected WiFi traffic on channel")
             return True
     except timeout:
         return False

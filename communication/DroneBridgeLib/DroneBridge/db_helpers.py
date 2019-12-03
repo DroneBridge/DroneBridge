@@ -1,6 +1,6 @@
 import argparse
-from syslog import syslog
 from syslog import LOG_INFO
+from syslog import syslog
 
 
 def db_log(msg, ident=LOG_INFO):
