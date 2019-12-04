@@ -168,6 +168,8 @@ def start_uav_modules():
         video_bitrate = int(video_channel_util / 100 * int(video_bitrate))
         print(
             f"{UAV_STRING_TAG} Setting video bitrate to {video_bitrate / 1000} kbit/s")
+    else:
+        video_bitrate = str(int(video_bitrate) * 1000)  # convert to bit/s (user enters kbit)
 
     # ---------- Error pre-check ------------------------
     if serial_int_cont == serial_int_sumd and en_control == 'Y' and enable_sumd_rc == 'Y':
@@ -304,7 +306,7 @@ def measure_available_bandwidth(video_data_packets, video_fecs_packets, packet_s
     dummy_data = bytes([1] * packet_real_size)
     sent_data_bytes = 0
     measure_time = 4  # seconds
-
+    time.sleep(2)
     dronebridge = DroneBridge(DBDir.DB_TO_GND, [interface_video], DBMode.MONITOR, 200, DBPort.DB_PORT_VIDEO,
                               tag="BitrateMeasure", db_blocking_socket=True, frame_type=video_frametype,
                               transmission_bitrate=datarate)
@@ -349,9 +351,12 @@ def exists_wifi_traffic(wifi_interface):
         received_data = raw_socket.recv(2048)
         if len(received_data) > 0:
             db_log("Detected WiFi traffic on channel")
+            raw_socket.close()
             return True
     except timeout:
+        raw_socket.close()
         return False
+    raw_socket.close()
     return False
 
 
