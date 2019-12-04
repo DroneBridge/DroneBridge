@@ -281,17 +281,21 @@ def get_all_monitor_interfaces(formatted=False):
 
 
 def measure_available_bandwidth(video_data_packets, video_fecs_packets, packet_size, video_frametype, datarate,
-                                interface_video) -> float:
+                                interface_video, sleep_time=0.00025) -> float:
     """
     Measure available network capacity. This function respects the FEC overhead. The returned value is bandwidth - FEC.
     In other words: How much payload data can I send & protect with FEC within the given environment
 
+    This does not reflect the real free channel capacity. Measurement error too high. Keep it because we do not have
+    anything better.
+
     :param video_data_packets:  Data packets per block
-    :param video_fecs_packets:  FEC packets per blocl
+    :param video_fecs_packets:  FEC packets per block
     :param packet_size:   Packet size
     :param video_frametype:
     :param datarate:
     :param interface_video:
+    :param sleep_time: Time to sleep between injection of packets to get more realistic results
     :return: Capacity in bit per second
     """
     print(f"{UAV_STRING_TAG} Measuring available bitrate")
@@ -309,7 +313,7 @@ def measure_available_bandwidth(video_data_packets, video_fecs_packets, packet_s
     while (time.time() - start) < measure_time:
         dronebridge.sendto_ground_station(dummy_data, DBPort.DB_PORT_VIDEO)
         sent_data_bytes += packet_real_size
-    dronebridge.close_sockets()
+        time.sleep(sleep_time)
     return ((sent_data_bytes * (video_data_packets / (video_data_packets + video_fecs_packets))) * 8) / measure_time
 
 
