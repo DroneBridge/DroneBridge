@@ -22,9 +22,9 @@ The user is responsible for:**
   - **Any harm or damage caused by using the provided software or parts of it.**
 
 ### v0.6 Alpha
-Use with caution. Image and RC link is not field tested.
+Use with caution. Image and RC link is not field tested.  
 **[DroneBridge Alpha v0.6 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.6)**  
-**[DroneBridge for Android 2.0.0](NotThereYet)**
+**[DroneBridge for Android 2.0.0](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EXD5MF2nbNFCi-Il9mXa3BYBsaoM-qJ_wcLUDPZtBczBgg?e=vbPGt7)**
 
 ### v0.5 Beta (deprecated)
 **[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.5)**  
