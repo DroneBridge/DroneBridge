@@ -306,7 +306,7 @@ def measure_available_bandwidth(video_data_packets, video_fecs_packets, packet_s
     dummy_data = bytes([1] * packet_real_size)
     sent_data_bytes = 0
     measure_time = 4  # seconds
-    time.sleep(2)
+    time.sleep(3.5)
     dronebridge = DroneBridge(DBDir.DB_TO_GND, [interface_video], DBMode.MONITOR, 200, DBPort.DB_PORT_VIDEO,
                               tag="BitrateMeasure", db_blocking_socket=True, frame_type=video_frametype,
                               transmission_bitrate=datarate)

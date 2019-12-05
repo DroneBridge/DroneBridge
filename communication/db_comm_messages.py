@@ -219,10 +219,10 @@ def change_settings(loaded_json: json, origin: int) -> bytes:
         return new_error_response_message('Could not change settings', origin, loaded_json['id'])
 
 
-def get_firmware_id() -> int:
-    firmware_id = 0
+def get_firmware_id() -> str:
+    firmware_id = "Unknown"
     with open(PATH_DB_VERSION, 'r') as version_file:
-        firmware_id = int(version_file.readline())
+        firmware_id = str(version_file.readline())
     return firmware_id
 
 
