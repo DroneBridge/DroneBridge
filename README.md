@@ -16,18 +16,18 @@ Visit **["Not just another drone project"](http://wolfgangchristl.de/not-just-an
 Please read the **[getting started guide](https://dronebridge.gitbook.io/docs/dronebridge-for-raspberry-pi/getting-started)**
 The v0.6 release is recommended since v0.5 is deprecated.
 
-**Disclaimer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals.
+**Disclaimer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals.  
 The user is responsible for:**
   - **Operating the system within legal limits (e. g. frequency, equivalent isotropically radiated power (EIRP) etc.)**
   - **Any harm or damage caused by using the provided software or parts of it.**
 
 ### v0.6 Alpha
 Use with caution. Image and RC link is not field tested.
-**[DroneBridge Alpha v0.6 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.6)**
+**[DroneBridge Alpha v0.6 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.6)**  
 **[DroneBridge for Android 2.0.0](NotThereYet)**
 
 ### v0.5 Beta (deprecated)
-**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.5)**
+**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.5)**  
 **[DroneBridge for Android 1.2.4](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EQbZxsMUfNlAjZPnomlmrWoBNFWIhT7CH0ta5qYIaH849A?e=EAKmUo)**
 
 ## One System. One digital radio link to rule them all.
@@ -59,7 +59,8 @@ Use with caution. Image and RC link is not field tested.
 
 ## Exemplary hardware setup
 DroneBridge is available for the Raspberry Pi & ESP32 (no video, telemetry only - WiFi based)
-By compiling the libraries on your Linux computer any device can become an AIR or GND unit. This means DroneBridge is not restricted to the Raspberry Pi. However many single board computers do not offer the same kind of stability and hardware/software support as the Raspberry Pi (camera, H.264 en-/decoding etc.).
+By compiling the libraries on your Linux computer any device can become an AIR or GND unit. This means DroneBridge is not restricted to the Raspberry Pi.  
+However many single board computers do not offer the same kind of stability and hardware/software support as the Raspberry Pi (camera, H.264 en-/decoding etc.).
 
 ### Raspberry Pi/Linux (Long Range Setup)
 ![DroneBridge long range hardware setup](https://raw.githubusercontent.com/seeul8er/DroneBridge/master/wiki/longrange_setup.png)
@@ -70,7 +71,8 @@ For further information have a look at the [DB for ESP32 main page](https://gith
 
 ## DroneBridge Modules
 
-DroneBridge is highly modularized to provide flexebility and make development easy. There is a common library for Python 3 and C/C++ that handles everything involving the DroneBridge raw protocol. It configures the sockets, inits the protocol and provides methods for easy transmission.
+DroneBridge is highly modularized to provide flexebility and make development easy. There is a common library for Python 3 and C/C++ that handles everything involving the DroneBridge raw protocol. 
+It configures the sockets, inits the protocol and provides methods for easy transmission.  
 Instead of the Android app any other GCS can be used.
 
 [Read more in the Wiki](https://dronebridge.gitbook.io/docs/developer-guide/dronebridge-lib-example-usage)
@@ -87,9 +89,9 @@ Instead of the Android app any other GCS can be used.
  - See **[milestones](https://dronebridge.gitbook.io/docs/dronebridge-for-raspberry-pi/milestones)**
 
 ## You are a developer?
-Check out the **[wiki](https://dronebridge.gitbook.io/docs/)**
-Check out the **[milestones](https://dronebridge.gitbook.io/docs/dronebridge-for-raspberry-pi/milestones)** and suggest new ones!
-Join the **[Gitter room](https://gitter.im/DroneBridge/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)** and discuss issues, ask questions or give feedback
+Check out the **[wiki](https://dronebridge.gitbook.io/docs/)**  
+Check out the **[milestones](https://dronebridge.gitbook.io/docs/dronebridge-for-raspberry-pi/milestones)** and suggest new ones!  
+Join the **[Gitter room](https://gitter.im/DroneBridge/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)** and discuss issues, ask questions or give feedback  
 
 There is a nightly branch with the most up to date code! It is not guaranteed that the code in that branch is working or even compiling!
 
