@@ -30,8 +30,8 @@ from DroneBridge.db_helpers import db_log
 from DBCommProt import DBCommProt
 
 tag = 'DB_COMM_MESSAGE: '
-PATH_DRONEBRIDGE_SETTINGS = "/DroneBridgeLib/DroneBridgeConfig.ini"
-PATH_DB_VERSION = "/DroneBridgeLib/db_version.txt"
+PATH_DRONEBRIDGE_SETTINGS = "/DroneBridge/DroneBridgeConfig.ini"
+PATH_DB_VERSION = "/DroneBridge/db_version.txt"
 
 # Used with general settings requests
 wbc_settings_blacklist = ["TXMODE", "MAC_RX[0]", "FREQ_RX[0]", "MAC_RX[1]", "FREQ_RX[1]", "MAC_RX[2]", "FREQ_RX[2]",

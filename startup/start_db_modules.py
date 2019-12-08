@@ -5,7 +5,7 @@ import pyric.utils.hardware as iwhw
 import subprocess
 import time
 
-from DroneBridge import db_log
+from DroneBridge import DroneBridge, DBDir, DBMode, DBPort, db_log
 
 from Chipset import is_atheros_card, is_realtek_card, is_ralink_card
 from common_helpers import read_dronebridge_config, PI3_WIFI_NIC, HOTSPOT_NIC, get_bit_rate
@@ -283,7 +283,7 @@ def get_all_monitor_interfaces(formatted=False):
 
 
 def measure_available_bandwidth(video_data_packets, video_fecs_packets, packet_size, video_frametype, datarate,
-                                interface_video, sleep_time=0.00025) -> float:
+                                interface_video, sleep_time=0.025) -> float:
     """
     Measure available network capacity. This function respects the FEC overhead. The returned value is bandwidth - FEC.
     In other words: How much payload data can I send & protect with FEC within the given environment
@@ -300,14 +300,13 @@ def measure_available_bandwidth(video_data_packets, video_fecs_packets, packet_s
     :param sleep_time: Time to sleep between injection of packets to get more realistic results
     :return: Capacity in bit per second
     """
-    print(f"{UAV_STRING_TAG} Measuring available bitrate")
-    from DroneBridge import DroneBridge, DBDir, DBMode, DBPort
+    db_log("Measuring available bitrate")
     packet_real_size = 4 + packet_size  # FEC header + data
     dummy_data = bytes([1] * packet_real_size)
     sent_data_bytes = 0
-    measure_time = 4  # seconds
-    time.sleep(3.5)
-    dronebridge = DroneBridge(DBDir.DB_TO_GND, [interface_video], DBMode.MONITOR, 200, DBPort.DB_PORT_VIDEO,
+    measure_time = 3.5  # seconds
+    time.sleep(1)
+    dronebridge = DroneBridge(DBDir.DB_TO_GND, [interface_video], DBMode.MONITOR, 15, DBPort.DB_PORT_VIDEO,
                               tag="BitrateMeasure", db_blocking_socket=True, frame_type=video_frametype,
                               transmission_bitrate=datarate)
     dronebridge.sendto_ground_station(dummy_data, DBPort.DB_PORT_VIDEO)  # first measurement may be flawed

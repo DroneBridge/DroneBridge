@@ -30,13 +30,6 @@ function start_osd() {
     echo -e "${RED}ERROR: Could not build OSD, check osdconfig.txt!${NC}"
   }
   cd /tmp
-#  echo "Waiting until video is running ..." # otherwise the video will overlay the OSD
-#    VIDEORXRUNNING=0
-#    while [ $VIDEORXRUNNING -ne 1 ]; do
-#      sleep 0.5
-#      VIDEORXRUNNING=`pidof video_gnd | wc -w`
-#      echo -n "."
-#    done
   ./osd &
 }
 
@@ -70,11 +63,13 @@ function init_dronebridge() {
   if [[ "$CAM" == "0" ]]; then
     echo "Welcome to DroneBridge v0.6 Beta (GND) - "
     python3.7 /home/pi/DroneBridge/startup/init_wifi.py -g
+    sleep 1
     python3.7 /home/pi/DroneBridge/startup/start_db_modules.py -g
     start_osd
   else
     echo "Welcome to DroneBridge v0.6 Beta (UAV) - "
     python3.7 /home/pi/DroneBridge/startup/init_wifi.py
+    sleep 1
     python3.7 /home/pi/DroneBridge/startup/start_db_modules.py
   fi
 }
