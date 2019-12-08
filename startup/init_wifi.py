@@ -36,9 +36,9 @@ def main():
     config = read_dronebridge_config()
     if parsed_args.gnd:
         setup_gnd = True
-        print("---- Initializing adapters for ground station (DB v" + str(get_firmware_id() * 0.01) + ")")
+        print("---- Initializing adapters for ground station (v" + str(get_firmware_id()) + ")")
     else:
-        print("---- Initializing adapters for UAV (DB v" + str(get_firmware_id() * 0.01) + ")")
+        print("---- Initializing adapters for UAV (v" + str(get_firmware_id()) + ")")
     print("Settings up network interfaces")
     setup_network_interfaces(setup_gnd, config)  # blocks until interface becomes available
     if setup_gnd and config.get(GROUND, 'wifi_ap') == 'Y':
@@ -212,10 +212,10 @@ def setup_eth_hotspot():
                    stdout=DEVNULL)
 
 
-def get_firmware_id():
-    version_num = 0
+def get_firmware_id() -> str:
+    version_num = "0.0.0"
     with open(PATH_DB_VERSION, 'r') as version_file:
-        version_num = int(version_file.readline())
+        version_num = version_file.readline()
     return version_num
 
 
