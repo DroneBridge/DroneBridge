@@ -16,10 +16,9 @@ status/cmake-build-debug/
 \.idea/
 
 cmake-build-debug/
+cmake-build-release/
 
 status/common_lib/CMakeFiles/
-
-*.cmake
 
 x86bin/
 
@@ -60,3 +59,55 @@ communication/venv/
 control/control_ground
 
 *.a
+
+startup/__pycache__/
+
+telemetry/telemetry_air
+
+status/status
+
+proxy/proxy
+
+video/legacy/rx
+
+video/legacy/sharedmem_init_tx
+
+video/legacy/tx_measure
+
+video/legacy/tx_rawsock
+
+video/legacy/wifibackgroundscan
+
+video/legacy/wifiscan
+
+video/legacy/check_alive
+
+communication/__pycache__/
+
+control/control_air
+
+control/sumd_test
+
+video/video_gnd
+
+video/video_air
+
+*.o
+
+plugins/example_read_rc/readrc
+
+plugins/rc_to_gpio_mapper/rc_gpio_map
+
+TCPTest/
+
+communication/DroneBridgeLib/DroneBridge/__pycache__/
+
+InjectionTest/db_common/
+
+InjectionTest/it
+
+InjectionTest/receive
+
+InjectionTest/send
+
+InjectionTest/cmake_install.cmake

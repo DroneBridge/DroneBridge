@@ -21,140 +21,141 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <zconf.h>
 #include "db_protocol.h"
-#include "wbc_lib.h"
+#include "shared_memory.h"
 
-wifibroadcast_rx_status_t *wbc_status_memory_open(void) {
+db_gnd_status_t *db_gnd_status_memory_open(void) {
     int fd;
     for(;;) {
-        fd = shm_open("/wifibroadcast_rx_status_0", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        fd = shm_open("/db_gnd_status_t", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd > 0) {
             break;
         }
-        printf("db_rc_values_memory_open: Waiting for groundstation video to be started ... %s\n", strerror(errno));
+        perror("db_gnd_status_t");
         usleep((__useconds_t) 1e5);
     }
 
-    if (ftruncate(fd, sizeof(wifibroadcast_rx_status_t)) == -1) {
-        perror("db_rc_values_memory_open: ftruncate");
+    if (ftruncate(fd, sizeof(db_gnd_status_t)) == -1) {
+        perror("db_gnd_status_t: ftruncate");
         exit(1);
     }
 
-    void *retval = mmap(NULL, sizeof(wifibroadcast_rx_status_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void *retval = mmap(NULL, sizeof(db_gnd_status_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (retval == MAP_FAILED) {
-        perror("db_rc_values_memory_open: mmap");
+        perror("db_gnd_status_t: mmap");
         exit(1);
     }
-    return (wifibroadcast_rx_status_t*)retval;
+    return (db_gnd_status_t*)retval;
 }
 
-wifibroadcast_rx_status_t_rc *wbc_rc_status_memory_open(void) {
+db_rc_status_t *db_rc_status_memory_open(void) {
     int fd;
     for(;;) {
-        fd = shm_open("/wifibroadcast_rx_status_rc", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        fd = shm_open("/db_rc_status_t", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd > 0) {
             break;
         }
-        printf("wbc_rc_status_memory_open: Waiting for groundstation video to be started ... %s\n", strerror(errno));
+        perror("db_rc_status_memory_open");
         usleep((__useconds_t) 1e5);
     }
 
-    if (ftruncate(fd, sizeof(wifibroadcast_rx_status_t_rc)) == -1) {
-        perror("wbc_rc_status_memory_open: ftruncate");
+    if (ftruncate(fd, sizeof(db_rc_status_t)) == -1) {
+        perror("db_rc_status_memory_open: ftruncate");
         exit(1);
     }
 
-    void *retval = mmap(NULL, sizeof(wifibroadcast_rx_status_t_rc), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void *retval = mmap(NULL, sizeof(db_rc_status_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (retval == MAP_FAILED) {
-        perror("wbc_rc_status_memory_open: mmap");
+        perror("db_rc_status_memory_open: mmap");
         exit(1);
     }
-    return (wifibroadcast_rx_status_t_rc*)retval;
+    return (db_rc_status_t*)retval;
 }
 
-wifibroadcast_rx_status_t_sysair *wbc_sysair_status_memory_open(void) {
+db_uav_status_t *db_uav_status_memory_open(void) {
     int fd = 0;
     int sharedmem = 0;
     while(sharedmem == 0) {
-        fd = shm_open("/wifibroadcast_rx_status_sysair", O_RDWR, S_IRUSR | S_IWUSR);
+        fd = shm_open("/db_uav_status_t", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd < 0) {
-            fprintf(stderr, "Could not open wbc_sysair_status_memory_open - will try again ...\n");
+            perror("Could not open db_uav_status_memory_open - will try again ...");
         } else {
             sharedmem = 1;
         }
         usleep(100000);
     }
 
-    if (ftruncate(fd, sizeof(wifibroadcast_rx_status_t_sysair)) == -1) {
-        perror("wbc_sysair_status_memory_open: ftruncate");
+    if (ftruncate(fd, sizeof(db_uav_status_t)) == -1) {
+        perror("db_uav_status_t: ftruncate");
         exit(1);
     }
 
-    void *retval = mmap(NULL, sizeof(wifibroadcast_rx_status_t_sysair), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void *retval = mmap(NULL, sizeof(db_uav_status_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (retval == MAP_FAILED) { perror("mmap"); exit(1); }
-    return (wifibroadcast_rx_status_t_sysair*)retval;
+    return (db_uav_status_t*)retval;
 }
 
-void db_rc_values_memory_init(db_rc_values *rc_values) {
+void db_rc_values_memory_init(db_rc_values_t *rc_values) {
     for(int i = 0; i < NUM_CHANNELS; i++) {
         rc_values->ch[i] = 1000;
     }
 }
 
-db_rc_values *db_rc_values_memory_open(void) {
+db_rc_values_t *db_rc_values_memory_open(void) {
     int fd;
     for(;;) {
-        fd = shm_open("/db_rc_values", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        fd = shm_open("/db_rc_values_t", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd > 0) {
             break;
         }
-        printf("db_rc_values_memory_open: Waiting for init ... %s\n", strerror(errno));
+        perror("db_rc_values_memory_open: Waiting for init ... %s");
         usleep((__useconds_t) 1e5);
     }
 
-    if (ftruncate(fd, sizeof(db_rc_values)) == -1) {
+    if (ftruncate(fd, sizeof(db_rc_values_t)) == -1) {
         perror("db_rc_values_memory_open: ftruncate");
         exit(1);
     }
 
-    void *retval = mmap(NULL, sizeof(db_rc_values), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void *retval = mmap(NULL, sizeof(db_rc_values_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (retval == MAP_FAILED) {
         perror("db_rc_values_memory_open: mmap");
         exit(1);
     }
-    db_rc_values *tretval = (db_rc_values*)retval;
+    db_rc_values_t *tretval = (db_rc_values_t*)retval;
     db_rc_values_memory_init(tretval);
-    return (db_rc_values*)retval;
+    return (db_rc_values_t*)retval;
 }
 
-void db_rc_overwrite_values_memory_init(db_rc_overwrite_values *rc_values) {
+void db_rc_overwrite_values_memory_init(db_rc_overwrite_values_t *rc_values) {
     for(int i = 0; i < NUM_CHANNELS; i++) {
         rc_values->ch[i] = 0;
     }
 }
 
-db_rc_overwrite_values *db_rc_overwrite_values_memory_open(void) {
+db_rc_overwrite_values_t *db_rc_overwrite_values_memory_open(void) {
     int fd;
     for(;;) {
         fd = shm_open("/db_rc_overwrite", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if(fd > 0) {
             break;
         }
-        printf("db_rc_overwrite_values_memory_open: Waiting for init ... %s\n", strerror(errno));
+        perror("db_rc_overwrite_values_memory_open: Waiting for init ... %s");
         usleep((__useconds_t) 1e5);
     }
 
-    if (ftruncate(fd, sizeof(db_rc_overwrite_values)) == -1) {
+    if (ftruncate(fd, sizeof(db_rc_overwrite_values_t)) == -1) {
         perror("db_rc_overwrite_values_memory_open: ftruncate");
         exit(1);
     }
 
-    void *retval = mmap(NULL, sizeof(db_rc_overwrite_values), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void *retval = mmap(NULL, sizeof(db_rc_overwrite_values_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (retval == MAP_FAILED) {
         perror("db_rc_overwrite_values_memory_open: mmap");
         exit(1);
     }
-    db_rc_overwrite_values *tretval = (db_rc_overwrite_values*)retval;
+    db_rc_overwrite_values_t *tretval = (db_rc_overwrite_values_t*)retval;
     db_rc_overwrite_values_memory_init(tretval);
     return tretval;
 }

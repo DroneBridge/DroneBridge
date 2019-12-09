@@ -26,10 +26,10 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include "../common/db_common.h"
 #include "parameter.h"
+#include "../common/db_protocol.h"
 #include "rc_ground.h"
-#include "../common/db_raw_send_receive.h"
-#include "../common/ccolors.h"
 #include "i6S.h"
 
 #define JS_EVENT_BUTTON         0x01    /* button pressed/released */
@@ -45,37 +45,31 @@ void intHandler(int dummy) {
 }
 
 /**
- * Look for the i6S controller on the given interface. Reinitialize if it was unplugged.
- * @param new_Joy_IF Number of the joystick interface
- * @param calibrate_comm The command to be executed to calibrate the i6S
+ * Open socket to connected radio. Calibrate using jscal-restore command
+ *
+ * @param joy_interface_indx Joystick interface as specified by jscal interface index
  * @return The file descriptor
  */
-int initialize_i6S(int new_Joy_IF) {
+int initialize_i6S(int joy_interface_indx) {
+    char interface_joystick[CALI_COMM_SIZE];
+    get_joy_interface_path(interface_joystick, joy_interface_indx);
     int fd;
-    char interface_joystick[500];
-    char path[] = "/dev/input/js";
-    sprintf(interface_joystick, "%s%d", path, new_Joy_IF);
-    printf("DB_CONTROL_GROUND: Waiting for i6S to be detected on: %s\n", interface_joystick);
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Waiting for i6S to be detected on: %s\n", interface_joystick);
     do {
         usleep(100000);
         fd = open(interface_joystick, O_RDONLY | O_NONBLOCK);
     } while (fd < 0 && keepRunning);
-    printf("DB_CONTROL_GROUND: Opened joystick interface!\n");
-    printf("DB_CONTROL_GROUND: Calibrating...\n");
-    int returnval = system(DEFAULT_i6S_CALIBRATION); // i6S always calibrated by hard coded string - adjustrc does not have any effect
-//    char calibration_command[500];
-//    sprintf(calibration_command, "%s %s", "jscal-restore", interface_joystick);
-//    int returnval = system(calibration_command);
-    if (returnval == 0) {
-        printf("DB_CONTROL_GROUND: Calibrated i6S\n");
-    }else{
-        printf("DB_CONTROL_GROUND: Could not calibrate i6S\n");
-    }
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Opened joystick interface!\n");
+
+    char calibrate_comm[CALI_COMM_SIZE];
+    strcpy(calibrate_comm, DEFAULT_i6S_CALIBRATION);
+    do_calibration(calibrate_comm, joy_interface_indx);
     return fd;
 }
 
 /**
  * Transform the values read from the RC to values between 1000 and 2000
+ *
  * @param value The value read from the interface
  * @param adjustingValue A extra value that might add extra exponential behavior to the sticks etc.
  * @return 1000<=return_value<=2000
@@ -84,15 +78,16 @@ uint16_t normalize_i6S(int16_t value, int16_t adjustingValue) {
     return (uint16_t) (((adjustingValue * value) / MAX) + 1500);
 }
 
-
-int i6S(int Joy_IF, char calibrate_comm[]) {
+/**
+ * Read and send RC commands using a i6S radio controller connected via USB.
+ *
+ * @param Joy_IF Joystick interface as specified by jscal of the OpenTX based radio connected via USB
+ * @param frequency_sleep Time to sleep between every RC value read & send
+ */
+void i6S(int Joy_IF, struct timespec frequency_sleep) {
     signal(SIGINT, intHandler);
-    uint16_t JoystickData[NUM_CHANNELS];
-    struct timespec tim, tim2;
-    tim.tv_sec = 0;
-    tim.tv_nsec = 16666666L; //60Hz
-    //tim.tv_nsec = 10000000L; //100Hz
-
+    uint16_t joystickData[NUM_CHANNELS];
+    struct timespec tim_remain;
 
     struct js_event {
         unsigned int time;      /* event timestamp in milliseconds */
@@ -137,10 +132,10 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
     rc.pos_switch1 = 1000;
     rc.pos_switch2 = 1000;
 
-    printf("DB_CONTROL_GROUND: Starting to send commands!\n");
+    LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Starting to send commands!\n");
     while (keepRunning) //send loop
     {
-        nanosleep(&tim, &tim2);
+        nanosleep(&frequency_sleep, &tim_remain);
         while (read(fd, &e, sizeof(e)) > 0)   // go through all events occurred
         {
             e.type &= ~JS_EVENT_INIT; /* ignore synthetic events */
@@ -195,10 +190,10 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         int myerror = errno;
         if (myerror != EAGAIN) {
             if (myerror == ENODEV) {
-                printf(RED "DB_CONTROL_GROUND: Joystick was unplugged! Retrying... " RESET "\n");
+                LOG_SYS_STD(LOG_WARNING, "DB_CONTROL_GND: Joystick was unplugged! Retrying... \n");
                 fd = initialize_i6S(Joy_IF);
             } else {
-                printf(RED "DB_CONTROL_GROUND: Error: %s" RESET " \n", strerror(myerror));
+                LOG_SYS_STD(LOG_ERR, "DB_CONTROL_GND: Error: %s\n", strerror(myerror));
             }
         }
         // SWR - Arm switch
@@ -230,23 +225,22 @@ int i6S(int Joy_IF, char calibrate_comm[]) {
         if (rc.yaw == 32766) rc.yaw++;
 
         // Channel map should/must be AETR1234!
-        JoystickData[0] = normalize_i6S(rc.roll, 500);
-        JoystickData[1] = normalize_i6S(rc.pitch, 500);
-        JoystickData[2] = normalize_i6S(rc.throttle, 500);
-        JoystickData[3] = normalize_i6S(rc.yaw, 500);
-        JoystickData[4] = normalize_i6S(rc.cam_up, 500);
-        JoystickData[5] = normalize_i6S(rc.cam_down, 500);
-        JoystickData[6] = (uint16_t) rc.button0;
-        JoystickData[7] = (uint16_t) rc.pos_switch1;
-        JoystickData[8] = (uint16_t) rc.pos_switch2;
-        JoystickData[9] = (uint16_t) rc.button5;
-        JoystickData[10] = 1000; // unused by i6s - used by app
-        JoystickData[11] = 1000; // unused by i6s - used by app
-        JoystickData[12] = 1000; // unused by i6s - used by app
-        JoystickData[13] = 1000; // unused by i6s - used by app
-        send_rc_packet(JoystickData);
+        joystickData[0] = normalize_i6S(rc.roll, 500);
+        joystickData[1] = normalize_i6S(rc.pitch, 500);
+        joystickData[2] = normalize_i6S(rc.throttle, 500);
+        joystickData[3] = normalize_i6S(rc.yaw, 500);
+        joystickData[4] = normalize_i6S(rc.cam_up, 500);
+        joystickData[5] = normalize_i6S(rc.cam_down, 500);
+        joystickData[6] = (uint16_t) rc.button0;
+        joystickData[7] = (uint16_t) rc.pos_switch1;
+        joystickData[8] = (uint16_t) rc.pos_switch2;
+        joystickData[9] = (uint16_t) rc.button5;
+        joystickData[10] = 1000; // unused by i6s - used by app
+        joystickData[11] = 1000; // unused by i6s - used by app
+        joystickData[12] = 1000; // unused by i6s - used by app
+        joystickData[13] = 1000; // unused by i6s - used by app
+        send_rc_packet(joystickData);
     }
     close(fd);
-    close_socket_send_receive();
-    return 0;
+    close_raw_interfaces();
 }
