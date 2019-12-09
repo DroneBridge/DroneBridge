@@ -27,11 +27,11 @@ Use with caution. Image and RC link is not field tested.
 **[DroneBridge for Android 2.0.0](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EXD5MF2nbNFCi-Il9mXa3BYBsaoM-qJ_wcLUDPZtBczBgg?e=vbPGt7)**
 
 ### v0.5 Beta (deprecated)
-**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/seeul8er/DroneBridge/releases/tag/v0.5)**  
+**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/DroneBridge/DroneBridge/releases/tag/v0.5)**  
 **[DroneBridge for Android 1.2.4](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EQbZxsMUfNlAjZPnomlmrWoBNFWIhT7CH0ta5qYIaH849A?e=EAKmUo)**
 
 ## One System. One digital radio link to rule them all.
-![DroneBridge concept](https://github.com/seeul8er/DroneBridge/blob/master/wiki/oneforall.jpg)
+![DroneBridge concept](https://github.com/DroneBridge/DroneBridge/blob/master/wiki/oneforall.jpg)
 
 * **300 m - 14+ km range*** (500 m - 2 km with standard hardware)
 * **1080p video**
@@ -96,3 +96,10 @@ Join the **[Gitter room](https://gitter.im/DroneBridge/Lobby?utm_source=share-li
 There is a nightly branch with the most up to date code! It is not guaranteed that the code in that branch is working or even compiling!
 
 **Feel free to ask questions & contribute**
+
+
+## Licenses
+
+ * All of the code (especially DroneBridge modules & lib_dbcommon - C or Python) is under the Apache 2 license if not specified otherwise
+ * WifiBroadcast legacy code (video, OSD, .profile, hello_video) is licensed as specified or under the GPL v2 license
+ * All Kernel drivers/patches are under GPL v2 license
