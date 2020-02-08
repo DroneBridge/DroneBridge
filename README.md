@@ -23,11 +23,14 @@ The user is responsible for:**
 
 ### v0.6 Alpha
 Use with caution. Image and RC link is not field tested.
+
 **[DroneBridge Alpha v0.6 Image for Raspberry Pi](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EZah1nq0VhNKtHNdDhQNh5QBtVIsj1dOsqOnqJYzGeuN8w?e=S7vCbh)**
+
 **[DroneBridge for Android 2.0.1](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/ESYBSIc4M6RFv8yQz1bkOysBrBW_MwOLI5ApF6a2p7nzOg?e=QFrinb)**
 
 ### v0.5 Beta (deprecated)
 **[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/DroneBridge/DroneBridge/releases/tag/v0.5)**
+
 **[DroneBridge for Android 1.2.5](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EQB6Q_RImyhBv_yiDpmn9HsB4f3h8or7wo_wHwo0PXeU1g?e=DAff6Q)**
 
 ## One System. One digital radio link to rule them all.
