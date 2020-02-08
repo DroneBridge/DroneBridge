@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: DroneBridge
+Version: 1.0.0
+Summary: DroneBridge common library
+Home-page: https://github.com/DroneBridge
+Author: Wolfgang Christl
+Author-email: author@example.com
+License: UNKNOWN
+Description: Use DroneBridge to communicate with WiFi adapters set into monitor mode. DroneBridge will inject packets using its own so called 'raw protocol'
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - BetaProgramming Language :: Python :: 3
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: POSIX :: Linux
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown

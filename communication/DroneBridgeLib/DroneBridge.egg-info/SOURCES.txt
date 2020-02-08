@@ -1,0 +1,8 @@
+README.md
+setup.py
+DroneBridge/DroneBridge.py
+DroneBridge/__init__.py
+DroneBridge.egg-info/PKG-INFO
+DroneBridge.egg-info/SOURCES.txt
+DroneBridge.egg-info/dependency_links.txt
+DroneBridge.egg-info/top_level.txt
