@@ -41,6 +41,7 @@
 #include "../common/radiotap/radiotap_iter.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_common.h"
+#include "../common/db_unix.h"
 
 #define MAX_PACKET_LENGTH 4192
 #define MAX_USER_PACKET_LENGTH 1450

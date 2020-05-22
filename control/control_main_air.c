@@ -36,6 +36,7 @@
 #include "../common/db_utils.h"
 #include "../common/radiotap/radiotap_iter.h"
 #include "../common/db_common.h"
+#include "../common/db_unix.h"
 
 
 #define ETHER_TYPE        0x88ab
@@ -246,6 +247,44 @@ int open_serial_telem(int baud_rate, const char *telem_inf) {
     return socket_control_serial;
 }
 
+/**
+ *
+ * @param serial_sock Socket to write to
+ * @param data Buffer to write
+ * @param data_len Data length
+ * @param log_ident Name/Type of data so debugging gets easier
+ * @return
+ */
+void write_to_serial(int serial_sock, uint8_t *data, size_t data_len, char *log_ident) {
+    if (data_len > 0 && serial_sock > 0) {
+        int sentbytes = (int) write(serial_sock, data, (size_t) data_len);
+        int errsv = errno;
+        tcdrain(serial_sock);
+        if (sentbytes <= 0) {
+            LOG_SYS_STD(LOG_WARNING, "DB_CONTROL_AIR: Could not write (%s) to serial interface %s\n", log_ident,
+                    strerror(errsv));
+        } else if (sentbytes != data_len){
+            LOG_SYS_STD(LOG_WARNING, "DB_CONTROL_AIR: Not all data (%s) written to serial interface %i/%zi\n", log_ident,
+                    sentbytes, data_len);
+        }
+        // TODO: check if necessary. It shouldn't as we use blocking UART socket
+        // tcflush(rc_serial_socket, TCOFLUSH);
+    }
+}
+
+void write_to_unix(db_unix_tcp_client unix_server_clients[DB_MAX_UNIX_TCP_CLIENTS], uint8_t *data, ssize_t data_len) {
+    for (int i= 0; i < DB_MAX_UNIX_TCP_CLIENTS; i++) {
+        if (unix_server_clients[i].client_sock > 0) {
+            ssize_t sent_bytes = send(unix_server_clients[i].client_sock, data, data_len, 0);
+            if (sent_bytes <= 0 || sent_bytes != data_len) {
+                int error = errno;
+                LOG_SYS_STD(LOG_WARNING, "DB_CONTROL_AIR: Not all data written to unix client %zi/%zi because of %d\n",
+                        sent_bytes, data_len, error);
+            }
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     int c, bitrate_op = 1, chucksize = 64;
     int serial_protocol_control = 2, baud_rate = 115200;
@@ -353,7 +392,7 @@ int main(int argc, char *argv[]) {
 // -------------------------------
 // Setting up UART interface for MSP/MAVLink stream
 // -------------------------------
-    uint8_t transparent_buffer[chucksize];
+    uint8_t transparent_buffer[chucksize + 256];
     int socket_control_serial = open_serial_telem(baud_rate, telem_inf);
     int rc_serial_socket = socket_control_serial;
 
@@ -364,13 +403,21 @@ int main(int argc, char *argv[]) {
         rc_serial_socket = open_serial_sumd(sumd_interface);  // overwrite serial socket used for RC
     }
 
+// -------------------------------
+// Setting up unix tcp server for local apps to access serial port data
+// -------------------------------
+    db_unix_tcp_socket unix_server = db_create_unix_tcpserver_sock(DB_UNIX_TCP_SERVER_CONTROL);
+    db_unix_tcp_client unix_server_clients[DB_MAX_UNIX_TCP_CLIENTS];
+    for (int i = 0; i<DB_MAX_UNIX_TCP_CLIENTS; i++) unix_server_clients[i].client_sock = -1;
+
 // ----------------------------------
 // Loop
 // ----------------------------------
-    int sentbytes = 0, command_length = 0, errsv, select_return, continue_reading, chunck_left = chucksize,
-            serial_read_bytes = 0, max_sd = 0;
+    int sentbytes = 0, command_length = 0, errsv, select_return, continue_reading, serial_read_bytes = 0, max_sd = 0;
+    uint16_t radiotap_lenght;
     uint8_t serial_bytes[DB_TRANSPARENT_READBUF];
     int8_t rssi = -128, last_recv_rc_seq_num = 0, last_recv_cont_seq_num = 0;
+    int addrlen = sizeof(struct sockaddr);
     long start; // start time for status report update
     long start_rc; // start time for measuring the recv RC packets/second
 
@@ -400,7 +447,7 @@ int main(int argc, char *argv[]) {
     start = (long) timecheck.tv_sec * 1000 + (long) timecheck.tv_usec / 1000; // [ms]
     long last_serial_telem_reconnect_try = start; // [ms]
     start_rc = start;
-    uint16_t radiotap_lenght;
+
     while (keep_running) {
         socket_timeout.tv_sec = 0;
         socket_timeout.tv_usec = STATUS_UPDATE_TIME * 1000;
@@ -414,16 +461,28 @@ int main(int argc, char *argv[]) {
             if (raw_interfaces_telem[i].db_socket > max_sd)
                 max_sd = raw_interfaces_telem[i].db_socket;
         }
-
         // Add or open serial interface for telemetry
         if (socket_control_serial > 0) {
             FD_SET (socket_control_serial, &fd_socket_set);
             if (socket_control_serial > max_sd)
                 max_sd = socket_control_serial;
         }
+        // Add unix tcp server
+        if (unix_server.socket > 0) {
+            FD_SET (unix_server.socket, &fd_socket_set);
+            if (unix_server.socket > max_sd)
+                max_sd = unix_server.socket;
+        }
+        // Add connected clients of unix socket
+        for (int i = 0; i < DB_MAX_UNIX_TCP_CLIENTS; i++) {
+            if (unix_server_clients[i].client_sock > 0) {
+                FD_SET (unix_server_clients[i].client_sock, &fd_socket_set);
+                if (unix_server_clients[i].client_sock > max_sd)
+                    max_sd = unix_server_clients[i].client_sock;
+            }
+        }
 
         select_return = select(max_sd + 1, &fd_socket_set, NULL, NULL, &socket_timeout);
-
         if (select_return == -1 && errno != EINTR) {
             perror("DB_CONTROL_AIR: select returned error: ");
         } else if (select_return > 0) {
@@ -443,17 +502,7 @@ int main(int argc, char *argv[]) {
                         if (last_recv_rc_seq_num != seq_num_rc) {  // diversity duplicate protection
                             last_recv_rc_seq_num = seq_num_rc;
                             command_length = generate_rc_serial_message(commandBuf);
-                            if (command_length > 0 && rc_serial_socket > 0) {
-                                sentbytes = (int) write(rc_serial_socket, serial_data_buffer, (size_t) command_length);
-                                errsv = errno;
-                                tcdrain(rc_serial_socket);
-                                if (sentbytes <= 0) {
-                                    LOG_SYS_STD(LOG_WARNING, "RC not written to serial interface %s\n",
-                                                strerror(errsv));
-                                }
-                                // TODO: check if necessary. It shouldn't as we use blocking UART socket
-                                // tcflush(rc_serial_socket, TCOFLUSH);
-                            }
+                            write_to_serial(rc_serial_socket, serial_data_buffer, command_length, "RC");
                         }
                     }
                 }
@@ -470,23 +519,13 @@ int main(int argc, char *argv[]) {
                         if (last_recv_cont_seq_num != seq_num_cont) {  // diversity duplicate protection
                             last_recv_cont_seq_num = seq_num_cont;
                             command_length = get_db_payload(buf, length, commandBuf, &seq_num_cont, &radiotap_lenght);
-                            if (socket_control_serial > 0) {
-                                sentbytes = (int) write(socket_control_serial, commandBuf, (size_t) command_length);
-                                errsv = errno;
-                                tcdrain(socket_control_serial);
-                                if (sentbytes < command_length) {
-                                    LOG_SYS_STD(LOG_WARNING, "MSP/MAVLink NOT WRITTEN because of error: %s\n",
-                                                strerror(errsv));
-                                }
-                                // TODO: check if necessary. It shouldn't as we use blocking UART socket
-                                // tcflush(socket_control_serial, TCOFLUSH);
-                            }
+                            write_to_serial(socket_control_serial, commandBuf, command_length, "MSP/MAVLink");
                         }
                     }
                 }
             }
             // --------------------------------
-            // FC input
+            // FC input to control module via serial
             // --------------------------------
             if (FD_ISSET(socket_control_serial, &fd_socket_set)) {
                 // --------------------------------
@@ -514,6 +553,7 @@ int main(int argc, char *argv[]) {
                                                            (u_int16_t) serial_read_bytes,
                                                            update_seq_num(&proxy_seq_number));
                                         }
+                                        write_to_unix(unix_server_clients, raw_buffer->bytes, serial_read_bytes);
                                     }
                                 } else {
                                     continue_reading = 0;
@@ -540,9 +580,10 @@ int main(int argc, char *argv[]) {
                                     continue_reading = 0; // stop reading from serial port --> got a complete message!
                                     mavlink_msg_to_send_buffer(raw_buffer->bytes, &mavlink_message);
                                     for (int i = 0; i < num_inf; i++) {
-                                        db_send_hp_div(&raw_interfaces_telem[i], DB_PORT_PROXY,
-                                                       (u_int16_t) chucksize, update_seq_num(&proxy_seq_number));
+                                        db_send_hp_div(&raw_interfaces_telem[i], DB_PORT_PROXY, serial_read_bytes,
+                                                update_seq_num(&proxy_seq_number));
                                     }
+                                    write_to_unix(unix_server_clients, raw_buffer->bytes, serial_read_bytes);
                                 }
                             }
                         }
@@ -557,15 +598,52 @@ int main(int argc, char *argv[]) {
                                 for (int i = 0; i < num_inf; i++) {
                                     //LOG_SYS_STD(LOG_DEBUG, "DB_CONTROL_AIR: Sending transparent packet %i\n",
                                     //            serial_read_bytes);
-                                    for (int r = 0; r < RETRANSMISSION_RATE; r++)
+                                    for (int r = 0; r < RETRANSMISSION_RATE; r++) {
                                         db_send_div(&raw_interfaces_telem[i], transparent_buffer, DB_PORT_PROXY,
                                                     serial_read_bytes, update_seq_num(&proxy_seq_number),
                                                     cont_adhere_80211);
+                                    }
+                                    write_to_unix(unix_server_clients, raw_buffer->bytes, serial_read_bytes);
                                 }
                                 serial_read_bytes = 0;
                             }
                         }
                         break;
+                }
+            }
+
+            // --------------------------------
+            // Unix TCP server - accept new clients
+            // --------------------------------
+            if (FD_ISSET(unix_server.socket, &fd_socket_set)) {
+                // find free slot for client
+                for (int t = 0; t < DB_MAX_UNIX_TCP_CLIENTS; t++) {
+                    if (unix_server_clients[t].client_sock < 0 || t == (DB_MAX_UNIX_TCP_CLIENTS-1)) {
+                        unix_server_clients[t].client_sock = accept(unix_server.socket,
+                                                                    (struct sockaddr *) &unix_server_clients[t].addr,
+                                                                    &addrlen);
+                        LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: New unix client connected\n");
+                        break;
+                    }
+                }
+            }
+            // --------------------------------
+            // Unix TCP clients - accept data to forward to serial connection
+            // --------------------------------
+            for (int i = 0; i < DB_MAX_UNIX_TCP_CLIENTS; i++) {
+                if (FD_ISSET(unix_server_clients[i].client_sock, &fd_socket_set)) {
+                    uint8_t receive_buffer[4096];
+                    ssize_t size = recv(unix_server_clients[i].client_sock, receive_buffer, 4096, 0);
+                    if (size == 0) {
+                        close(unix_server_clients[i].client_sock);
+                        unix_server_clients[i].client_sock = -1;
+                        LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: Unix client disconnected\n");
+                    } else if (size > 0) {
+                        // forward to serial port
+                        write_to_serial(socket_control_serial, receive_buffer, size, "client via unix sock");
+                    } else {
+                        LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: Unix client receive error %s\n", strerror(errno));
+                    }
                 }
             }
         }

@@ -27,7 +27,7 @@ else ()
             radiotap/radiotap.h
             radiotap/radiotap_iter.h
             radiotap/platform.h
-            radiotap/radiotap.c tcp_server.c tcp_server.h)
+            radiotap/radiotap.c tcp_server.c tcp_server.h db_unix.c db_unix.h)
 
     add_library(db_common STATIC ${LIB_SRCS})
 

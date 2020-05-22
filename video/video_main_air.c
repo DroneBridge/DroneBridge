@@ -30,6 +30,8 @@
 #include <getopt.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <errno.h>
+#include <sys/un.h>
 #include "fec.h"
 #include "video_lib.h"
 #include "recorder.h"
@@ -37,6 +39,8 @@
 #include "../common/db_raw_send_receive.h"
 #include "../common/shared_memory.h"
 #include "../common/db_common.h"
+#include "../common/db_unix.h"
+#include "../common/db_raw_receive.h"
 
 #define MAX_PACKET_LENGTH (DATA_UNI_LENGTH + RADIOTAP_LENGTH + DB_RAW_V2_HEADER_LENGTH)
 #define MAX_DATA_OR_FEC_PACKETS_PER_BLOCK 32
@@ -67,6 +71,21 @@ static int TimeSpecToUSeconds(struct timespec *ts) {
 
 void int_handler(int dummy) {
     keeprunning = false;
+}
+
+void write_to_unix(db_unix_tcp_client unix_server_clients[DB_MAX_UNIX_TCP_CLIENTS], uint8_t *data, ssize_t data_len) {
+    for (int i = 0; i < DB_MAX_UNIX_TCP_CLIENTS; i++) {
+        if (unix_server_clients[i].client_sock > 0) {
+            ssize_t sent_bytes = send(unix_server_clients[i].client_sock, data, data_len, 0);
+            int error = errno;
+            if (error == EWOULDBLOCK || error == EAGAIN) {
+                LOG_SYS_STD(LOG_WARNING, "DB_VIDEO_AIR: Could not write to unix socket client EWOULDBLOCK/EAGAIN\n");
+            } else if (sent_bytes <= 0 || sent_bytes != data_len) {
+                LOG_SYS_STD(LOG_WARNING, "DB_VIDEO_AIR: Not all data written to unix client %zi/%zi because of %s\n",
+                            sent_bytes, data_len, strerror(error));
+            }
+        }
+    }
 }
 
 /**
@@ -229,6 +248,7 @@ int main(int argc, char *argv[]) {
     db_uav_status->injection_time_packet = 0, db_uav_status->wifi_adapter_cnt = num_interfaces;
     db_uav_status->injected_packet_cnt = 0;
     int param_min_packet_length = 24;
+    uint8_t some_buff[32];
 
     if (num_interfaces == 0) {
         LOG_SYS_STD(LOG_ERR, "DB_VIDEO_AIR: No interface specified. Aborting\n");
@@ -237,21 +257,21 @@ int main(int argc, char *argv[]) {
 
     if (pack_size > DATA_UNI_LENGTH) {
         LOG_SYS_STD(LOG_ERR, "DB_VIDEO_AIR; Packet length is limited to %d bytes (you requested %d bytes)\n",
-                DATA_UNI_LENGTH, pack_size);
+                    DATA_UNI_LENGTH, pack_size);
         abort();
     }
 
     if (param_min_packet_length > pack_size) {
         LOG_SYS_STD(LOG_ERR,
-                "DB_VIDEO_AIR; Minimum packet length is higher than maximum packet length (%d > %d)\n",
-                param_min_packet_length, pack_size);
+                    "DB_VIDEO_AIR; Minimum packet length is higher than maximum packet length (%d > %d)\n",
+                    param_min_packet_length, pack_size);
         abort();
     }
 
     if (num_data_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK || num_fec_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK) {
         LOG_SYS_STD(LOG_ERR,
-                "DB_VIDEO_AIR: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n",
-                MAX_DATA_OR_FEC_PACKETS_PER_BLOCK, num_data_block, num_fec_block);
+                    "DB_VIDEO_AIR: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n",
+                    MAX_DATA_OR_FEC_PACKETS_PER_BLOCK, num_data_block, num_fec_block);
         abort();
     }
 
@@ -275,6 +295,15 @@ int main(int argc, char *argv[]) {
                                         frame_type);
         strncpy(db_uav_status->adapter[k].name, adapters[k], IFNAMSIZ);
     }
+// -------------------------------
+// Setting up unix tcp server for local apps to access data received via pipe
+// -------------------------------
+    db_unix_tcp_socket unix_server = db_create_unix_tcpserver_sock(DB_UNIX_DOMAIN_VIDEO_PATH);
+    unix_server.socket = set_socket_nonblocking(unix_server.socket);
+    db_unix_tcp_client unix_server_clients[DB_MAX_UNIX_TCP_CLIENTS];
+    struct sockaddr_un new_addr;
+    for (int i = 0; i < DB_MAX_UNIX_TCP_CLIENTS; i++) unix_server_clients[i].client_sock = -1;
+
     LOG_SYS_STD(LOG_INFO, "DB_VIDEO_AIR: started!\n");
     while (keeprunning) {
         // get a packet buffer from list
@@ -290,14 +319,42 @@ int main(int argc, char *argv[]) {
             abort();
         }
         if (inl == 0) { // EOF
-            LOG_SYS_STD(LOG_ERR, "\nDB_VIDEO_AIR: Warning: Lost connection to stdin. Please make sure that a data source is connected");
+            LOG_SYS_STD(LOG_ERR,
+                        "\nDB_VIDEO_AIR: Warning: Lost connection to stdin. Please make sure that a data source is connected");
             usleep((__useconds_t) 5e5);
             continue;
         }
         pb->len += inl;
 
+        // do some unix server stuff - accept new clients
+        int new_client = accept(unix_server.socket, (struct sockaddr *) &new_addr, (socklen_t *) sizeof(new_addr));
+        if (new_client > 0) {
+            for (int t = 0; t < DB_MAX_UNIX_TCP_CLIENTS; t++) {
+                if (unix_server_clients[t].client_sock < 0 || t == (DB_MAX_UNIX_TCP_CLIENTS - 1)) {
+                    unix_server_clients[t].client_sock = new_client;
+                    unix_server_clients[t].client_sock = set_socket_nonblocking(unix_server_clients[t].client_sock);
+                    unix_server_clients[t].addr = new_addr;
+                    LOG_SYS_STD(LOG_INFO, "DB_VIDEO_AIR: New unix client connected\n");
+                    break;
+                }
+            }
+        }
+        for (int t = 0; t < DB_MAX_UNIX_TCP_CLIENTS; t++) {
+            if (unix_server_clients[t].client_sock > 0) {
+                ssize_t received = recv(unix_server_clients[t].client_sock, some_buff, 32, 0);  // dummy buffer
+                if (received == 0) {
+                    LOG_SYS_STD(LOG_INFO, "DB_VIDEO_AIR: Unix client disconnected\n");
+                    close(unix_server_clients[t].client_sock);
+                    unix_server_clients[t].client_sock = -1;
+                }
+            }
+        }
+
         // check if this packet is finished
         if (pb->len >= param_min_packet_length) {
+            // send to unix socket clients
+            write_to_unix(unix_server_clients, pb->data, pb->len);
+            // fill packet buffer for long range link
             video_packet_data_t *video_p_data = (video_packet_data_t *) (pb->data);
             video_p_data->data_length = pb->len;
             // check if this block is finished
@@ -307,9 +364,10 @@ int main(int argc, char *argv[]) {
                 transmit_block(input.pb_list, &(input.seq_nr),
                                pack_size); // input.pb_list is video_packet_data_t[num_fec + num_data]
                 if (db_uav_status->injected_block_cnt % 500 == 1) {
-                    LOG_SYS_STD(LOG_INFO, "DB_VIDEO_AIR: \ttried to inject %i packets, failed %i, injection time/packet %ius, FEC encoding time %ius         \r",
-                           db_uav_status->injected_packet_cnt, db_uav_status->injection_fail_cnt,
-                           db_uav_status->injection_time_packet, db_uav_status->encoding_time);
+                    LOG_SYS_STD(LOG_INFO,
+                                "DB_VIDEO_AIR: \ttried to inject %i packets, failed %i, injection time/packet %ius, FEC encoding time %ius         \r",
+                                db_uav_status->injected_packet_cnt, db_uav_status->injection_fail_cnt,
+                                db_uav_status->injection_time_packet, db_uav_status->encoding_time);
                 }
 
                 input.curr_pb = 0;

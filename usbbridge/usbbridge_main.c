@@ -38,6 +38,7 @@
 #include "../common/db_protocol.h"
 #include "db_usb.h"
 #include "../common/db_common.h"
+#include "../common/db_unix.h"
 
 
 #define USB_BUFFER_SIZ  1024

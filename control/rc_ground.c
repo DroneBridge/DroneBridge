@@ -218,7 +218,7 @@ void get_joy_interface_path(char *dst_joy_interface_path, int joy_interface_indx
  * @param joy_interface_indx Interface index of connected RC
  */
 void do_calibration(char *calibrate_comm, int joy_interface_indx) {
-    char cali_restore_command[CALI_COMM_SIZE];
+    char cali_restore_command[CALI_COMM_SIZE + 14];
     char joy_interface_path[CALI_COMM_SIZE];
     // try to restore prev. calibration
     get_joy_interface_path(joy_interface_path, joy_interface_indx);
@@ -231,7 +231,7 @@ void do_calibration(char *calibrate_comm, int joy_interface_indx) {
         // failed to restore. Calibrate using default calibration
         if (system(calibrate_comm) == 0) {
             LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Calibrated RC interface with default calibration\n");
-            char cali_store_comm[CALI_COMM_SIZE];
+            char cali_store_comm[CALI_COMM_SIZE + 12];
             sprintf(cali_store_comm, "%s %s", "jscal-store", joy_interface_path);
             LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Storing calibration data -> %s\n", cali_store_comm);
             system(cali_store_comm);
