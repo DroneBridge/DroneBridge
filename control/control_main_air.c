@@ -417,7 +417,7 @@ int main(int argc, char *argv[]) {
     uint16_t radiotap_lenght;
     uint8_t serial_bytes[DB_TRANSPARENT_READBUF];
     int8_t rssi = -128, last_recv_rc_seq_num = 0, last_recv_cont_seq_num = 0;
-    int addrlen = sizeof(struct sockaddr);
+    unsigned int addrlen = sizeof(struct sockaddr);
     long start; // start time for status report update
     long start_rc; // start time for measuring the recv RC packets/second
 
@@ -455,7 +455,7 @@ int main(int argc, char *argv[]) {
 
         // add raw DroneBridge sockets
         for (int i = 0; i < num_inf; i++) {
-            FD_SET (raw_interfaces_rc[i].db_socket, &fd_socket_set);
+            FD_SET(raw_interfaces_rc[i].db_socket, &fd_socket_set);
             if (raw_interfaces_rc[i].db_socket > max_sd)
                 max_sd = raw_interfaces_rc[i].db_socket;
             if (raw_interfaces_telem[i].db_socket > max_sd)
@@ -463,13 +463,13 @@ int main(int argc, char *argv[]) {
         }
         // Add or open serial interface for telemetry
         if (socket_control_serial > 0) {
-            FD_SET (socket_control_serial, &fd_socket_set);
+            FD_SET(socket_control_serial, &fd_socket_set);
             if (socket_control_serial > max_sd)
                 max_sd = socket_control_serial;
         }
         // Add unix tcp server
         if (unix_server.socket > 0) {
-            FD_SET (unix_server.socket, &fd_socket_set);
+            FD_SET(unix_server.socket, &fd_socket_set);
             if (unix_server.socket > max_sd)
                 max_sd = unix_server.socket;
         }
@@ -616,14 +616,16 @@ int main(int argc, char *argv[]) {
             // Unix TCP server - accept new clients
             // --------------------------------
             if (FD_ISSET(unix_server.socket, &fd_socket_set)) {
-                // find free slot for client
-                for (int t = 0; t < DB_MAX_UNIX_TCP_CLIENTS; t++) {
-                    if (unix_server_clients[t].client_sock < 0 || t == (DB_MAX_UNIX_TCP_CLIENTS-1)) {
-                        unix_server_clients[t].client_sock = accept(unix_server.socket,
-                                                                    (struct sockaddr *) &unix_server_clients[t].addr,
-                                                                    &addrlen);
-                        LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: New unix client connected\n");
-                        break;
+                int new_client = accept(unix_server.socket, (struct sockaddr *) &unix_server.addr, &addrlen);
+                if (new_client > 0) {
+                    // find free slot for client
+                    for (int t = 0; t < DB_MAX_UNIX_TCP_CLIENTS; t++) {
+                        if (unix_server_clients[t].client_sock < 0 || t == (DB_MAX_UNIX_TCP_CLIENTS-1)) {
+                            unix_server_clients[t].client_sock = new_client;
+                            unix_server_clients[t].addr = unix_server.addr;
+                            LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: New unix client connected\n");
+                            break;
+                        }
                     }
                 }
             }
@@ -677,8 +679,12 @@ int main(int argc, char *argv[]) {
         if (raw_interfaces_telem[i].db_socket > 0)
             close(raw_interfaces_telem[i].db_socket);
     }
+    for (int i = 0; i < DB_MAX_UNIX_TCP_CLIENTS; i++) {
+        if (unix_server_clients[i].client_sock > 0) close(unix_server_clients[i].client_sock);
+    }
     close(socket_control_serial);
     close(rc_serial_socket);
+    close(unix_server.socket);
     LOG_SYS_STD(LOG_INFO, "DB_CONTROL_AIR: Terminated!\n");
     return 1;
 }

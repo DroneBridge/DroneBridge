@@ -78,7 +78,7 @@ typedef struct {
     uint32_t injected_block_cnt;
     uint32_t skipped_fec_cnt;
     uint32_t injection_fail_cnt;
-    int injection_time_packet; // in microseconds
+    int injection_time_packet; // in microseconds for injecting on all adapters
     uint32_t injected_packet_cnt;
     uint16_t bitrate_kbit;
     uint16_t bitrate_measured_kbit;

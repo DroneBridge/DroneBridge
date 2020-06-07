@@ -571,7 +571,7 @@ int main(int argc, char *argv[]) {
         LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Failed opening UNIX domain socket\n");
         exit(-1);
     }
-    unix_sock = set_socket_nonblocking(unix_sock);
+    set_socket_nonblocking(&unix_sock);
     memset(&unix_socket_addr, 0x00, sizeof(unix_socket_addr));
     unix_socket_addr.sun_family = AF_UNIX;
     strcpy(unix_socket_addr.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH);

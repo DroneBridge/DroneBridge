@@ -123,13 +123,10 @@ int bindsocket(int newsocket, char the_mode, char new_ifname[IFNAMSIZ]) {
  * @param the_socket The socket to be set to non-blocking
  * @return The socket that is set to non-blocking
  */
-int set_socket_nonblocking(int the_socketfd) {
-    if (fcntl(the_socketfd, F_SETFL, O_NONBLOCK) < 0) {
+void set_socket_nonblocking(int *the_socketfd) {
+    if (fcntl(*the_socketfd, F_SETFL, O_NONBLOCK) < 0) {
         perror("Can not put socket in non-blocking mode");
-    } else {
-        return the_socketfd;
     }
-    return the_socketfd;
 }
 
 /**

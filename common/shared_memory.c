@@ -21,9 +21,12 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <zconf.h>
+#include <errno.h>
 #include "db_protocol.h"
 #include "shared_memory.h"
+#include "db_common.h"
 
 db_gnd_status_t *db_gnd_status_memory_open(void) {
     int fd;
@@ -74,17 +77,14 @@ db_rc_status_t *db_rc_status_memory_open(void) {
 }
 
 db_uav_status_t *db_uav_status_memory_open(void) {
-    int fd = 0;
-    int sharedmem = 0;
-    while(sharedmem == 0) {
-        fd = shm_open("/db_uav_status_t", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    int fd;
+    do {
+        fd = shm_open("/db_uav_status_t", O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
         if(fd < 0) {
-            perror("Could not open db_uav_status_memory_open - will try again ...");
-        } else {
-            sharedmem = 1;
+            LOG_SYS_STD(LOG_ERR, "Could not open db_uav_status_memory_open: %s - Will try again ...\n", strerror(errno));
+            usleep(100000);
         }
-        usleep(100000);
-    }
+    } while(fd < 0);
 
     if (ftruncate(fd, sizeof(db_uav_status_t)) == -1) {
         perror("db_uav_status_t: ftruncate");

@@ -27,7 +27,7 @@ key_smartphone_ip_sm = 1111
 key_smartphone_ip_sem = 1112
 
 
-class DB_IP_GETTER():
+class DBIPGetter:
 
     def __init__(self):
         try:
@@ -64,14 +64,14 @@ def find_smartphone_ip():
                     return interface_desc[0] + '    '
             return "192.168.2.2    "
         except KeyError:
-            print("IP_CHECKER: KeyError")
+            print("DBIPGetter: KeyError")
             return "192.168.42.129 "
     else:
         return "192.168.2.2    "
 
 
 def main():
-    print("DB_IPCHECKER: starting")
+    print("DBIPGetter: starting")
     try:
         memory = sysv_ipc.SharedMemory(key_smartphone_ip_sm, sysv_ipc.IPC_CREX)
     except sysv_ipc.ExistentialError:
@@ -88,7 +88,7 @@ def main():
         # Initializing sem.o_time to nonzero value
         sem.release()
 
-    while (True):
+    while True:
         time.sleep(2)
         sem.acquire()
         memory.write(find_smartphone_ip())

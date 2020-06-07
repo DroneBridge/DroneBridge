@@ -1,7 +1,7 @@
 /*
  *   This file is part of DroneBridge: https://github.com/DroneBridge/DroneBridge
  *
- *   Copyright 2017 Wolfgang Christl
+ *   Copyright 2020 Wolfgang Christl
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,14 +17,11 @@
  *
  */
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
-#include "VG/openvg.h"
-#include "VG/vgu.h"
-#include "fontinfo.h"
-#include "shapes.h"
+#include <GLFW/glfw3.h>
+#include <nanovg/nanovg.h>
+#define NANOVG_GL2_IMPLEMENTATION	// Use GL2 implementation.
+#include "nanovg/nanovg_gl.h"
 
 int main(int argc, char *argv[]) {
     int image_width = 920;
@@ -39,17 +36,7 @@ int main(int argc, char *argv[]) {
 
     int32_t width, height;
     char filepath[] = {"/home/pi/DroneBridge/splash/db_splash.jpg"};
+    struct NVGcontext* vg = nvgCreateGL2(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
 
-    InitShapes(&width, &height);            // Graphics initialization
-
-    Start(width, height);
-    if (background == 1) { BackgroundRGBA(0, 0, 0, 1); };
-    Fill(255, 255, 255, 1);
-    Image((width-image_width) / 2, (height-image_height) / 2, image_width, image_height, filepath);
-    TextMid(width/2, (height/2) - (image_height/2), "v0.6 Beta", SansTypeface, 18);
-    End();
-    usleep(7000000);
-
-    FinishShapes();                 // Graphics cleanup
-    exit(0);
+    return 0;
 }

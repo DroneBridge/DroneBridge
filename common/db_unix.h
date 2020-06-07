@@ -22,7 +22,7 @@
 
 #include <sys/un.h>
 
-#define DB_MAX_UNIX_TCP_CLIENTS     10       // Max number of connected clients to a TCP unix domain socket
+#define DB_MAX_UNIX_TCP_CLIENTS     5       // Max number of connected clients to a TCP unix domain socket
 
 #define DB_UNIX_DOMAIN_VIDEO_PATH   "/tmp/db_video_out"
 #define DB_UNIX_TCP_SERVER_CONTROL  "/tmp/db_control_out"

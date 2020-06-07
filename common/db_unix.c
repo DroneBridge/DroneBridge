@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "db_common.h"
 #include "db_unix.h"
 
@@ -33,16 +34,17 @@ db_unix_tcp_socket db_create_unix_tcpserver_sock(char *filepath) {
     db_unix_tcp_socket db_unix_sock = {.socket = -1, .addr = 0};
     struct sockaddr_un address;
     memset(&address, 0, sizeof(struct sockaddr_un));
-    if ((db_unix_sock.socket = socket(AF_LOCAL, SOCK_STREAM, 0)) > 0) {
+    if ((db_unix_sock.socket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         LOG_SYS_STD(LOG_ERR, "Could not create unix tcp server socket\n");
         return db_unix_sock;
     }
     unlink(filepath);
-    address.sun_family = AF_LOCAL;
-    strcpy(address.sun_path, filepath);
+    db_unix_sock.addr.sun_family = AF_UNIX;
+    strcpy(db_unix_sock.addr.sun_path, filepath);
     if (bind(db_unix_sock.socket, (struct sockaddr *) &db_unix_sock.addr, sizeof(db_unix_sock.addr)) != 0) {
-        LOG_SYS_STD(LOG_ERR, "Could not bind unix tcp server socket to %s\n", filepath);
+        LOG_SYS_STD(LOG_ERR, "Could not bind unix tcp server socket to %s - %s\n", filepath, strerror(errno));
         return db_unix_sock;
     }
+    listen(db_unix_sock.socket, DB_MAX_UNIX_TCP_CLIENTS);
     return db_unix_sock;
 }

@@ -21,7 +21,7 @@ from select import select
 from socket import socket, AF_PACKET, SOCK_RAW, htons, timeout
 from syslog import LOG_WARNING
 
-from Cryptodome.Cipher import AES
+from Crypto.Cipher import AES
 
 from .bpf import attach_filter
 from .db_helpers import db_log
