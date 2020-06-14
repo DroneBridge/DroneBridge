@@ -224,7 +224,7 @@ def start_uav_modules():
             if video_mem.endswith("/"):
                 video_mem = video_mem[:-1]
             print(f"{UAV_STRING_TAG} Starting video recording to {video_mem}")
-            comm = [os.path.join(DRONEBRIDGE_BIN_PATH, 'recorder', 'recorder'), video_mem]
+            comm = [os.path.join(DRONEBRIDGE_BIN_PATH, 'recorder', 'db_recorder'), video_mem]
             Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
 

@@ -17,5 +17,5 @@ ENDIF ()
 add_subdirectory(../common db_common)
 set(SOURCE_FILES recorder.c)
 
-add_executable(recorder ${SOURCE_FILES})
-target_link_libraries(recorder db_common)
+add_executable(db_recorder ${SOURCE_FILES})
+target_link_libraries(db_recorder db_common)
