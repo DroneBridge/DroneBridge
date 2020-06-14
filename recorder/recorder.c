@@ -93,10 +93,6 @@ void delete_file(video_file_t *video_file) {
 
 void write_to_file(video_file_t *video_file, uint8_t *rec_buff, size_t num_new_bytes) {
     if ((*video_file).file_pnt != NULL) {
-        for (int i = 0; i < num_new_bytes; i++)
-        {
-            printf("%02hhX ", rec_buff[i]);
-        }
         ssize_t written = fwrite(rec_buff, (int) num_new_bytes, 1, (*video_file).file_pnt);
         if (written != 1)
             LOG_SYS_STD(LOG_WARNING, "DB_RECORDER: Not all data written to file (%ld/%ld)\n", written, num_new_bytes);
