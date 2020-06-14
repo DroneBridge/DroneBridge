@@ -35,6 +35,7 @@
 #define MAX_LEN_FILENAME    64
 #define MAX_LEN_FILEPATH    512
 #define REC_BUFF_SIZE       819200    // ~6Mbit
+#define MAX_RETRY_UNIX      10
 
 typedef struct {
     FILE *file_pnt;
@@ -45,14 +46,6 @@ volatile int recorder_running = true;
 
 void int_handler(int dummy) {
     recorder_running = false;
-}
-
-void write_to_file(uint8_t buffer[], uint16_t data_length, FILE *file) {
-    if (file != NULL) {
-        ssize_t written = fwrite(&buffer, data_length, 1, file);
-        if (written != data_length)
-            LOG_SYS_STD(LOG_WARNING, "DB_RECORDER: Not all data written to file\n");
-    }
 }
 
 bool file_exists(char fname[]) {
@@ -81,11 +74,11 @@ void open_new_file(char record_dir[MAX_LEN_FILEPATH-MAX_LEN_FILENAME], video_fil
                 break;
         }
     }
-    strcat(filepath, ".h264");
+    strcat(filepath, ".264");
 
     FILE *file_pnter;
     LOG_SYS_STD(LOG_INFO, "DB_RECORDER: Writing video data to: %s\n", filepath);
-    file_pnter = fopen(filepath, "ab+");
+    file_pnter = fopen(filepath, "wb");
     if (file_pnter == NULL)
         LOG_SYS_STD(LOG_ERR, "DB_RECORDER: Could not open video file > %s\n", strerror(errno));
     video_file->file_pnt = file_pnter;
@@ -96,6 +89,18 @@ void delete_file(video_file_t *video_file) {
     fclose(video_file->file_pnt);
     if (remove(video_file->filepath) != 0)
         LOG_SYS_STD(LOG_INFO, "DB_RECORDER: Unable to delete empty file %s > %s!\n", video_file->filepath, strerror(errno));
+}
+
+void write_to_file(video_file_t *video_file, uint8_t *rec_buff, size_t num_new_bytes) {
+    if ((*video_file).file_pnt != NULL) {
+        for (int i = 0; i < num_new_bytes; i++)
+        {
+            printf("%02hhX ", rec_buff[i]);
+        }
+        ssize_t written = fwrite(rec_buff, (int) num_new_bytes, 1, (*video_file).file_pnt);
+        if (written != 1)
+            LOG_SYS_STD(LOG_WARNING, "DB_RECORDER: Not all data written to file (%ld/%ld)\n", written, num_new_bytes);
+    }
 }
 
 /**
@@ -122,27 +127,38 @@ int main(int argc, char *argv[]) {
 
     int domain_sock;
     struct sockaddr_un address;
-    if((domain_sock = socket(AF_LOCAL, SOCK_STREAM, 0)) > 0) {
+    if((domain_sock = socket(AF_LOCAL, SOCK_STREAM, 0)) < 0) {
         LOG_SYS_STD(LOG_ERR, "DB_RECORDER: Could not open domain socket > %s\n", strerror(errno));
         delete_file(&video_file);
         return -1;
     }
     address.sun_family = AF_LOCAL;
     strcpy(address.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH);
-    if (connect(domain_sock, (struct sockaddr *) &address, sizeof (address)) == 0)
-        LOG_SYS_STD(LOG_INFO, "DB_RECORDER: Connected to %s\n", DB_UNIX_DOMAIN_VIDEO_PATH);
-    else {
+    int retry_cnt = 0;
+    bool unix_connected = false;
+    do {
+        if (connect(domain_sock, (struct sockaddr *) &address, sizeof (address)) == 0) {
+            LOG_SYS_STD(LOG_INFO, "DB_RECORDER: Connected to %s\n", DB_UNIX_DOMAIN_VIDEO_PATH);
+            unix_connected = true;
+        } else {
+            usleep(500000);
+            retry_cnt++;
+        }
+    } while (retry_cnt != MAX_RETRY_UNIX && !unix_connected);
+    if (!unix_connected) {
         LOG_SYS_STD(LOG_INFO, "DB_RECORDER: Could not connect to %s > %s\n", DB_UNIX_DOMAIN_VIDEO_PATH, strerror(errno));
         delete_file(&video_file);
         close(domain_sock);
         return -1;
     }
+    
     uint8_t rec_buff[REC_BUFF_SIZE];
-
+    fseek(video_file.file_pnt, 0, 0);
     while (recorder_running) {
-        int num_new_bytes = recv(domain_sock, rec_buff, REC_BUFF_SIZE-1, 0);
-        if (num_new_bytes > 0)
-            write_to_file(rec_buff, num_new_bytes, video_file.file_pnt);
+        size_t num_new_bytes = recv(domain_sock, rec_buff, REC_BUFF_SIZE-1, 0);
+        if (num_new_bytes > 0) {
+            write_to_file(&video_file, rec_buff, num_new_bytes);
+        }
     }
     close(domain_sock);
     fclose(video_file.file_pnt);
