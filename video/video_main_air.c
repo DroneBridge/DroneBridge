@@ -34,7 +34,6 @@
 #include <sys/un.h>
 #include "fec.h"
 #include "video_lib.h"
-#include "../recorder/recorder.h"
 #include "../common/db_protocol.h"
 #include "../common/db_raw_send_receive.h"
 #include "../common/shared_memory.h"
@@ -56,7 +55,6 @@ struct timespec start_time, end_time;
 
 volatile int recorder_running = 1;
 volatile uint32_t receive_count = 0;
-uint8_t rec_buff[REC_BUFF_SIZE] = {0};
 
 uint total_encoding_time = 0;
 
