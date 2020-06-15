@@ -56,8 +56,6 @@ struct timespec start_time, end_time;
 volatile int recorder_running = 1;
 volatile uint32_t receive_count = 0;
 
-uint total_encoding_time = 0;
-
 typedef struct {
     uint32_t seq_nr;
     int fd;
@@ -87,7 +85,7 @@ void write_to_unix(db_unix_tcp_client unix_server_clients[DB_MAX_UNIX_TCP_CLIENT
             }
         }
     } else {
-        printf("No data to send\n");
+        LOG_SYS_STD(LOG_WARNING, "DB_VIDEO_AIR: Unix server > No data to send\n");
     }
 }
 
@@ -144,7 +142,6 @@ void transmit_block(packet_buffer_t *pbl, uint32_t *seq_nr, uint fec_packet_size
         fec_encode(fec_packet_size, data_blocks, num_data_block, (unsigned char **) fec_blocks, num_fec_block);
         clock_gettime(CLOCK_MONOTONIC, &end_time);
         db_uav_status->encoding_time = TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time);
-        total_encoding_time += db_uav_status->encoding_time;
     }
 
     //send data and FEC packets interleaved - that algo needs to match with receiving side
@@ -236,7 +233,9 @@ int main(int argc, char *argv[]) {
     process_command_line_args(argc, argv);
 
     input_t input;
-    db_uav_status = db_uav_status_memory_open();
+    // DEBUG
+    db_uav_status = &(db_uav_status_t) {};
+    // db_uav_status = db_uav_status_memory_open();
     db_uav_status->injection_fail_cnt = 0;
     db_uav_status->skipped_fec_cnt = 0, db_uav_status->injected_block_cnt = 0,
     db_uav_status->injection_time_packet = 0, db_uav_status->wifi_adapter_cnt = num_interfaces;
@@ -337,8 +336,8 @@ int main(int argc, char *argv[]) {
             usleep((__useconds_t) 5e5);
             continue;
         }
+        write_to_unix(unix_server_clients, &pb->data[pb->len], inl);    // write received data to UNIX clients
         pb->len += inl;
-        write_to_unix(unix_server_clients, pb->data, pb->len);
         // check if this packet is finished
         if (pb->len >= param_min_packet_length) {
             // fill packet buffer for long range link
@@ -350,9 +349,9 @@ int main(int argc, char *argv[]) {
                 if (db_uav_status->injected_block_cnt % 500 == 1) {
                     LOG_SYS_STD(LOG_INFO,
                                 "DB_VIDEO_AIR: \ttried to inject %i packets, maybe failed %i, injection time/packet %ius, "
-                                "FEC encoding time %ius - total encoding time (%ius)         \r",
+                                "FEC encoding time %ius         \n",
                                 db_uav_status->injected_packet_cnt, db_uav_status->injection_fail_cnt,
-                                db_uav_status->injection_time_packet, db_uav_status->encoding_time, total_encoding_time);
+                                db_uav_status->injection_time_packet, db_uav_status->encoding_time);
                 }
 
                 input.curr_pb = 0;

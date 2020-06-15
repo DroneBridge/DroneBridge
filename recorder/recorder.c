@@ -35,7 +35,7 @@
 #define MAX_LEN_FILENAME    64
 #define MAX_LEN_FILEPATH    512
 #define REC_BUFF_SIZE       819200    // ~6Mbit
-#define MAX_RETRY_UNIX      10
+#define MAX_RETRY_UNIX      100
 
 typedef struct {
     FILE *file_pnt;
@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
             LOG_SYS_STD(LOG_INFO, "DB_RECORDER: Connected to %s\n", DB_UNIX_DOMAIN_VIDEO_PATH);
             unix_connected = true;
         } else {
-            usleep(500000);
+            usleep(50000);
             retry_cnt++;
         }
     } while (retry_cnt != MAX_RETRY_UNIX && !unix_connected);
@@ -149,7 +149,6 @@ int main(int argc, char *argv[]) {
     }
     
     uint8_t rec_buff[REC_BUFF_SIZE];
-    fseek(video_file.file_pnt, 0, 0);
     while (recorder_running) {
         size_t num_new_bytes = recv(domain_sock, rec_buff, REC_BUFF_SIZE-1, 0);
         if (num_new_bytes > 0) {
