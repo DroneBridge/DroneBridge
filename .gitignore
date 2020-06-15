@@ -111,3 +111,7 @@ InjectionTest/receive
 InjectionTest/send
 
 InjectionTest/cmake_install.cmake
+
+.vscode/
+
+build/
