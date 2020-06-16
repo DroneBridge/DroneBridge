@@ -115,3 +115,5 @@ InjectionTest/cmake_install.cmake
 .vscode/
 
 build/
+
+*.cmake

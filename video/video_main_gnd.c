@@ -135,7 +135,7 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
     if (udp_enabled) {
         if (sendto(udp_socket, data, message_length, 0, (struct sockaddr *) &client_video_addr,
                    sizeof(client_video_addr)) < message_length)
-            perror("DB_VIDEO_GND: Not all data sent via UDP\n");
+            LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Not all data sent via UDP (msg size %ui) > %s\n", message_length, strerror(errno));
     }
     if (send_to_std_out && fec_decoded) {
         // only output decoded fec packets to stdout so that video player can read data stream directly
