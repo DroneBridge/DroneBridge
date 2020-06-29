@@ -18,25 +18,54 @@
  */
 
 #include <stdlib.h>
-#include <GLFW/glfw3.h>
-#include <nanovg/nanovg.h>
-#define NANOVG_GL2_IMPLEMENTATION	// Use GL2 implementation.
-#include "nanovg/nanovg_gl.h"
+#include <unistd.h>
+#include <EGL/egl.h>
+#include <GLES/gl.h>
+typedef ... NativeWindowType;
+extern NativeWindowType createNativeWindow(void);
+static EGLint const attribute_list[] = {
+        EGL_RED_SIZE, 1,
+        EGL_GREEN_SIZE, 1,
+        EGL_BLUE_SIZE, 1,
+        EGL_NONE
+};
+int main(int argc, char ** argv)
+{
+    EGLDisplay display;
+    EGLConfig config;
+    EGLContext context;
+    EGLSurface surface;
+    NativeWindowType native_window;
+    EGLint num_config;
 
-int main(int argc, char *argv[]) {
-    int image_width = 920;
-    int image_height = 150;
-    int background = 1; // [1 = YES]
+    /* get an EGL display connection */
+    display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 
-    if (argc == 4) {
-        image_width = atoi(argv[1]);
-        image_height = atoi(argv[2]);
-        background = atoi(argv[3]);
-    }
+    /* initialize the EGL display connection */
+    eglInitialize(display, NULL, NULL);
 
-    int32_t width, height;
-    char filepath[] = {"/home/pi/DroneBridge/splash/db_splash.jpg"};
-    struct NVGcontext* vg = nvgCreateGL2(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
+    /* get an appropriate EGL frame buffer configuration */
+    eglChooseConfig(display, attribute_list, &config, 1, &num_config);
 
-    return 0;
+    /* create an EGL rendering context */
+    context = eglCreateContext(display, config, EGL_NO_CONTEXT, NULL);
+
+    /* create a native window */
+    native_window = createNativeWindow();
+
+    /* create an EGL window surface */
+    surface = eglCreateWindowSurface(display, config, native_window, NULL);
+
+    /* connect the context to the surface */
+    eglMakeCurrent(display, surface, surface, context);
+
+    /* clear the color buffer */
+    glClearColor(1.0, 1.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glFlush();
+
+    eglSwapBuffers(display, surface);
+
+    sleep(10);
+    return EXIT_SUCCESS;
 }

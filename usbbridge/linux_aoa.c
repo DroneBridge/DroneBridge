@@ -32,7 +32,7 @@ bool abort_aoa_init = false;
 uint8_t raw_usb_msg_buff[DB_AOA_MAX_MSG_LENGTH] = {0};
 db_usb_msg_t *usb_msg = (db_usb_msg_t *) raw_usb_msg_buff;
 
-uint16_t db_usb_max_packet_size = 512 - DB_AOA_HEADER_LENGTH;
+uint16_t db_usb_max_packet_size = 512 - DB_AOA_HEADER_LENGTH;   // inited
 
 u_int16_t get_db_usb_max_packet_size() {
     return db_usb_max_packet_size;
@@ -165,7 +165,7 @@ int discover_compatible_devices(db_accessory_t *db_acc) {
     libusb_device *found_device = NULL;
     ssize_t cnt = libusb_get_device_list(NULL, &device_list);
 
-//    LOG_SYS_STD(LOG_DEBUG, "AOA_USB: Checking %zi USB devices\n", cnt);
+    LOG_SYS_STD(LOG_DEBUG, "AOA_USB: Checking %zi USB devices\n", cnt);
     for (ssize_t i = 0; i < cnt; i++) {
         libusb_device *device = device_list[i];
         if (supports_aoa(device, db_acc)) {
@@ -313,7 +313,7 @@ int init_db_accessory(db_accessory_t *db_acc) {
  * zero copy send operation.
  * @return
  */
-struct db_usb_msg_t *db_usb_get_direct_buffer() {
+db_usb_msg_t *db_usb_get_direct_buffer() {
     return (db_usb_msg_t *) raw_usb_msg_buff;
 }
 

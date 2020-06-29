@@ -8,7 +8,7 @@ add_subdirectory(video)
 add_subdirectory(recorder)
 add_subdirectory(usbbridge)
 add_subdirectory(syslog_server)
-# add_subdirectory(splash_gl)
+add_subdirectory(splash_gl)
 add_subdirectory(InjectionTest)
 
 if (EXISTS "TCPTest/tcptest")

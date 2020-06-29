@@ -40,9 +40,10 @@
 #include "../common/db_common.h"
 #include "../common/db_unix.h"
 
+#define TAG     "DBUSBBridge"
 
 #define USB_BUFFER_SIZ  1024
-#define MAX_WRITE_TIMEOUT   300  // max time [ms] that the USBBridge is allowed to not send data to the GCS. Send wake to stop blocking android accessory api
+#define MAX_WRITE_TIMEOUT   1000  // max time [ms] that the USBBridge is allowed to not send data to the GCS. Send wake to stop blocking android accessory api
 
 // Super handy to get to understand how libusb and how to use the provided file descriptors
 // https://libusbx-devel.narkive.com/M0EVVFb7/question-about-libusb-get-pollfds#post8
@@ -56,15 +57,12 @@ int video_unix_socket = -1, proxy_sock = -1, status_sock = -1, communication_soc
 
 uint8_t usb_in_data[USB_BUFFER_SIZ];
 int usb_parser_state = DB_USB_PARSER_SEARCHING_HEADER;
-uint16_t db_usb_parser_payload_size = 0;
-uint16_t usb_parser_buff_size = 0;
-uint8_t *db_usb_parser_buffer;
-uint8_t db_usb_parser_port = 0;
 
 struct timeval timecheck;
 
 struct pollfd poll_fds[MAX_POLL_FDS];  // [[TCP fds with fixed length] + [USB fds of variable length]]
 bool device_connected = false;
+int libusberr;
 
 void intHandler(int dummy) {
     keeprunning = false;
@@ -262,23 +260,28 @@ void db_usb_route_data_tcp(uint8_t payload[], uint8_t port, uint16_t payload_siz
  * @param length length of USB buffer
  */
 void process_db_usb_proto(unsigned char buffer[], int length) {
+    static uint8_t db_usb_parser_buffer[DB_AOA_MAX_PAY_LENGTH];
+    static uint8_t db_usb_parser_port = 0;
+    static uint16_t db_usb_parser_payload_size = 0;
+    static uint16_t usb_parser_buff_size = 0;
     if (usb_parser_state == DB_USB_PARSER_SEARCHING_HEADER && length >= DB_AOA_HEADER_LENGTH) {
         // check for header
         if (buffer[0] == 'D' && buffer[1] == 'B' && buffer[2] == DB_USB_PROTO_VERSION) {
             db_usb_parser_port = buffer[3];
             db_usb_parser_payload_size = buffer[4] | (buffer[5] << 8);
-            if (db_usb_parser_payload_size > DATA_UNI_LENGTH) {
-                LOG_SYS_STD(LOG_ERR, "DB_USB: Specified payload too big for raw protocol (%i > %i). Ignoring\n",
-                            db_usb_parser_payload_size, DATA_UNI_LENGTH);
+            if (db_usb_parser_payload_size > DB_AOA_MAX_PAY_LENGTH) {
+                // in theory uint16 would be max but we are hooked to the raw protocol with a max MTU
+                LOG_SYS_STD(LOG_ERR, "DB_USB: Specified payload too big for MTU (%i > %i). Ignoring\n",
+                            db_usb_parser_payload_size, DB_AOA_MAX_PAY_LENGTH);
                 return;
             }
             if ((length - DB_AOA_HEADER_LENGTH) == db_usb_parser_payload_size) {
                 // payload is not split in between packets -> ready for processing. zero copy operation
                 db_usb_route_data_tcp(&buffer[DB_AOA_HEADER_LENGTH], db_usb_parser_port, db_usb_parser_payload_size);
+                usb_parser_state = DB_USB_PARSER_SEARCHING_HEADER;
             } else {
                 // payload data incomplete -> wait for next packet
                 usb_parser_buff_size += (length - DB_AOA_HEADER_LENGTH);
-                db_usb_parser_buffer = (uint8_t *) malloc(db_usb_parser_payload_size * sizeof(uint8_t));
                 memcpy(db_usb_parser_buffer, &buffer[DB_AOA_HEADER_LENGTH], (length - DB_AOA_HEADER_LENGTH));
                 usb_parser_state = DB_USB_PARSER_AWAITING_PAYLOAD;
             }
@@ -291,7 +294,6 @@ void process_db_usb_proto(unsigned char buffer[], int length) {
             memcpy(&db_usb_parser_buffer[usb_parser_buff_size], buffer, length);
             usb_parser_buff_size += length;
             db_usb_route_data_tcp(db_usb_parser_buffer, db_usb_parser_port, db_usb_parser_payload_size);
-            free(db_usb_parser_buffer);
             usb_parser_buff_size = 0;
             usb_parser_state = DB_USB_PARSER_SEARCHING_HEADER;
         } else if ((usb_parser_buff_size + length) < db_usb_parser_payload_size) {
@@ -299,10 +301,13 @@ void process_db_usb_proto(unsigned char buffer[], int length) {
             memcpy(&db_usb_parser_buffer[usb_parser_buff_size], buffer, length);
             usb_parser_buff_size += length;
         } else if ((usb_parser_buff_size + length) > db_usb_parser_payload_size) {
-            free(db_usb_parser_buffer);
             usb_parser_buff_size = 0;
             usb_parser_state = DB_USB_PARSER_SEARCHING_HEADER;
-            LOG_SYS_STD(LOG_ERR, "DB_USB: DB USB protocol does not allow packets containing payload of two msgs!\n");
+            LOG_SYS_STD(LOG_ERR, "DB_USB: DB USB protocol does not allow packets containing payload of two msgs "
+                                 "\n\t> payload size %i, size in buffer: %i, new packet size %i"
+                                 " buffer: %02hhX %02hhX %02hhX %02hhX %02hhX %02hhX ...\n",
+                                 db_usb_parser_payload_size, usb_parser_buff_size, length,
+                                 buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]);
         }
     }
 }
@@ -344,8 +349,8 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
     }
     // Resubmit reading request no matter what happened
     if (xfr->endpoint == AOA_ACCESSORY_EP_IN) {
-        if (libusb_submit_transfer(xfr) < 0) {
-            perror("DB_USB: Error submitting transfer");
+        if ((libusberr = libusb_submit_transfer(xfr)) < 0) {
+            LOG_SYS_STD(LOG_ERR, "%s: Error submitting transfer > %s\n", TAG, libusb_strerror(libusberr));
             device_connected = false;
             libusb_free_transfer(xfr);
         }
@@ -358,7 +363,7 @@ void callback_usb_async_complete(struct libusb_transfer *xfr) {
  * @param accessory
  * @param usb_msg
  */
-void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t *usb_msg, long *last_write) {
+void send_timeout_wake(db_accessory_t *accessory, db_usb_msg_t *usb_msg, long *last_write) {
     if (!device_connected)
         return;
 //    LOG_SYS_STD(LOG_INFO, "DB_USB: Sending timeout wake\n");
@@ -368,8 +373,8 @@ void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t *usb_msg, lon
     struct libusb_transfer *xfr = libusb_alloc_transfer(0);
     libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, (unsigned char *) usb_msg,
                               (1 + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL, 100);
-    if (libusb_submit_transfer(xfr) < 0) {
-        perror("DB_USB: Error submitting timeout wake transfer");
+    if ((libusberr = libusb_submit_transfer(xfr)) < 0) {
+        LOG_SYS_STD(LOG_ERR, "%s: Error submitting timeout wake transfer > %s\n", TAG, libusb_strerror(libusberr));
         device_connected = false;
         libusb_free_transfer(xfr);
     }
@@ -381,12 +386,12 @@ void send_timeout_wake(struct accessory_t *accessory, db_usb_msg_t *usb_msg, lon
  *
  * @param accessory
  */
-void db_read_usb_async(struct accessory_t *accessory) {
+void db_read_usb_async(db_accessory_t *accessory) {
     struct libusb_transfer *xfr = libusb_alloc_transfer(0);
     libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_IN, usb_in_data, USB_BUFFER_SIZ,
                               callback_usb_async_complete, NULL, 0);
-    if (libusb_submit_transfer(xfr) < 0) {
-        perror("DB_USB: Error submitting read transfer");
+    if ((libusberr = libusb_submit_transfer(xfr)) < 0) {
+        LOG_SYS_STD(LOG_ERR, "%s: Error submitting read transfer > %s\n", TAG, libusb_strerror(libusberr));
         device_connected = false;
         libusb_free_transfer(xfr);
     }
@@ -400,7 +405,7 @@ void db_read_usb_async(struct accessory_t *accessory) {
  * @param data_length   Length of payload
  * @param port          Destination port of USB message. Use DB RAW protocol ports
  */
-void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t *usb_msg, uint16_t data_length, uint8_t port) {
+void db_usb_write_async_zc(db_accessory_t *accessory, db_usb_msg_t *usb_msg, uint16_t data_length, uint8_t port) {
     usb_msg->port = port;
     uint16_t max_pack_size = get_db_usb_max_packet_size();
     if (data_length <= max_pack_size) {  // no splitting required
@@ -408,8 +413,8 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t *usb_msg,
         struct libusb_transfer *xfr = libusb_alloc_transfer(0);
         libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, (unsigned char *) usb_msg,
                                   (data_length + DB_AOA_HEADER_LENGTH), callback_usb_async_complete, NULL, 1000);
-        if (libusb_submit_transfer(xfr) < 0) {
-            perror("DB_USB: Error submitting transfer");
+        if ((libusberr = libusb_submit_transfer(xfr)) < 0) {
+            LOG_SYS_STD(LOG_ERR, "%s: Error submitting write transfer > %s\n", TAG, libusb_strerror(libusberr));
             device_connected = false;
             libusb_free_transfer(xfr);
         }
@@ -422,8 +427,8 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t *usb_msg,
         libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, &raw_usb_msg_buff[sent_data_length],
                                   max_pack_size, callback_usb_async_complete, NULL, 1000);
         // printf("Sending %i bytes to USB device\n", max_pack_size);
-        if (libusb_submit_transfer(xfr) < 0) {
-            perror("DB_USB: Error submitting transfer");
+        if ((libusberr = libusb_submit_transfer(xfr)) < 0) {
+            LOG_SYS_STD(LOG_ERR, "%s: Error submitting split write transfer > %s\n", TAG, libusb_strerror(libusberr));
             device_connected = false;
             libusb_free_transfer(xfr);
             return;
@@ -442,8 +447,8 @@ void db_usb_write_async_zc(struct accessory_t *accessory, db_usb_msg_t *usb_msg,
             libusb_fill_bulk_transfer(xfr, accessory->handle, AOA_ACCESSORY_EP_OUT, &raw_usb_msg_buff[sent_data_length],
                                       chuck_size, callback_usb_async_complete, NULL, 100);
             // printf("Sending %i bytes to USB device\n", chuck_size);
-            if (libusb_submit_transfer(xfr) < 0) {
-                perror("DB_USB: Error submitting transfer");
+            if ((libusberr = libusb_submit_transfer(xfr)) < 0) {
+                LOG_SYS_STD(LOG_ERR, "%s: Error submitting split write transfer > %s\n", TAG, libusb_strerror(libusberr));
                 device_connected = false;
                 libusb_free_transfer(xfr);
                 return;
@@ -600,10 +605,12 @@ int main(int argc, char *argv[]) {
                 }
             }
             if ((get_time() - last_write) >= MAX_WRITE_TIMEOUT) {
-                send_timeout_wake(&accessory, usb_msg, &last_write);
+//                LOG_SYS_STD(LOG_INFO, "DB_USB: Timeout\n");
+//                send_timeout_wake(&accessory, usb_msg, &last_write);
             }
         } else if (ret == 0) {  // poll timeout
-            send_timeout_wake(&accessory, usb_msg, &last_write);
+            LOG_SYS_STD(LOG_INFO, "DB_USB: Poll timeout\n");
+            // send_timeout_wake(&accessory, usb_msg, &last_write);
             continue;
         } else {  // poll error
             perror("DB_USB: poll error");
