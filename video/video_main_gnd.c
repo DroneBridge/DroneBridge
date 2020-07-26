@@ -119,14 +119,14 @@ void init_outputs() {
  * @param message_length Lenght of data
  * @param fec_decoded Indicator if the data also contains FEC packets. True if pure DATA packets (and fully decoded FEC)
  */
-void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
+void publish_data(uint8_t *data, uint16_t message_length, bool fec_decoded) {
     if (output_to_usb_bridge) {
         // We assume the consumer is faster than the producer and that it will always be able to send
         if (sendto(unix_sock, data, message_length, 0, (struct sockaddr *) &unix_socket_addr, server_length) < 0) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 // ignore non existing dst socket addr. usbbridge might not have a connected dev
                 if (errno != ENOENT && errno != ECONNREFUSED)
-                    perror("DB_VIDEO_GND: Error sending via UNIX domain socket");
+                    LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error sending %i bytes via UNIX domain socket\n", message_length);
                 // else: usbbridge might not started or device not connected
             } // else
 //                LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n");
@@ -396,7 +396,7 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
     uint16_t radiotap_length = 0;
     int checksum_correct = 1;
     uint8_t current_antenna_indx = 0, seq_num_video = 0;
-    uint16_t message_length = 0;
+    uint16_t message_length;
 
     // receive
     ssize_t l = recv(interface->selectable_fd, lr_buffer, MAX_DB_DATA_LENGTH, 0);
