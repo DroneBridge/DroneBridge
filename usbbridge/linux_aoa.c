@@ -333,9 +333,10 @@ void exit_close_aoa_device(db_accessory_t *db_acc) {
                             libusb_error_name(ret));
             else
                 LOG_SYS_STD(LOG_ERR, "AOA_USB: ERROR - releasing interface: %s\n", libusb_error_name(ret));
+        } else {
+            libusb_close(db_acc->handle);
+            LOG_SYS_STD(LOG_INFO, "AOA_USB: Devices closed!\n");
         }
-        libusb_close(db_acc->handle);
-        LOG_SYS_STD(LOG_INFO, "AOA_USB: Devices closed!\n");
     }
     libusb_exit(NULL);
 }

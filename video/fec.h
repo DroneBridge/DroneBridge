@@ -1,6 +1,7 @@
 #pragma once
 
 typedef struct fec_parms *fec_code_t;
+typedef unsigned char gf;
 
 /*
  * create a new encoder, returning a descriptor. This contains k,n and
@@ -27,4 +28,6 @@ void fec_decode(unsigned int blockSize,
 void fec_print(fec_code_t code, int width);
 
 void fec_license(void);
+
+void slow_mul1(gf *dst1, gf *src1, gf c, int sz);
 

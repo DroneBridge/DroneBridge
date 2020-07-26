@@ -21,8 +21,14 @@ set(SOURCE_FILES_GND
 set(SOURCE_FILES_AIR 
         video_main_air.c fec.c fec.h video_lib.c video_lib.h)
 
+set(SOURCE_FILES_SPEEDTEST
+        fec_speed_test.c fec_speed_test.h fec.c fec.h)
+
 add_executable(video_gnd ${SOURCE_FILES_GND})
 target_link_libraries(video_gnd db_common)
 
 add_executable(video_air ${SOURCE_FILES_AIR})
 target_link_libraries(video_air db_common)
+
+add_executable(fec_speed_test ${SOURCE_FILES_SPEEDTEST})
+target_link_libraries(fec_speed_test db_common)
