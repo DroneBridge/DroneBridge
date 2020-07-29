@@ -99,6 +99,7 @@ u_long ticks[10];	/* vars for timekeeping */
 #if (GF_BITS != 8)
 #error "GF_BITS must be 8"
 #endif
+typedef unsigned char gf;
 
 #define    GF_SIZE ((1 << GF_BITS) - 1)    /* powers of \alpha */
 
@@ -145,8 +146,7 @@ static gf inverse[GF_SIZE + 1];    /* inverse of field elem.		*/
  * modnn(x) computes x % GF_SIZE, where GF_SIZE is 2**GF_BITS - 1,
  * without a slow divide.
  */
-static inline gf
-modnn(int x) {
+static inline gf modnn(int x) {
     while (x >= GF_SIZE) {
         x -= GF_SIZE;
         x = (x >> GF_BITS) + (x & GF_SIZE);
@@ -278,7 +278,7 @@ static void generate_gf(void) {
  * unrolled 16 times, a good value for 486 and pentium-class machines.
  * The case c=0 is also optimized, whereas c=1 is not. These
  * calls are unfrequent in my typical apps so I did not bother.
- * 
+ *
  * Note that gcc on
  */
 #if 0
@@ -326,6 +326,7 @@ static void slow_addmul1(gf *dst1, gf *src1, gf c, int sz) {
 }
 
 #if defined i386 && defined USE_ASSEMBLER
+
 #define LOOPSIZE 8
 
 static void
@@ -335,8 +336,8 @@ addmul1(gf *dst1, gf *src1, gf c, int sz)
 
     GF_MULC0(c) ;
 
-    if(((unsigned long)dst1 % LOOPSIZE) || 
-       ((unsigned long)src1 % LOOPSIZE) || 
+    if(((unsigned long)dst1 % LOOPSIZE) ||
+       ((unsigned long)src1 % LOOPSIZE) ||
        (sz % LOOPSIZE)) {
     slow_addmul1(dst1, src1, c, sz);
     return;
@@ -392,7 +393,7 @@ addmul1(gf *dst1, gf *src1, gf c, int sz)
 # define addmul1 slow_addmul1
 #endif
 
-static void addmul(gf *dst, gf *src, gf c, unsigned int sz) {
+static void addmul(gf *dst, gf *src, gf c, int sz) {
     // fprintf(stderr, "Dst=%p Src=%p, gf=%02x sz=%d\n", dst, src, c, sz);
     if (c != 0) addmul1(dst, src, c, sz);
 }
@@ -403,7 +404,7 @@ static void addmul(gf *dst, gf *src, gf c, unsigned int sz) {
  * unrolled 16 times, a good value for 486 and pentium-class machines.
  * The case c=0 is also optimized, whereas c=1 is not. These
  * calls are unfrequent in my typical apps so I did not bother.
- * 
+ *
  * Note that gcc on
  */
 #if 0
@@ -411,7 +412,9 @@ static void addmul(gf *dst, gf *src, gf c, unsigned int sz) {
     do { if (c != 0) mul1(dst, src, c, sz); else memset(dst, 0, sz); } while(0)
 #endif
 
-void slow_mul1(gf *dst1, gf *src1, gf c, int sz) {
+#define UNROLL 16 /* 1, 4, 8, 16 */
+
+static void slow_mul1(gf *dst1, gf *src1, gf c, int sz) {
     USE_GF_MULC;
     register gf *dst = dst1, *src = src1;
     gf *lim = &dst[sz - UNROLL + 1];
@@ -448,15 +451,14 @@ void slow_mul1(gf *dst1, gf *src1, gf c, int sz) {
 }
 
 #if defined i386 && defined USE_ASSEMBLER
-static void
-mul1(gf *dst1, gf *src1, gf c, int sz)
+static void mul1(gf *dst1, gf *src1, gf c, int sz)
 {
     USE_GF_MULC ;
 
     GF_MULC0(c) ;
 
-    if(((unsigned long)dst1 % LOOPSIZE) || 
-       ((unsigned long)src1 % LOOPSIZE) || 
+    if(((unsigned long)dst1 % LOOPSIZE) ||
+       ((unsigned long)src1 % LOOPSIZE) ||
        (sz % LOOPSIZE)) {
     slow_mul1(dst1, src1, c, sz);
     return;
@@ -691,7 +693,7 @@ void fec_init(void) {
  *     col of inverse of top Vandermonde matrix)
  *
  *                _____
- *                 | | 
+ *                 | |
  *   P   =  K      | |    (x - i)
  *    col    col   | |
  *             0 < i < 128 &&
@@ -702,7 +704,7 @@ void fec_init(void) {
  *                  1
  *           ---------------
  *   K    =       _____
- *    col          | | 
+ *    col          | |
  *                 | |    (col - i)
  *                 | |
  *             0 < i < 128 &&
@@ -717,13 +719,13 @@ void fec_init(void) {
  *
  *     Which make P_col resolves to:
  *               _____
- *                | |    
+ *                | |
  *     P   =  K   | |    (x - i)
  *      col       | |
  *             0 < i < 128
  *           -------------------
  *              (x-col)
- * 
+ *
  *     When evaluating this for any x > 0x80, the following thing happens
  *     to the numerator: all (x-i) are different for i, and have high bit
  *     set. Thus, the set of top factors are all values from 0x80 to 0xff,
@@ -748,7 +750,7 @@ void fec_init(void) {
 
 
 
-/* We do the matrix multiplication columns by column, instead of the 
+/* We do the matrix multiplication columns by column, instead of the
  * usual row-by-row, in order to capitalize on the cache freshness of
  * each data block . The data block only needs to be fetched once, and
  * can be used to be addmull'ed into all FEC blocks at once. No need
@@ -776,7 +778,9 @@ void fec_encode(unsigned int blockSize,
 
     for (col = 129, blockNo = 1; blockNo < nrDataBlocks; col++, blockNo++) {
         for (row = 0; row < nrFecBlocks; row++)
-            addmul(fec_blocks[row], data_blocks[blockNo], inverse[row ^ col], blockSize);
+            addmul(fec_blocks[row], data_blocks[blockNo],
+                   inverse[row ^ col],
+                   blockSize);
     }
 }
 
@@ -928,7 +932,7 @@ void fec_decode(unsigned int blockSize,
 
 #ifdef PROFILE
 void printDetail(void) {
-    fprintf(stderr, "red=%9lld\nres=%9lld\ninv=%9lld\n",  
+    fprintf(stderr, "red=%9lld\nres=%9lld\ninv=%9lld\n",
         reduceTime, resolveTime, invTime);
 }
 #endif

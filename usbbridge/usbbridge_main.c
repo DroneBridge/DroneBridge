@@ -611,7 +611,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
-            if ((get_time() - last_write[1]) >= TELEMETRY_TIMEOUT) {
+            if ((get_time() - last_write[1]) >= TELEMETRY_TIMEOUT && proxy_module_activated) {
                 LOG_SYS_STD(LOG_INFO, "DB_USB: Telemetry timeout reached\n");
                 proxy_sock = reconnect_sock(proxy_sock, APP_PORT_PROXY);
             }

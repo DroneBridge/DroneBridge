@@ -340,7 +340,9 @@ int main(int argc, char *argv[]) {
         pb->len += inl;
         // check if this packet is finished
         if (pb->len >= param_min_packet_length) {
-            // fill packet buffer for long range link
+            // fill packet buffer length field
+            video_packet_data_t *video_p_data = (video_packet_data_t *) (pb->data);
+            video_p_data->data_length = pb->len;
             // check if this block is finished
             if (input.curr_pb == num_data_block - 1) {
                 // transmit entire block - consisting of packets that get sent interleaved

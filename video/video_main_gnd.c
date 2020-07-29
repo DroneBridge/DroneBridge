@@ -119,7 +119,7 @@ void init_outputs() {
  * @param message_length Lenght of data
  * @param fec_decoded Indicator if the data also contains FEC packets. True if pure DATA packets (and fully decoded FEC)
  */
-void publish_data(uint8_t *data, uint16_t message_length, bool fec_decoded) {
+void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
     if (output_to_usb_bridge) {
         // We assume the consumer is faster than the producer and that it will always be able to send
         if (sendto(unix_sock, data, message_length, 0, (struct sockaddr *) &unix_socket_addr, server_length) < 0) {
@@ -184,8 +184,8 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
     uint block_num;
     uint packet_num;
     int i;
-
     db_video_packet_t *db_video_packet = (db_video_packet_t *) data;
+
     //if aram_data_packets_per_block+num_fec_block would be limited to powers of two, this could be replaced by a logical AND operation
     block_num = db_video_packet->video_packet_header.sequence_number / (num_data_block + num_fec_block);
 
