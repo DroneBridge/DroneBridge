@@ -51,7 +51,7 @@
 
 int num_interfaces = 0;
 int dest_port_video, unix_sock;
-uint8_t comm_id, num_data_block, num_fec_block;
+uint8_t comm_id, num_data_per_block, num_fec_per_block;
 uint8_t lr_buffer[MAX_DB_DATA_LENGTH] = {0};
 bool pass_through, udp_enabled = true, output_to_usb_bridge = false, send_to_std_out = true;
 volatile bool keeprunning = true;
@@ -158,10 +158,11 @@ void block_buffer_list_reset(block_buffer_t *block_buffer_list, int block_buffer
 
     for (i = 0; i < block_buffer_list_len; ++i) {
         rb->block_num = -1;
+        rb->packet_buffer_len = 0;
 
         int j;
         packet_buffer_t *p = rb->packet_buffer_list;
-        for (j = 0; j < num_data_block + num_fec_block; ++j) {
+        for (j = 0; j < num_data_per_block + num_fec_per_block; ++j) {
             p->valid = 0;
             p->crc_correct = 0;
             p->len = 0;
@@ -183,19 +184,21 @@ void block_buffer_list_reset(block_buffer_t *block_buffer_list, int block_buffer
 void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, block_buffer_t *block_buffer_list) {
     uint block_num;
     uint packet_num;
+    bool all_data_avail = false;    // indicator for second iteration inited by GOTO jump when full block was received
     int i;
     db_video_packet_t *db_video_packet = (db_video_packet_t *) data;
 
-    //if aram_data_packets_per_block+num_fec_block would be limited to powers of two, this could be replaced by a logical AND operation
-    block_num = db_video_packet->video_packet_header.sequence_number / (num_data_block + num_fec_block);
+    //if aram_data_packets_per_block+num_fec_per_block would be limited to powers of two, this could be replaced by a logical AND operation
+    block_num = db_video_packet->video_packet_header.sequence_number / (num_data_per_block + num_fec_per_block);
 
     //LOG_SYS_STD(LOG_ERR, "seq %i blk %i crc %d len %i\n", db_video_packet->video_packet_header.sequence_number, block_num, crc_correct, (int) data_len);
 
     //we have received a block number that exceeds the currently seen ones -> we need to make room for this new block
     //or we have received a block_num that is several times smaller than the current window of buffers -> this indicated that either the window is too small or that the transmitter has been restarted
     int tx_restart = (block_num + 128 * param_block_buffers < max_block_num);
+    process_data:
     // with block_buffer_list length == 1 (d=1) this means we received all packets of a block (we still might miss some)
-    if ((block_num > max_block_num || tx_restart) && crc_correct) {
+    if ((block_num > max_block_num || tx_restart || all_data_avail) && crc_correct) { // process prev block since we received packet for new block
         if (tx_restart) {
             db_gnd_status->tx_restart_cnt++;
             LOG_SYS_STD(LOG_ERR,
@@ -220,7 +223,7 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
         int last_block_num = block_buffer_list[min_block_num_idx].block_num;
 
         if (last_block_num != -1) {
-            //db_gnd_status->adapter[].received_block_cnt++;
+            db_gnd_status->received_block_cnt++;
 
             //we have both pointers to the packet buffers (to get information about crc and vadility) and raw data pointers for fec_decode
             packet_buffer_t *data_pkgs[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
@@ -234,8 +237,8 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
             // first, split the received packets into DATA a FEC packets and count the damaged packets
             // We assume that the packets are correctly ordered inside the packet buffer list
             i = 0;
-            while (di < num_data_block || fi < num_fec_block) {
-                if (di < num_data_block) {
+            while (di < num_data_per_block || fi < num_fec_per_block) {
+                if (di < num_data_per_block) {
                     data_pkgs[di] = packet_buffer_list + i++;
                     data_blocks[di] = data_pkgs[di]->data;
                     if (!data_pkgs[di]->valid)
@@ -245,7 +248,7 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
                     di++;
                 }
 
-                if (fi < num_fec_block) {
+                if (fi < num_fec_per_block) {
                     fec_pkgs[fi] = packet_buffer_list + i++;
                     if (!fec_pkgs[fi]->valid)
                         fecs_missing++;
@@ -257,9 +260,11 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
                 }
             }
 
-            const int good_fecs_c = num_fec_block - fecs_missing - fecs_corrupt;
+            const int good_fecs_c = num_fec_per_block - fecs_missing - fecs_corrupt;
             const int datas_missing_c = datas_missing;
             const int datas_corrupt_c = datas_corrupt;
+            db_gnd_status->lost_per_block_cnt = datas_missing + datas_corrupt + fecs_missing + fecs_corrupt;
+            db_gnd_status->lost_packet_cnt += db_gnd_status->lost_per_block_cnt;
 
             int good_fecs = good_fecs_c;
             //the following three fields are infos for fec_decode
@@ -267,82 +272,92 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
             unsigned int erased_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
             unsigned short nr_fec_blocks = 0;
 
-            fi = 0;
-            di = 0;
+            // Only decode using FEC if we actually lost data packets
+            if (datas_missing_c + datas_corrupt_c > 0) {
+                // Use FEC to try to retain the information
+                fi = 0;
+                di = 0;
 
-            //look for missing DATA and replace them with good FECs
-            while (di < num_data_block && fi < num_fec_block) {
-                //if this data is fine we go to the next
-                if (data_pkgs[di]->valid && data_pkgs[di]->crc_correct) {
-                    di++;
-                    continue;
-                }
-
-                //if this DATA is corrupt and there are less good fecs than missing datas we cannot do anything for this data
-                if (data_pkgs[di]->valid && !data_pkgs[di]->crc_correct && good_fecs <= datas_missing) {
-                    di++;
-                    continue;
-                }
-
-                //if this FEC is not received we go on to the next
-                if (!fec_pkgs[fi]->valid) {
-                    fi++;
-                    continue;
-                }
-
-                //if this FEC is corrupted and there are more lost packages than good fecs we should replace this DATA even with this corrupted FEC
-                if (!fec_pkgs[fi]->crc_correct && datas_missing > good_fecs) {
-                    fi++;
-                    continue;
-                }
-
-
-                if (!data_pkgs[di]->valid)
-                    datas_missing--;
-                else if (!data_pkgs[di]->crc_correct)
-                    datas_corrupt--;
-
-                if (fec_pkgs[fi]->crc_correct)
-                    good_fecs--;
-
-                //at this point, data is invalid and fec is good -> replace data with fec
-                erased_blocks[nr_fec_blocks] = di;
-                fec_block_nos[nr_fec_blocks] = fi;
-                fec_blocks[nr_fec_blocks] = fec_pkgs[fi]->data;
-                di++;
-                fi++;
-                nr_fec_blocks++;
-            }
-
-            int reconstruction_failed = datas_missing_c + datas_corrupt_c > good_fecs_c;
-
-            if (reconstruction_failed) {
-                //we did not have enough FEC packets to repair this block
-                db_gnd_status->damaged_block_cnt++;
-                //LOG_SYS_STD(LOG_ERR, "Could not fully reconstruct block %x! Damage rate: %f (%d / %d blocks)\n", last_block_num, 1.0 * rx_status->damaged_block_cnt / rx_status->received_block_cnt, rx_status->damaged_block_cnt, rx_status->received_block_cnt);
-                //debug_print("Data mis: %d\tData corr: %d\tFEC mis: %d\tFEC corr: %d\n", datas_missing_c, datas_corrupt_c, fecs_missing_c, fecs_corrupt_c);
-            }
-
-
-            //decode data and publish it
-            fec_decode((unsigned int) pack_size, data_blocks, num_data_block, fec_blocks, fec_block_nos, erased_blocks,
-                       nr_fec_blocks);
-            for (i = 0; i < num_data_block; ++i) {
-                video_packet_data_t *vpd_corrected = (video_packet_data_t *) data_blocks[i];
-
-                if (!reconstruction_failed || data_pkgs[i]->valid) {
-                    //if reconstruction did fail, the data_length value is undefined. better limit it to some sensible value
-                    if (vpd_corrected->data_length > pack_size) {
-                        vpd_corrected->data_length = (uint32_t) pack_size;
+                //look for missing DATA and replace them with good FECs
+                while (di < num_data_per_block && fi < num_fec_per_block) {
+                    //if this data is fine we go to the next
+                    if (data_pkgs[di]->valid && data_pkgs[di]->crc_correct) {
+                        di++;
+                        continue;
                     }
-                    // do not publish the data_length field of video_packet_data_t struct
-                    publish_data(data_blocks[i] + 4, vpd_corrected->data_length - 4, true);
+
+                    //if this DATA is corrupt and there are less good fecs than missing datas we cannot do anything for this data
+                    if (data_pkgs[di]->valid && !data_pkgs[di]->crc_correct && good_fecs <= datas_missing) {
+                        di++;
+                        continue;
+                    }
+
+                    //if this FEC is not received we go on to the next
+                    if (!fec_pkgs[fi]->valid) {
+                        fi++;
+                        continue;
+                    }
+
+                    //if this FEC is corrupted and there are more lost packages than good fecs we should replace this DATA even with this corrupted FEC
+                    if (!fec_pkgs[fi]->crc_correct && datas_missing > good_fecs) {
+                        fi++;
+                        continue;
+                    }
+
+
+                    if (!data_pkgs[di]->valid)
+                        datas_missing--;
+                    else if (!data_pkgs[di]->crc_correct)
+                        datas_corrupt--;
+
+                    if (fec_pkgs[fi]->crc_correct)
+                        good_fecs--;
+
+                    //at this point, data is invalid and fec is good -> replace data with fec
+                    erased_blocks[nr_fec_blocks] = di;
+                    fec_block_nos[nr_fec_blocks] = fi;
+                    fec_blocks[nr_fec_blocks] = fec_pkgs[fi]->data;
+                    di++;
+                    fi++;
+                    nr_fec_blocks++;
+                }
+
+                int reconstruction_failed = datas_missing_c + datas_corrupt_c > good_fecs_c;
+
+                if (reconstruction_failed) {
+                    //we did not have enough FEC packets to repair this block
+                    db_gnd_status->damaged_block_cnt++;
+                    //LOG_SYS_STD(LOG_ERR, "Could not fully reconstruct block %x! Damage rate: %f (%d / %d blocks)\n", last_block_num, 1.0 * rx_status->damaged_block_cnt / rx_status->received_block_cnt, rx_status->damaged_block_cnt, rx_status->received_block_cnt);
+                    //debug_print("Data mis: %d\tData corr: %d\tFEC mis: %d\tFEC corr: %d\n", datas_missing_c, datas_corrupt_c, fecs_missing_c, fecs_corrupt_c);
+                }
+
+
+                //decode data and publish it
+                fec_decode((unsigned int) pack_size, data_blocks, num_data_per_block, fec_blocks, fec_block_nos, erased_blocks,
+                           nr_fec_blocks);
+                for (i = 0; i < num_data_per_block; ++i) {
+                    video_packet_data_t *vpd_corrected = (video_packet_data_t *) data_blocks[i];
+
+                    if (!reconstruction_failed || data_pkgs[i]->valid) {
+                        //if reconstruction did fail, the data_length value is undefined. better limit it to some sensible value
+                        if (vpd_corrected->data_length > pack_size) {
+                            vpd_corrected->data_length = (uint32_t) pack_size;
+                        }
+                        // do not publish the data_length field of video_packet_data_t struct
+                        publish_data(data_blocks[i] + 4, vpd_corrected->data_length - 4, true);
+                    }
+                }
+            } else {
+                // All data packets received correctly - no need for FEC
+                for (int w = 0; w < num_data_per_block; ++w) {
+                    video_packet_data_t *data_packet = (video_packet_data_t *) data_blocks[w];
+                    publish_data(data_blocks[w] + 4, data_packet->data_length - 4, true);
                 }
             }
 
 
             //reset buffers
-            for (i = 0; i < num_data_block + num_fec_block; ++i) {
+            for (i = 0; i < num_data_per_block + num_fec_per_block; ++i) {
                 packet_buffer_t *p = packet_buffer_list + i;
                 p->valid = 0;
                 p->crc_correct = 0;
@@ -350,10 +365,12 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
             }
         }
 
+        block_buffer_list[min_block_num_idx].packet_buffer_len = 0;
         block_buffer_list[min_block_num_idx].block_num = block_num;
         max_block_num = block_num;
     }
-
+    if (all_data_avail) // only relevant during second iteration
+        return;
 
     //find the buffer into which we have to write this packet
     block_buffer_t *rbb = block_buffer_list;
@@ -367,8 +384,8 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
     //check if we have actually found the corresponding block. this could not be the case due to a corrupt packet
     if (i != param_block_buffers) {
         packet_buffer_t *packet_buffer_list = rbb->packet_buffer_list;
-        packet_num = db_video_packet->video_packet_header.sequence_number % (num_data_block +
-                                                                             num_fec_block); //if retr_block_size would be limited to powers of two, this could be replace by a locical and operation
+        packet_num = db_video_packet->video_packet_header.sequence_number % (num_data_per_block +
+                                                                             num_fec_per_block); //if retr_block_size would be limited to powers of two, this could be replace by a locical and operation
 
         //only overwrite packets where the checksum is not yet correct. otherwise the packets are already received correctly
         if (packet_buffer_list[packet_num].crc_correct == 0) {
@@ -377,9 +394,15 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
             packet_buffer_list[packet_num].len = (uint) (data_len - sizeof(video_packet_header_t));
             packet_buffer_list[packet_num].valid = 1;
             packet_buffer_list[packet_num].crc_correct = crc_correct;
+            rbb->packet_buffer_len++;
         }
     }
-    // TODO: Check if we got all possible packets of a block already and decode, no need to wait for a packet of the next block to indicate
+    // Check if we got all possible packets of a block already and decode, no need to wait for a packet of the next block to indicate
+    if (rbb->packet_buffer_len == (num_data_per_block + num_fec_per_block)) {
+        all_data_avail = true;
+        block_num++;
+        goto process_data;
+    }
 }
 
 /**
@@ -451,7 +474,7 @@ void process_packet(monitor_interface_t *interface, block_buffer_t *block_buffer
 
 void process_command_line_args(int argc, char *argv[]) {
     num_interfaces = 0, comm_id = DEFAULT_V2_COMMID, pass_through = false, udp_enabled = true, send_to_std_out = true;
-    num_data_block = 8, num_fec_block = 4, pack_size = 1024, dest_port_video = APP_PORT_VIDEO;
+    num_data_per_block = 8, num_fec_per_block = 4, pack_size = 1024, dest_port_video = APP_PORT_VIDEO;
     int c;
     while ((c = getopt(argc, argv, "n:c:r:f:p:d:u:v:i:os")) != -1) {
         switch (c) {
@@ -463,10 +486,10 @@ void process_command_line_args(int argc, char *argv[]) {
                 comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'd':
-                num_data_block = (uint8_t) strtol(optarg, NULL, 10);
+                num_data_per_block = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'r':
-                num_fec_block = (uint8_t) strtol(optarg, NULL, 10);
+                num_fec_per_block = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'f':
                 pack_size = (int) strtol(optarg, NULL, 10);
@@ -507,9 +530,9 @@ void process_command_line_args(int argc, char *argv[]) {
                        "\n\t-f Bytes per packet (default %d. max %d). This is also the FEC "
                        "block size. Needs to match with tx."
                        "\n\t-u <Y|N> to enable or disable UDP forwarding of decoded data"
-                       "\n\t-i UDP DST IP overwrite: Ignore DroneBridge IP checker shared memory and send data to this IP"
+                       "\n\t-i UDP DST IP overwrite: Ignore DroneBridge default dst-IP & send data to this IP via UDP"
+                       "\n\t-v Destination port of video stream when set via UDP"
                        "\n\t-p <Y|N> to enable/disable pass through of encoded FEC packets via UDP to port: %i"
-                       "\n\t-v Destination port of video stream when set via UDP (IP checker address) or TCP"
                        "\n\t-o Send to output to unix domain socket at %s so that DroneBridge USBBridge can forward it"
                        "\n\t-s Disable decoded output to stdout",
                        1024, MAX_USER_PACKET_LENGTH, APP_PORT_VIDEO_FEC, DB_UNIX_DOMAIN_VIDEO_PATH);
@@ -551,6 +574,8 @@ int main(int argc, char *argv[]) {
     db_gnd_status = db_gnd_status_memory_open();
     db_gnd_status->wifi_adapter_cnt = (uint32_t) num_interfaces;
     db_gnd_status->received_packet_cnt = 0;
+    db_gnd_status->lost_packet_cnt = 0;
+    db_gnd_status->lost_per_block_cnt = 0;
     db_gnd_status->received_block_cnt = 0;
     db_gnd_status->damaged_block_cnt = 0;
     db_gnd_status->tx_restart_cnt = 0;
@@ -581,7 +606,8 @@ int main(int argc, char *argv[]) {
     block_buffer_list = malloc(sizeof(block_buffer_t) * param_block_buffers);
     for (i = 0; i < param_block_buffers; ++i) {
         block_buffer_list[i].block_num = -1;
-        block_buffer_list[i].packet_buffer_list = lib_alloc_packet_buffer_list(num_data_block + num_fec_block,
+        block_buffer_list[i].packet_buffer_len = 0;
+        block_buffer_list[i].packet_buffer_list = lib_alloc_packet_buffer_list(num_data_per_block + num_fec_per_block,
                                                                                MAX_PACKET_LENGTH);
     }
 

@@ -47,7 +47,7 @@
 
 bool keeprunning = true;
 uint8_t comm_id, frame_type, db_vid_seqnum = 0;
-unsigned int num_interfaces = 0, num_data_block = 8, num_fec_block = 4, pack_size = 1024, bitrate_op = 11, vid_adhere_80211;
+unsigned int num_interfaces = 0, num_data_per_block = 8, num_fec_per_block = 4, pack_size = 1024, bitrate_op = 11, vid_adhere_80211;
 db_uav_status_t *db_uav_status;
 char adapters[DB_MAX_ADAPTERS][IFNAMSIZ];
 db_socket_t raw_sockets[DB_MAX_ADAPTERS];
@@ -107,10 +107,10 @@ void transmit_packet(uint32_t seq_nr, const uint8_t *packet_data, uint data_leng
 
     //copy data to raw packet payload buffer (into video packet struct)
     memcpy(&db_video_p->video_packet_data, packet_data, (size_t) data_length);
-    uint16_t payload_length = sizeof(video_packet_header_t) + data_length;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
     for (int i = 0; i < num_interfaces; i++) {
-        db_send_hp_div(&raw_sockets[i], DB_PORT_VIDEO, payload_length, update_seq_num(&db_vid_seqnum));
+        db_send_hp_div(&raw_sockets[i], DB_PORT_VIDEO, sizeof(video_packet_header_t) + data_length,
+                       update_seq_num(&db_vid_seqnum));
     }
     clock_gettime(CLOCK_MONOTONIC, &end_time);
     db_uav_status->injection_time_packet = TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time);
@@ -130,16 +130,16 @@ void transmit_block(packet_buffer_t *pbl, uint32_t *seq_nr, uint fec_packet_size
     uint8_t fec_pool[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK][MAX_USER_PACKET_LENGTH];
     uint8_t *fec_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
 
-    for (i = 0; i < num_data_block; ++i) {
+    for (i = 0; i < num_data_per_block; ++i) {
         data_blocks[i] = pbl[i].data;
     }
 
-    if (num_fec_block) { // Number of FEC packets per block can be 0
-        for (i = 0; i < num_fec_block; ++i) {
+    if (num_fec_per_block) { // Number of FEC packets per block can be 0
+        for (i = 0; i < num_fec_per_block; ++i) {
             fec_blocks[i] = fec_pool[i];
         }
         clock_gettime(CLOCK_MONOTONIC, &start_time);
-        fec_encode(fec_packet_size, data_blocks, num_data_block, (unsigned char **) fec_blocks, num_fec_block);
+        fec_encode(fec_packet_size, data_blocks, num_data_per_block, (unsigned char **) fec_blocks, num_fec_per_block);
         clock_gettime(CLOCK_MONOTONIC, &end_time);
         db_uav_status->encoding_time = TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time);
     }
@@ -148,23 +148,23 @@ void transmit_block(packet_buffer_t *pbl, uint32_t *seq_nr, uint fec_packet_size
     int di = 0;
     int fi = 0;
     uint32_t seq_nr_tmp = *seq_nr;
-    while (di < num_data_block || fi < num_fec_block) {
-        if (di < num_data_block) {
+    while (di < num_data_per_block || fi < num_fec_per_block) {
+        if (di < num_data_per_block) {
             transmit_packet(seq_nr_tmp, data_blocks[di], fec_packet_size);
             seq_nr_tmp++; // every packet gets a sequence number
             di++;
         }
 
-        if (fi < num_fec_block) {
+        if (fi < num_fec_per_block) {
             transmit_packet(seq_nr_tmp, fec_blocks[fi], fec_packet_size);
             seq_nr_tmp++; // every packet gets a sequence number
             fi++;
         }
     }
-    *seq_nr += num_data_block + num_fec_block; // block sent: update sequence number
+    *seq_nr += num_data_per_block + num_fec_per_block; // block sent: update sequence number
 
     //reset the length back
-    for (i = 0; i < num_data_block; ++i) {
+    for (i = 0; i < num_data_per_block; ++i) {
         pbl[i].len = 0;
     }
     db_uav_status->injected_block_cnt++;
@@ -172,7 +172,7 @@ void transmit_block(packet_buffer_t *pbl, uint32_t *seq_nr, uint fec_packet_size
 
 void process_command_line_args(int argc, char *argv[]) {
     num_interfaces = 0, comm_id = DEFAULT_V2_COMMID, bitrate_op = 11;
-    num_data_block = 8, num_fec_block = 4, pack_size = 1024, frame_type = 1, vid_adhere_80211 = 0;
+    num_data_per_block = 8, num_fec_per_block = 4, pack_size = 1024, frame_type = 1, vid_adhere_80211 = 0;
     int c;
     while ((c = getopt(argc, argv, "n:c:d:r:f:b:t:a:")) != -1) {
         switch (c) {
@@ -184,10 +184,10 @@ void process_command_line_args(int argc, char *argv[]) {
                 comm_id = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'd':
-                num_data_block = (uint8_t) strtol(optarg, NULL, 10);
+                num_data_per_block = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'r':
-                num_fec_block = (uint8_t) strtol(optarg, NULL, 10);
+                num_fec_per_block = (uint8_t) strtol(optarg, NULL, 10);
                 break;
             case 'f':
                 pack_size = (unsigned int) strtol(optarg, NULL, 10);
@@ -262,21 +262,21 @@ int main(int argc, char *argv[]) {
         abort();
     }
 
-    if (num_data_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK || num_fec_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK) {
+    if (num_data_per_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK || num_fec_per_block > MAX_DATA_OR_FEC_PACKETS_PER_BLOCK) {
         LOG_SYS_STD(LOG_ERR,
                     "DB_VIDEO_AIR: Data and FEC packets per block are limited to %d (you requested %d data, %d FEC)\n",
-                    MAX_DATA_OR_FEC_PACKETS_PER_BLOCK, num_data_block, num_fec_block);
+                    MAX_DATA_OR_FEC_PACKETS_PER_BLOCK, num_data_per_block, num_fec_per_block);
         abort();
     }
 
     input.fd = STDIN_FILENO;
     input.seq_nr = 0;
     input.curr_pb = 0;
-    input.pb_list = lib_alloc_packet_buffer_list(num_data_block, MAX_PACKET_LENGTH);
+    input.pb_list = lib_alloc_packet_buffer_list(num_data_per_block, MAX_PACKET_LENGTH);
 
     //prepare the buffers with headers
     int j = 0;
-    for (j = 0; j < num_data_block; ++j) {
+    for (j = 0; j < num_data_per_block; ++j) {
         input.pb_list[j].len = 0;
     }
 
@@ -344,7 +344,7 @@ int main(int argc, char *argv[]) {
             video_packet_data_t *video_p_data = (video_packet_data_t *) (pb->data);
             video_p_data->data_length = pb->len;
             // check if this block is finished
-            if (input.curr_pb == num_data_block - 1) {
+            if (input.curr_pb == num_data_per_block - 1) {
                 // transmit entire block - consisting of packets that get sent interleaved
                 // always transmit/FEC encode packets of length pack_size, even if payload (data_length) is less
                 transmit_block(input.pb_list, &(input.seq_nr), pack_size); // input.pb_list is video_packet_data_t[num_fec + num_data]
