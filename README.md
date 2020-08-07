@@ -26,7 +26,7 @@ Use with caution. Image and RC link is not field tested.
 
 **[DroneBridge Alpha v0.6 Image for Raspberry Pi](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EZah1nq0VhNKtHNdDhQNh5QBtVIsj1dOsqOnqJYzGeuN8w?e=S7vCbh)**
 
-**[DroneBridge for Android 2.0.1](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/ESYBSIc4M6RFv8yQz1bkOysBrBW_MwOLI5ApF6a2p7nzOg?e=QFrinb)**
+**[DroneBridge for Android 2.0.1](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EdzSWxE7ZMhIvGesmLFodUABrMjW3oSqpn6d4RU_TgZ3JQ?e=TDdAnH)**
 
 ### v0.5 Beta (deprecated)
 **[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/DroneBridge/DroneBridge/releases/tag/v0.5)**
