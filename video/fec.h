@@ -27,4 +27,3 @@ void fec_decode(unsigned int blockSize,
 void fec_print(fec_code_t code, int width);
 
 void fec_license(void);
-

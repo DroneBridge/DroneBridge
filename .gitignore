@@ -117,3 +117,7 @@ InjectionTest/cmake_install.cmake
 build/
 
 *.cmake
+
+cmake-build-relwithdebinfo/
+
+cmake-build-remotedeploy-release/

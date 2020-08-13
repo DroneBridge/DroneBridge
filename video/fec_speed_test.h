@@ -26,8 +26,8 @@
 #define MAX_DATA_OR_FEC_PACKETS_PER_BLOCK 32
 #define MAX_USER_PACKET_LENGTH 1450
 
-static inline int TimeSpecToUSeconds(struct timespec *ts) {
-    return (int) (ts->tv_sec + ts->tv_nsec / 1000.0);
+static inline float TimeSpecToUSeconds(struct timespec *ts) {
+    return (float) (ts->tv_sec + ts->tv_nsec / 1000.0);
 }
 
 #endif //DRONEBRIDGE_FEC_SPEED_TEST_H

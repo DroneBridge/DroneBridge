@@ -126,7 +126,8 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 // ignore non existing dst socket addr. usbbridge might not have a connected dev
                 if (errno != ENOENT && errno != ECONNREFUSED)
-                    LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error sending %i bytes via UNIX domain socket\n", message_length);
+                    LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error sending %i bytes via UNIX domain socket\n",
+                                message_length);
                 // else: usbbridge might not started or device not connected
             } // else
 //                LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Error sending to unix domain - might lost a packet\n");
@@ -135,7 +136,8 @@ void publish_data(uint8_t *data, uint32_t message_length, bool fec_decoded) {
     if (udp_enabled) {
         if (sendto(udp_socket, data, message_length, 0, (struct sockaddr *) &client_video_addr,
                    sizeof(client_video_addr)) < message_length)
-            LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Not all data sent via UDP (msg size %ui) > %s\n", message_length, strerror(errno));
+            LOG_SYS_STD(LOG_ERR, "DB_VIDEO_GND: Not all data sent via UDP (msg size %ui) > %s\n", message_length,
+                        strerror(errno));
     }
     if (send_to_std_out && fec_decoded) {
         // only output decoded fec packets to stdout so that video player can read data stream directly
@@ -196,9 +198,10 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
     //we have received a block number that exceeds the currently seen ones -> we need to make room for this new block
     //or we have received a block_num that is several times smaller than the current window of buffers -> this indicated that either the window is too small or that the transmitter has been restarted
     int tx_restart = (block_num + 128 * param_block_buffers < max_block_num);
-    process_data:
+    second_iteration_entry:
     // with block_buffer_list length == 1 (d=1) this means we received all packets of a block (we still might miss some)
-    if ((block_num > max_block_num || tx_restart || all_data_avail) && crc_correct) { // process prev block since we received packet for new block
+    if ((block_num > max_block_num || tx_restart || all_data_avail) &&
+        crc_correct) { // process prev block since we received packet for new block
         if (tx_restart) {
             db_gnd_status->tx_restart_cnt++;
             LOG_SYS_STD(LOG_ERR,
@@ -333,7 +336,8 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
 
 
                 //decode data and publish it
-                fec_decode((unsigned int) pack_size, data_blocks, num_data_per_block, fec_blocks, fec_block_nos, erased_blocks,
+                fec_decode((unsigned int) pack_size, data_blocks, num_data_per_block, fec_blocks, fec_block_nos,
+                           erased_blocks,
                            nr_fec_blocks);
                 for (i = 0; i < num_data_per_block; ++i) {
                     video_packet_data_t *vpd_corrected = (video_packet_data_t *) data_blocks[i];
@@ -370,7 +374,7 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
         max_block_num = block_num;
     }
     if (all_data_avail) // only relevant during second iteration
-        return;
+        return; // already did the next part in first iteration. Exit function
 
     //find the buffer into which we have to write this packet
     block_buffer_t *rbb = block_buffer_list;
@@ -401,7 +405,7 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
     if (rbb->packet_buffer_len == (num_data_per_block + num_fec_per_block)) {
         all_data_avail = true;
         block_num++;
-        goto process_data;
+        goto second_iteration_entry;
     }
 }
 
@@ -582,7 +586,8 @@ int main(int argc, char *argv[]) {
 
     // init DroneBridge raw sockets to listen for incoming data
     for (int j = 0; j < num_interfaces; ++j) {
-        db_socket_t db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO, DB_FRAMETYPE_DATA);
+        db_socket_t db_sock = open_db_socket(adapters[j], comm_id, 'm', 11, DB_DIREC_DRONE, DB_PORT_VIDEO,
+                                             DB_FRAMETYPE_DATA);
         interfaces[j].selectable_fd = db_sock.db_socket;
         strcpy(db_gnd_status->adapter[j].name, adapters[j]);
         LOG_SYS_STD(LOG_NOTICE, "\t%s\n", db_gnd_status->adapter[j].name);
