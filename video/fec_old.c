@@ -48,7 +48,7 @@
 #include <string.h>
 
 #include <assert.h>
-#include "fec_faster.h"
+#include "fec_old.h"
 
 /*
  * stuff used for testing purposes only
@@ -326,7 +326,6 @@ void slow_addmul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz) {
 }
 
 #if defined i386 && defined USE_ASSEMBLER
-
 #define LOOPSIZE 8
 
 static void
@@ -389,8 +388,6 @@ addmul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz)
          "memory", "eax", "edx"
     );
 }
-#elif O3Enabled && (__ARM_FEATURE_SIMD32 || __SSE2__)
-# define addmul1 addmul_auto_vector
 #else
 # define addmul1 slow_addmul1
 #endif
@@ -515,8 +512,6 @@ static void mul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz)
          "memory", "eax", "edx"
     );
 }
-#elif O3Enabled && (__ARM_FEATURE_SIMD32 || __SSE2__)
-# define mul1 mul_auto_vector
 #else
 # define mul1 slow_mul1
 #endif
@@ -654,7 +649,7 @@ int invert_mat(uint8_t *src, unsigned int k) {
 
 static int fec_initialized = 0;
 
-void fec_init(void) {
+void fec_init_old(void) {
     TICK(ticks[0]);
     generate_gf();
     TOCK(ticks[0]);
@@ -762,7 +757,7 @@ void fec_init(void) {
  * few (typically, 4 or 8) that they will fit easily in the cache (even
  * in the L2 cache...)
  */
-void fec_encode(unsigned int blockSize,
+void fec_encode_old(unsigned int blockSize,
                 unsigned char **data_blocks,
                 unsigned int nrDataBlocks,
                 unsigned char **fec_blocks,
@@ -899,7 +894,7 @@ static inline void resolve(int blockSize,
     }
 }
 
-void fec_decode(unsigned int blockSize,
+void fec_decode_old(unsigned int blockSize,
 
                 unsigned char **data_blocks,
                 unsigned int nr_data_blocks,
@@ -940,7 +935,7 @@ void printDetail(void) {
 #endif
 
 
-void fec_license(void) {
+void fec_license_old(void) {
     fprintf(stderr,
             "   wifibroadcast and its FEC code are free software\n"
             "\n"

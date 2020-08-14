@@ -26,7 +26,8 @@
 
 #include "fec_speed_test.h"
 #include "gf256.h"
-#include "fec_faster.h"
+#include "fec_old.h"
+#include "fec.h"
 //#include <moepgf/moepgf.h>
 
 #define KNRM  "\x1B[0m"
@@ -38,20 +39,14 @@
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
 
-char *buffered_file;
-
-long buffer_file(char *filepath);
-
 int main(int argc, char *argv[]) {
-    unsigned int packet_size = 1024;
-    unsigned int num_data_blocks = 8;
+    int packet_size = 1024;
+    int num_data_blocks = 8;
     unsigned int num_fec_blocks = 4;
 //    gf_t gf;
-
     struct timespec start_time, end_time;
-    uint8_t *data_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
-    uint8_t fec_pool[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK][MAX_USER_PACKET_LENGTH];
-    uint8_t *fec_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
+
+    fec_init_old();
     fec_init();
 //    if (!gf_init_easy(&gf, 8)) {
 //        fprintf(stderr, "Couldn't initialize GF structure.\n");
@@ -67,13 +62,6 @@ int main(int argc, char *argv[]) {
 //        fprintf(stderr, "Couldn't initialize moepgf\n");
 //        exit(0);
 //    }
-
-
-    for (int i = 0; i < num_fec_blocks; ++i) {
-        fec_blocks[i] = fec_pool[i];
-    }
-
-    int file_position = 0;
 
     int size = packet_size;
     uint8_t multiplier = 56;
@@ -140,26 +128,91 @@ int main(int argc, char *argv[]) {
         printf(KRED "Add-Multiplication results not byte-equal!\n"KNRM);
     }
 
-    uint8_t matrix[] = {1, 5, 10, 11, 10, 0, 15, 0, 0, 5, 7, 9, 3, 4, 2, 12};
-    double omatrix[] = {1, 5, 10, 11, 10, 0, 15, 0, 0, 5, 7, 9, 3, 4, 2, 12};
-    double destomatrix[num_fec_blocks * num_fec_blocks];
-    printf("\nInverting matrix\n");
+    const int test_data_buff_size = packet_size * 12;   //10s video with 6Mbps
+    uint8_t test_data[test_data_buff_size];
+    uint8_t *data_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
+    uint8_t *data_blocks_old[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
+    uint8_t fec_pool[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK][MAX_USER_PACKET_LENGTH];
+    uint8_t fec_pool_old[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK][MAX_USER_PACKET_LENGTH];
+    uint8_t *fec_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
+    uint8_t *fec_blocks_old[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
+    for (int i = 0; i < num_fec_blocks; ++i) {
+        fec_blocks[i] = fec_pool[i];
+        fec_blocks_old[i] = fec_pool_old[i];
+    }
+    srand(time(NULL));
+    for (int i = 0; i < test_data_buff_size; i++)
+        test_data[i] = (rand() % (90 - 65)) + 65;
+
+    printf("\nTesting FEC encode\n");
     clock_gettime(CLOCK_MONOTONIC, &start_time);
-    int ro = invert_mat(matrix, num_fec_blocks);
+    for (int i = 0; i < num_data_blocks; ++i) {
+        data_blocks_old[i] = &test_data[i * packet_size];
+    }
+    fec_encode_old(packet_size, data_blocks_old, num_data_blocks, (unsigned char **) fec_blocks_old, num_fec_blocks);
     clock_gettime(CLOCK_MONOTONIC, &end_time);
-    printf("Done old in %.02f microseconds %i\n", TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time), ro);
+    printf("FEC old encode took %.02f microseconds\n", TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time));
 
-    uint8_t z = gf256_add( 128,  128);
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    for (int i = 0; i < num_data_blocks; ++i) {
+        data_blocks[i] = &test_data[i * packet_size];
+    }
+    fec_encode(packet_size, data_blocks, num_data_blocks, (unsigned char **) fec_blocks, num_fec_blocks);
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    printf("FEC new encode took %.02f microseconds\n", TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time));
 
-//    do {
-//        for (int i = 0; i < num_data_blocks; ++i) {
-//            data_blocks[i] = &buffered_file[file_position + i * packet_size];
-//        }
-//        fec_encode(packet_size, data_blocks, num_data_blocks, (unsigned char **) fec_blocks, num_fec_blocks);
-////    fec_decode(packet_size, data_blocks, num_data_blocks, fec_blocks, fec_block_nos, erased_blocks, nr_fec_blocks);
-//        file_position += num_data_blocks * packet_size;
-//    } while (file_position < filesize);
+    int invalid = 0;
+    for (int i = 0; i < num_fec_blocks; i++) {
+        if (memcmp(fec_blocks_old[i], fec_blocks[i], packet_size) != 0) {
+            invalid = 1;
+        }
+    }
+    if (invalid == 0) {
+        printf(KGRN"Both FEC encode functions produce equal results!\n"KNRM);
+    } else {
+        printf(KRED "FEC encode results not byte-equal!\n"KNRM);
+    }
 
-//    free(buffered_file);
+
+    unsigned int fec_block_nos[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
+    unsigned int erased_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
+    int number_applied_fec_packs = 1;
+    int index_erased_data_block = 1; // second data packet is missing
+    int index_repairing_fec_block = 0; // first FEC packet used to repair data
+    erased_blocks[0] = index_erased_data_block;
+    fec_block_nos[0] = index_repairing_fec_block;
+    uint8_t erased_data[packet_size];
+
+    memcpy(erased_data, data_blocks_old[index_erased_data_block], packet_size);
+    memset(data_blocks[index_erased_data_block], 0, packet_size);     // create missing data packet
+    memset(data_blocks_old[index_erased_data_block], 0, packet_size); // create missing data packet
+
+    printf("\nTesting FEC decode\n");
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    fec_decode_old((unsigned int) packet_size, data_blocks_old, num_data_blocks, fec_blocks_old, fec_block_nos,
+                   erased_blocks, number_applied_fec_packs);
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    printf("Old FEC decode took %.02f microseconds\n", TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time));
+    if (memcmp(data_blocks_old[index_erased_data_block], erased_data, packet_size) == 0) {
+        printf(KGRN"Old FEC decode works!\n"KNRM);
+    } else {
+        printf(KRED "Old FEC decode produces wrong result!\n"KNRM);
+    }
+
+    memcpy(erased_data, data_blocks[index_erased_data_block], packet_size);
+    memset(data_blocks[index_erased_data_block], 0, packet_size);     // create missing data packet
+    memset(data_blocks_old[index_erased_data_block], 0, packet_size); // create missing data packet
+
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    fec_decode(packet_size, data_blocks, num_data_blocks, fec_blocks, fec_block_nos,
+               erased_blocks, number_applied_fec_packs);
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    printf("New FEC decode took %.02f microseconds\n", TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time));
+    if (memcmp(data_blocks[index_erased_data_block], erased_data, packet_size) == 0) {
+        printf(KGRN"New FEC decode works!\n"KNRM);
+    } else {
+        printf(KRED "New FEC decode produces wrong result!\n"KNRM);
+    }
+
     return 0;
 }

@@ -44,7 +44,7 @@ set(GF256_LIB_SRCFILES
         gf256.h)
 
 set(SOURCE_FILES_SPEEDTEST
-        fec_speed_test.c fec_speed_test.h fec_faster.h fec_faster.c)
+        fec_speed_test.c fec_speed_test.h fec_old.h fec_old.c fec.c fec.h)
 
 add_library(gf256 ${GF256_LIB_SRCFILES})
 

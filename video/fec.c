@@ -502,7 +502,7 @@ void fec_init(void) {
  * few (typically, 4 or 8) that they will fit easily in the cache (even
  * in the L2 cache...)
  */
-void fec_encode(unsigned int blockSize,
+void fec_encode(int blockSize,
                 unsigned char **data_blocks,
                 unsigned int nrDataBlocks,
                 unsigned char **fec_blocks,
@@ -532,7 +532,7 @@ void fec_encode(unsigned int blockSize,
  * (with size being number of blocks lost, rather than number of data blocks
  * + fec)
  */
-static inline void reduce(unsigned int blockSize,
+static inline void reduce(int blockSize,
                           unsigned char **data_blocks,
                           unsigned int nr_data_blocks,
                           unsigned char **fec_blocks,
@@ -551,7 +551,7 @@ static inline void reduce(unsigned int blockSize,
             unsigned char *src = data_blocks[col];
             int j;
             for (j = 0; j < nr_fec_blocks; j++) {
-                int blno = fec_block_nos[j];
+                unsigned int blno = fec_block_nos[j];
                 gf256_muladd_mem(fec_blocks[j], inverse[blno ^ col ^ 128], src, blockSize);
             }
         }
@@ -582,7 +582,7 @@ static inline void resolve(int blockSize,
                            unsigned char **fec_blocks,
                            unsigned int *fec_block_nos,
                            unsigned int *erased_blocks,
-                           short nr_fec_blocks) {
+                           unsigned short nr_fec_blocks) {
 #ifdef PROFILE
     long long begin;
 #endif
@@ -598,10 +598,10 @@ static inline void resolve(int blockSize,
      * missing data blocks to obtain the FEC blocks we have */
     for (row = 0, ptr = 0; row < nr_fec_blocks; row++) {
         int col;
-        int irow = 128 + fec_block_nos[row];
+        unsigned int irow = 128 + fec_block_nos[row];
         /*assert(irow < fec_blocks+128);*/
         for (col = 0; col < nr_fec_blocks; col++, ptr++) {
-            int icol = erased_blocks[col];
+            unsigned int icol = erased_blocks[col];
             matrix[ptr] = inverse[irow ^ icol];
         }
     }
@@ -639,8 +639,17 @@ static inline void resolve(int blockSize,
     }
 }
 
-void fec_decode(unsigned int blockSize,
-
+/**
+ * Decode data applying FEC
+ * @param blockSize Size of packets
+ * @param data_blocks pointer to list of data packets
+ * @param nr_data_blocks number of data packets
+ * @param fec_blocks pointer to list of FEC packets
+ * @param fec_block_nos Indices of FEC packets that shall repair erased data packets in data packet list [array]
+ * @param erased_blocks Indices of erased data packets in FEC packet data list [array]
+ * @param nr_fec_blocks Number of FEC blocks used to repair data packets
+ */
+void fec_decode(int blockSize,
                 unsigned char **data_blocks,
                 unsigned int nr_data_blocks,
                 unsigned char **fec_blocks,
