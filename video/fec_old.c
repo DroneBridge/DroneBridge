@@ -48,7 +48,7 @@
 #include <string.h>
 
 #include <assert.h>
-#include "fec_old.h"
+#include "fec.h"
 
 /*
  * stuff used for testing purposes only
@@ -86,7 +86,7 @@ u_long ticks[10];	/* vars for timekeeping */
  * You should not need to change anything beyond this point.
  * The first part of the file implements linear algebra in GF.
  *
- * uint8_t is the type used to store an element of the Galois Field.
+ * gf is the type used to store an element of the Galois Field.
  * Must constain at least GF_BITS bits.
  *
  * Note: unsigned char will work up to GF(256) but int seems to run
@@ -99,8 +99,8 @@ u_long ticks[10];	/* vars for timekeeping */
 #if (GF_BITS != 8)
 #error "GF_BITS must be 8"
 #endif
-
 typedef unsigned char gf;
+
 #define    GF_SIZE ((1 << GF_BITS) - 1)    /* powers of \alpha */
 
 /*
@@ -137,16 +137,16 @@ static char *allPp[] = {    /* GF_BITS	polynomial		*/
  * In any case the macro gf_mul(x,y) takes care of multiplications.
  */
 
-static uint8_t gf_exp[2 * GF_SIZE];    /* index->poly form conversion table	*/
+static gf gf_exp[2 * GF_SIZE];    /* index->poly form conversion table	*/
 static int gf_log[GF_SIZE + 1];    /* Poly->index form conversion table	*/
-static uint8_t inverse[GF_SIZE + 1];    /* inverse of field elem.		*/
+static gf inverse[GF_SIZE + 1];    /* inverse of field elem.		*/
 /* inv[\alpha**i]=\alpha**(GF_SIZE-i-1)	*/
 
 /*
  * modnn(x) computes x % GF_SIZE, where GF_SIZE is 2**GF_BITS - 1,
  * without a slow divide.
  */
-static inline uint8_t modnn(int x) {
+static inline gf modnn(int x) {
     while (x >= GF_SIZE) {
         x -= GF_SIZE;
         x = (x >> GF_BITS) + (x & GF_SIZE);
@@ -166,7 +166,7 @@ static inline uint8_t modnn(int x) {
  * A value related to the multiplication is held in a local variable
  * declared with USE_GF_MULC . See usage in addmul1().
  */
-static uint8_t gf_mul_table[(GF_SIZE + 1) * (GF_SIZE + 1)]
+static gf gf_mul_table[(GF_SIZE + 1) * (GF_SIZE + 1)]
 #ifdef WINDOWS
         __attribute__((aligned (16)))
 #else
@@ -176,7 +176,7 @@ static uint8_t gf_mul_table[(GF_SIZE + 1) * (GF_SIZE + 1)]
 
 #define gf_mul(x, y) gf_mul_table[(x<<8)+y]
 
-#define USE_GF_MULC register uint8_t * __gf_mulc_
+#define USE_GF_MULC register gf * __gf_mulc_
 #define GF_MULC0(c) __gf_mulc_ = &gf_mul_table[(c)<<8]
 #define GF_ADDMULC(dst, x) dst ^= __gf_mulc_[x]
 #define GF_MULC(dst, x) dst = __gf_mulc_[x]
@@ -209,7 +209,7 @@ static void init_mul_table(void) {
  */
 static void generate_gf(void) {
     int i;
-    uint8_t mask;
+    gf mask;
     char *Pp = allPp[GF_BITS];
 
     mask = 1;    /* x ** 0 = 1 */
@@ -289,10 +289,10 @@ static void generate_gf(void) {
 
 #define UNROLL 16 /* 1, 4, 8, 16 */
 
-void slow_addmul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz) {
+void slow_addmul1(gf *dst1, gf *src1, gf c, int sz) {
     USE_GF_MULC;
-    register uint8_t *dst = dst1, *src = src1;
-    uint8_t *lim = &dst[sz - UNROLL + 1];
+    register gf *dst = dst1, *src = src1;
+    gf *lim = &dst[sz - UNROLL + 1];
 
     GF_MULC0(c);
 
@@ -326,10 +326,11 @@ void slow_addmul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz) {
 }
 
 #if defined i386 && defined USE_ASSEMBLER
+
 #define LOOPSIZE 8
 
 static void
-addmul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz)
+addmul1(gf *dst1, gf *src1, gf c, int sz)
 {
     USE_GF_MULC ;
 
@@ -392,8 +393,8 @@ addmul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz)
 # define addmul1 slow_addmul1
 #endif
 
-static void addmul(uint8_t *dst, uint8_t *src, uint8_t c, int sz) {
-    // fprintf(stderr, "Dst=%p Src=%p, uint8_t=%02x sz=%d\n", dst, src, c, sz);
+static void addmul(gf *dst, gf *src, gf c, int sz) {
+    // fprintf(stderr, "Dst=%p Src=%p, gf=%02x sz=%d\n", dst, src, c, sz);
     if (c != 0) addmul1(dst, src, c, sz);
 }
 
@@ -413,7 +414,7 @@ static void addmul(uint8_t *dst, uint8_t *src, uint8_t c, int sz) {
 
 #define UNROLL 16 /* 1, 4, 8, 16 */
 
-void slow_mul1(uint8_t *dst1, uint8_t *src1, const gf c, unsigned int sz) {
+void slow_mul1(gf *dst1, gf *src1, gf c, int sz) {
     USE_GF_MULC;
     register gf *dst = dst1, *src = src1;
     gf *lim = &dst[sz - UNROLL + 1];
@@ -450,7 +451,7 @@ void slow_mul1(uint8_t *dst1, uint8_t *src1, const gf c, unsigned int sz) {
 }
 
 #if defined i386 && defined USE_ASSEMBLER
-static void mul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz)
+static void mul1(gf *dst1, gf *src1, gf c, int sz)
 {
     USE_GF_MULC ;
 
@@ -516,7 +517,7 @@ static void mul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz)
 # define mul1 slow_mul1
 #endif
 
-static inline void mul(uint8_t *dst, uint8_t *src, uint8_t c, int sz) {
+static inline void mul(gf *dst, gf *src, gf c, int sz) {
     /*fprintf(stderr, "%p = %02x * %p\n", dst, c, src);*/
     if (c != 0) mul1(dst, src, c, sz); else memset(dst, 0, sz);
 }
@@ -529,17 +530,17 @@ static inline void mul(uint8_t *dst, uint8_t *src, uint8_t c, int sz) {
  */
 DEB(int pivloops = 0; int pivswaps = 0; /* diagnostic */)
 
-int invert_mat(uint8_t *src, unsigned int k) {
-    uint8_t c, *p;
+static int invert_mat(gf *src, int k) {
+    gf c, *p;
     int irow, icol, row, col, i, ix;
 
     int error = 1;
     int indxc[k];
     int indxr[k];
     int ipiv[k];
-    uint8_t id_row[k];
+    gf id_row[k];
 
-    memset(id_row, 0, k * sizeof(uint8_t));
+    memset(id_row, 0, k * sizeof(gf));
     DEB(pivloops = 0; pivswaps = 0; /* diagnostic */ )
     /*
      * ipiv marks elements already used as pivots.
@@ -548,7 +549,7 @@ int invert_mat(uint8_t *src, unsigned int k) {
         ipiv[i] = 0;
 
     for (col = 0; col < k; col++) {
-        uint8_t *pivot_row;
+        gf *pivot_row;
         /*
          * Zeroing column 'col', look for a non-zero element.
          * First try on the diagonal, if it fails, look elsewhere.
@@ -589,7 +590,7 @@ int invert_mat(uint8_t *src, unsigned int k) {
          */
         if (irow != icol) {
             for (ix = 0; ix < k; ix++) {
-                SWAP(src[irow * k + ix], src[icol * k + ix], uint8_t);
+                SWAP(src[irow * k + ix], src[icol * k + ix], gf);
             }
         }
         indxr[col] = irow;
@@ -619,7 +620,7 @@ int invert_mat(uint8_t *src, unsigned int k) {
          * we can optimize the addmul).
          */
         id_row[icol] = 1;
-        if (memcmp(pivot_row, id_row, k * sizeof(uint8_t)) != 0) {
+        if (memcmp(pivot_row, id_row, k * sizeof(gf)) != 0) {
             for (p = src, ix = 0; ix < k; ix++, p += k) {
                 if (ix != icol) {
                     c = p[icol];
@@ -637,7 +638,7 @@ int invert_mat(uint8_t *src, unsigned int k) {
             fprintf(stderr, "AARGH, indxc[col] %d\n", indxc[col]);
         else if (indxr[col] != indxc[col]) {
             for (row = 0; row < k; row++) {
-                SWAP(src[row * k + indxr[col]], src[row * k + indxc[col]], uint8_t);
+                SWAP(src[row * k + indxr[col]], src[row * k + indxc[col]], gf);
             }
         }
     }
@@ -777,7 +778,9 @@ void fec_encode_old(unsigned int blockSize,
 
     for (col = 129, blockNo = 1; blockNo < nrDataBlocks; col++, blockNo++) {
         for (row = 0; row < nrFecBlocks; row++)
-            addmul(fec_blocks[row], data_blocks[blockNo],inverse[row ^ col], blockSize);
+            addmul(fec_blocks[row], data_blocks[blockNo],
+                   inverse[row ^ col],
+                   blockSize);
     }
 }
 
@@ -895,7 +898,6 @@ static inline void resolve(int blockSize,
 }
 
 void fec_decode_old(unsigned int blockSize,
-
                 unsigned char **data_blocks,
                 unsigned int nr_data_blocks,
                 unsigned char **fec_blocks,

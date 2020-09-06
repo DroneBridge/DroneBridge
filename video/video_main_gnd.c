@@ -336,12 +336,10 @@ void process_video_payload(uint8_t *data, uint16_t data_len, int crc_correct, bl
 
 
                 //decode data and publish it
-                fec_decode((unsigned int) pack_size, data_blocks, num_data_per_block, fec_blocks, fec_block_nos,
-                           erased_blocks,
+                fec_decode(pack_size, data_blocks, num_data_per_block, fec_blocks, fec_block_nos, erased_blocks,
                            nr_fec_blocks);
                 for (i = 0; i < num_data_per_block; ++i) {
                     video_packet_data_t *vpd_corrected = (video_packet_data_t *) data_blocks[i];
-
                     if (!reconstruction_failed || data_pkgs[i]->valid) {
                         //if reconstruction did fail, the data_length value is undefined. better limit it to some sensible value
                         if (vpd_corrected->data_length > pack_size) {

@@ -396,6 +396,11 @@ static int fec_initialized = 0;
 
 void fec_init(void) {
     TICK(ticks[0]);
+    int c;
+    if ((c = gf256_init()) < 0) {
+        fprintf(stderr, "Couldn't initialize GF256 (Error Code %i)\n", c);
+        exit(0);
+    }
     generate_gf();
     TOCK(ticks[0]);
     DDB(fprintf(stderr, "generate_gf took %ldus\n", ticks[0]);)

@@ -23,13 +23,14 @@ void fec_decode_old(unsigned int blockSize,
                 unsigned char **fec_blocks,
                 unsigned int *fec_block_nos,
                 unsigned int *erased_blocks,
-                unsigned short nr_fec_blocks  /* how many blocks per stripe */);
+                unsigned short nr_fec_blocks);
 
 void fec_print(fec_code_t code, int width);
 
 void fec_license_old(void);
 
-void slow_mul1(uint8_t *dst1, uint8_t *src1, uint8_t c, unsigned int sz);
+typedef unsigned char gf;
+void slow_mul1(gf *dst1, gf *src1, gf c, int sz);
 
 void slow_addmul1(uint8_t *dst1, uint8_t *src1, uint8_t c, int sz);
 

@@ -25,7 +25,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <termios.h>
 #include <stdint.h>
 #include <getopt.h>
 #include <stdbool.h>
@@ -97,7 +96,7 @@ void write_to_unix(db_unix_tcp_client unix_server_clients[DB_MAX_UNIX_TCP_CLIENT
  * @param packet_data Packet payload (FEC block or DATA block + length field)
  * @param data_length payload length
  */
-void transmit_packet(uint32_t seq_nr, const uint8_t *packet_data, uint data_length) {
+void transmit_packet(uint32_t seq_nr, uint8_t *packet_data, uint data_length) {
     // create pointer directly to sockets send buffer (use of DB high performance send function)
     struct data_uni *data_to_ground = get_hp_raw_buffer(vid_adhere_80211);
     // set video packet to payload field of raw protocol buffer
@@ -122,24 +121,24 @@ void transmit_packet(uint32_t seq_nr, const uint8_t *packet_data, uint data_leng
  *
  * @param pbl Array where the future payload data is located as blocks of data (payload is split into arrays)
  * @param seq_nr: video_packet_header_t sequence number
- * @param fec_packet_size: FEC block size
+ * @param packet_size: FEC packet size
  */
-void transmit_block(packet_buffer_t *pbl, uint32_t *seq_nr, uint fec_packet_size) {
+void transmit_block(packet_buffer_t *pbl, uint32_t *seq_nr, uint packet_size) {
     int i;
-    uint8_t *data_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
-    uint8_t fec_pool[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK][MAX_USER_PACKET_LENGTH];
-    uint8_t *fec_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
+    static uint8_t *data_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
+    static uint8_t fec_pool[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK][MAX_USER_PACKET_LENGTH];
+    static uint8_t *fec_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
 
     for (i = 0; i < num_data_per_block; ++i) {
         data_blocks[i] = pbl[i].data;
     }
+    for (i = 0; i < num_fec_per_block; ++i) {
+        fec_blocks[i] = fec_pool[i];
+    }
 
     if (num_fec_per_block) { // Number of FEC packets per block can be 0
-        for (i = 0; i < num_fec_per_block; ++i) {
-            fec_blocks[i] = fec_pool[i];
-        }
         clock_gettime(CLOCK_MONOTONIC, &start_time);
-        fec_encode(fec_packet_size, data_blocks, num_data_per_block, (unsigned char **) fec_blocks, num_fec_per_block);
+        fec_encode(packet_size, data_blocks, num_data_per_block, (unsigned char **) fec_blocks, num_fec_per_block);
         clock_gettime(CLOCK_MONOTONIC, &end_time);
         db_uav_status->encoding_time = TimeSpecToUSeconds(&end_time) - TimeSpecToUSeconds(&start_time);
     }
@@ -150,13 +149,13 @@ void transmit_block(packet_buffer_t *pbl, uint32_t *seq_nr, uint fec_packet_size
     uint32_t seq_nr_tmp = *seq_nr;
     while (di < num_data_per_block || fi < num_fec_per_block) {
         if (di < num_data_per_block) {
-            transmit_packet(seq_nr_tmp, data_blocks[di], fec_packet_size);
+            transmit_packet(seq_nr_tmp, data_blocks[di], packet_size);
             seq_nr_tmp++; // every packet gets a sequence number
             di++;
         }
 
         if (fi < num_fec_per_block) {
-            transmit_packet(seq_nr_tmp, fec_blocks[fi], fec_packet_size);
+            transmit_packet(seq_nr_tmp, fec_pool[fi], packet_size);
             seq_nr_tmp++; // every packet gets a sequence number
             fi++;
         }

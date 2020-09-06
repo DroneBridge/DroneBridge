@@ -22,13 +22,11 @@
 #include <time.h>
 #include <bits/time.h>
 #include <string.h>
-//#include <gf_complete.h>
 
 #include "fec_speed_test.h"
 #include "gf256.h"
 #include "fec_old.h"
 #include "fec.h"
-//#include <moepgf/moepgf.h>
 
 #define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"
@@ -43,25 +41,9 @@ int main(int argc, char *argv[]) {
     int packet_size = 1024;
     int num_data_blocks = 8;
     unsigned int num_fec_blocks = 4;
-//    gf_t gf;
     struct timespec start_time, end_time;
-
     fec_init_old();
     fec_init();
-//    if (!gf_init_easy(&gf, 8)) {
-//        fprintf(stderr, "Couldn't initialize GF structure.\n");
-//        exit(0);
-//    }
-    int c;
-    if ((c = gf256_init()) < 0) {
-        fprintf(stderr, "Couldn't initialize GF256 (Error Code %i)\n", c);
-        exit(0);
-    }
-//    struct moepgf moep_gf;
-//    if (moepgf_init(&moep_gf, MOEPGF256, MOEPGF_ALGORITHM_BEST) < 0) {
-//        fprintf(stderr, "Couldn't initialize moepgf\n");
-//        exit(0);
-//    }
 
     int size = packet_size;
     uint8_t multiplier = 56;
@@ -73,7 +55,7 @@ int main(int argc, char *argv[]) {
     int equal = 1;
     srand(time(NULL));
     for (int i = 0; i < size; i++)
-        src[i] = (rand() % (90 - 65)) + 65;
+        src[i] = (rand() % (254 - 0 + 1)) + 0;
 
     int iter = 500;
     printf("Doing %i iterations on %i FEC blocks\n", iter, num_fec_blocks);
@@ -106,7 +88,7 @@ int main(int argc, char *argv[]) {
     printf("\n");
     srand(time(NULL));
     for (int i = 0; i < size; i++)
-        src[i] = (rand() % (90 - 65)) + 65;
+        src[i] = (rand() % (254 - 0 + 1)) + 0;
     memset(dsto, 15, size);
     memset(dst_addmul, 15, size);
     clock_gettime(CLOCK_MONOTONIC, &start_time);
@@ -142,7 +124,7 @@ int main(int argc, char *argv[]) {
     }
     srand(time(NULL));
     for (int i = 0; i < test_data_buff_size; i++)
-        test_data[i] = (rand() % (90 - 65)) + 65;
+        test_data[i] = (rand() % (254 - 0 + 1)) + 0;
 
     printf("\nTesting FEC encode\n");
     clock_gettime(CLOCK_MONOTONIC, &start_time);
@@ -163,7 +145,7 @@ int main(int argc, char *argv[]) {
 
     int invalid = 0;
     for (int i = 0; i < num_fec_blocks; i++) {
-        if (memcmp(fec_blocks_old[i], fec_blocks[i], packet_size) != 0) {
+        if (memcmp(fec_pool_old[i], fec_pool[i], packet_size) != 0) {
             invalid = 1;
         }
     }
