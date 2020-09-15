@@ -121,3 +121,5 @@ build/
 cmake-build-relwithdebinfo/
 
 cmake-build-remotedeploy-release/
+
+cmake-build-arm_rel_cross/

@@ -59,6 +59,11 @@ function init_dronebridge() {
   fi
 
   CAM=$(/usr/bin/vcgencmd get_camera | nice grep -c detected=1)
+  echo "Building DroneBridge modules..."	# enables optimizations for specific targets
+  cd /home/pi/DroneBridge
+  cmake .
+  make -j2
+  echo "Compilation done"
 
   if [[ "$CAM" == "0" ]]; then
     echo "Welcome to DroneBridge v0.6 Beta (GND) - "
