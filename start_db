@@ -61,6 +61,7 @@ function init_dronebridge() {
   CAM=$(/usr/bin/vcgencmd get_camera | nice grep -c detected=1)
   echo "Building DroneBridge modules..."	# enables optimizations for specific targets
   cd /home/pi/DroneBridge
+  rm CMakeCache.txt
   cmake .
   make -j2
   echo "Compilation done"
