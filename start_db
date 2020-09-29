@@ -61,19 +61,33 @@ function init_dronebridge() {
   CAM=$(/usr/bin/vcgencmd get_camera | nice grep -c detected=1)
   echo "Building DroneBridge modules..."	# enables optimizations for specific targets
   cd /home/pi/DroneBridge
-  rm CMakeCache.txt
-  cmake .
-  make -j2
-  echo "Compilation done"
+  # Check for last compile target (may need to recompile to get advantage of NEON SIMD)
+  CPU_ARCHITECTURE=$(uname -m)
+  COMPILE_TARGET_FILE=.compile_target
+  LAST_COMPILE_TARGET=$(head -n 1 "$COMPILE_TARGET_FILE")
+  if [[ -f "$COMPILE_TARGET_FILE" ]] && [[ "$LAST_COMPILE_TARGET" = "$CPU_ARCHITECTURE" ]]; then
+    echo "DroneBridge is already compiled for the CPU architecture"
+  else
+    # Force recompilation in case we are having a different CPU
+    echo "Re-Compiling DroneBridge..."
+    CPU_CORES=$(nproc)
+    rm CMakeCache.txt
+    cmake .
+    make -j"$CPU_CORES"
+    echo "Compilation done"
+    rm "$COMPILE_TARGET_FILE"
+    uname -m > "$COMPILE_TARGET_FILE"
+  fi
 
+  DB_VERSION_STR=$(head -n 1 /home/pi/DroneBridge/db_version.txt)
   if [[ "$CAM" == "0" ]]; then
-    echo "Welcome to DroneBridge v0.6 Beta (GND) - "
+    echo "Welcome to DroneBridge v"$DB_VERSION_STR" Beta (GND) - "
     python3 /home/pi/DroneBridge/startup/init_wifi.py -g
     sleep 1
     python3 /home/pi/DroneBridge/startup/start_db_modules.py -g
     start_osd
   else
-    echo "Welcome to DroneBridge v0.6 Beta (UAV) - "
+    echo "Welcome to DroneBridge v"$DB_VERSION_STR" Beta (UAV) - "
     python3 /home/pi/DroneBridge/startup/init_wifi.py
     sleep 1
     python3 /home/pi/DroneBridge/startup/start_db_modules.py
