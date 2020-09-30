@@ -218,7 +218,7 @@ void get_joy_interface_path(char *dst_joy_interface_path, int joy_interface_indx
  * @param joy_interface_indx Interface index of connected RC
  */
 void do_calibration(char *calibrate_comm, int joy_interface_indx) {
-    char cali_restore_command[CALI_COMM_SIZE];
+    char cali_restore_command[CALI_COMM_SIZE + 14];
     char joy_interface_path[CALI_COMM_SIZE];
     // try to restore prev. calibration
     get_joy_interface_path(joy_interface_path, joy_interface_indx);
@@ -231,7 +231,7 @@ void do_calibration(char *calibrate_comm, int joy_interface_indx) {
         // failed to restore. Calibrate using default calibration
         if (system(calibrate_comm) == 0) {
             LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Calibrated RC interface with default calibration\n");
-            char cali_store_comm[CALI_COMM_SIZE];
+            char cali_store_comm[CALI_COMM_SIZE + 12];
             sprintf(cali_store_comm, "%s %s", "jscal-store", joy_interface_path);
             LOG_SYS_STD(LOG_INFO, "DB_CONTROL_GND: Storing calibration data -> %s\n", cali_store_comm);
             system(cali_store_comm);
@@ -246,7 +246,7 @@ void do_calibration(char *calibrate_comm, int joy_interface_indx) {
  * @param allow_rc_overwrite Set to 'Y' if you want to allow the overwrite of RC channels via a shm/external app
  * @return
  */
-int conf_rc(char adapters[DB_MAX_ADAPTERS][IFNAMSIZ], int num_inf_rc, int comm_id, char db_mode, int bitrate_op,
+void conf_rc(char adapters[DB_MAX_ADAPTERS][IFNAMSIZ], int num_inf_rc, int comm_id, char db_mode, int bitrate_op,
             int frame_type, int new_rc_protocol, char allow_rc_overwrite, int adhere_80211) {
     rc_protocol = new_rc_protocol;
     en_rc_overwrite = allow_rc_overwrite == 'Y' ? true : false;

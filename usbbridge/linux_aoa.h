@@ -64,7 +64,7 @@
 
 extern uint8_t raw_usb_msg_buff[DB_AOA_MAX_MSG_LENGTH];
 
-typedef struct accessory_t {
+typedef struct {
     struct libusb_device_handle *handle;
     struct libusb_transfer *transfer;
     uint32_t aoa_version;
@@ -79,7 +79,7 @@ typedef struct accessory_t {
     char *serial;
 } db_accessory_t;
 
-typedef struct db_usb_msg_t {
+typedef struct {
     char ident[3];
     uint8_t port;
     uint16_t pay_lenght;
@@ -88,7 +88,7 @@ typedef struct db_usb_msg_t {
 
 u_int16_t get_db_usb_max_packet_size();
 int init_db_accessory(db_accessory_t *db_acc);
-struct db_usb_msg_t *db_usb_get_direct_buffer();
+db_usb_msg_t *db_usb_get_direct_buffer();
 void exit_close_aoa_device(db_accessory_t *db_acc);
 
 #endif //DRONEBRIDGE_LINUX_AOA_H

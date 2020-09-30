@@ -1,0 +1,13 @@
+/usr/local/lib/DroneBridge/libdb_common.a
+/usr/local/include/DroneBridge/db_common.h
+/usr/local/include/DroneBridge/db_protocol.h
+/usr/local/include/DroneBridge/db_raw_receive.h
+/usr/local/include/DroneBridge/db_crc.h
+/usr/local/include/DroneBridge/shared_memory.h
+/usr/local/include/DroneBridge/msp_serial.h
+/usr/local/include/DroneBridge/db_utils.h
+/usr/local/include/DroneBridge/tcp_server.h
+/usr/local/include/DroneBridge/db_unix.h
+/usr/local/include/DroneBridge/platform.h
+/usr/local/include/DroneBridge/radiotap.h
+/usr/local/include/DroneBridge/radiotap_iter.h

@@ -57,7 +57,7 @@ void print_buffer(uint8_t buffer[], int num_bytes){
 }
 
 /**
- * Reads the current undervoltage value from RPi
+ * Reads the current low-voltage value from RPi
  * @return 1 if currently not enough voltage supplied to Pi; 0 if all OK
  */
 uint8_t get_undervolt(void){

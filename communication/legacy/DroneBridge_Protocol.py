@@ -29,7 +29,7 @@ from DBCommProt import DBCommProt
 from db_comm_messages import change_settings, new_settingsresponse_message, comm_message_extract_info, \
     comm_crc_correct, create_sys_ident_response, new_error_response_message, \
     new_ping_response_message, new_ack_message, change_cam_selection, init_cam_gpios, normalize_jscal_axis
-from db_ip_checker import DB_IP_GETTER
+from db_ip_checker import DBIPGetter
 
 
 class DBPort(Enum):
@@ -92,7 +92,7 @@ class DBProtocol:
         if self.comm_direction == DBDir.DB_TO_UAV and (self.db_port == DBPort.DB_PORT_TELEMETRY.value or
                                                        self.db_port == DBPort.DB_PORT_COMMUNICATION.value):
             self.android_sock = self._open_android_udpsocket()
-            self.ipgetter = DB_IP_GETTER()
+            self.ipgetter = DBIPGetter()
         self.changed = False
         self.signal = 0  # signal quality that is measured [dBm]
         self.first_run = True

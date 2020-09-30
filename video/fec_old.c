@@ -49,7 +49,6 @@
 
 #include <assert.h>
 #include "fec.h"
-#include "gf256.h"
 
 /*
  * stuff used for testing purposes only
@@ -94,7 +93,9 @@ u_long ticks[10];	/* vars for timekeeping */
  * faster on the Pentium. We use int whenever have to deal with an
  * index, since they are generally faster.
  */
-
+/*
+ * AK: Udpcast only uses GF_BITS=8. Remove other possibilities
+ */
 #if (GF_BITS != 8)
 #error "GF_BITS must be 8"
 #endif
@@ -174,6 +175,11 @@ static gf gf_mul_table[(GF_SIZE + 1) * (GF_SIZE + 1)]
 ;
 
 #define gf_mul(x, y) gf_mul_table[(x<<8)+y]
+
+#define USE_GF_MULC register gf * __gf_mulc_
+#define GF_MULC0(c) __gf_mulc_ = &gf_mul_table[(c)<<8]
+#define GF_ADDMULC(dst, x) dst ^= __gf_mulc_[x]
+#define GF_MULC(dst, x) dst = __gf_mulc_[x]
 
 static void init_mul_table(void) {
     int i, j;
@@ -265,6 +271,256 @@ static void generate_gf(void) {
 /*
  * Various linear algebra operations that i use often.
  */
+
+/*
+ * addmul() computes dst[] = dst[] + c * src[]
+ * This is used often, so better optimize it! Currently the loop is
+ * unrolled 16 times, a good value for 486 and pentium-class machines.
+ * The case c=0 is also optimized, whereas c=1 is not. These
+ * calls are unfrequent in my typical apps so I did not bother.
+ *
+ * Note that gcc on
+ */
+#if 0
+#define addmul(dst, src, c, sz) \
+    if (c != 0) addmul1(dst, src, c, sz)
+#endif
+
+
+#define UNROLL 16 /* 1, 4, 8, 16 */
+
+void slow_addmul1(gf *dst1, gf *src1, gf c, int sz) {
+    USE_GF_MULC;
+    register gf *dst = dst1, *src = src1;
+    gf *lim = &dst[sz - UNROLL + 1];
+
+    GF_MULC0(c);
+
+#if (UNROLL > 1) /* unrolling by 8/16 is quite effective on the pentium */
+    for (; dst < lim; dst += UNROLL, src += UNROLL) {
+        GF_ADDMULC(dst[0], src[0]);
+        GF_ADDMULC(dst[1], src[1]);
+        GF_ADDMULC(dst[2], src[2]);
+        GF_ADDMULC(dst[3], src[3]);
+#if (UNROLL > 4)
+        GF_ADDMULC(dst[4], src[4]);
+        GF_ADDMULC(dst[5], src[5]);
+        GF_ADDMULC(dst[6], src[6]);
+        GF_ADDMULC(dst[7], src[7]);
+#endif
+#if (UNROLL > 8)
+        GF_ADDMULC(dst[8], src[8]);
+        GF_ADDMULC(dst[9], src[9]);
+        GF_ADDMULC(dst[10], src[10]);
+        GF_ADDMULC(dst[11], src[11]);
+        GF_ADDMULC(dst[12], src[12]);
+        GF_ADDMULC(dst[13], src[13]);
+        GF_ADDMULC(dst[14], src[14]);
+        GF_ADDMULC(dst[15], src[15]);
+#endif
+    }
+#endif
+    lim += UNROLL - 1;
+    for (; dst < lim; dst++, src++)        /* final components */
+        GF_ADDMULC(*dst, *src);
+}
+
+#if defined i386 && defined USE_ASSEMBLER
+
+#define LOOPSIZE 8
+
+static void
+addmul1(gf *dst1, gf *src1, gf c, int sz)
+{
+    USE_GF_MULC ;
+
+    GF_MULC0(c) ;
+
+    if(((unsigned long)dst1 % LOOPSIZE) ||
+       ((unsigned long)src1 % LOOPSIZE) ||
+       (sz % LOOPSIZE)) {
+    slow_addmul1(dst1, src1, c, sz);
+    return;
+    }
+
+    asm volatile("xorl %%eax,%%eax;\n"
+         "	xorl %%edx,%%edx;\n"
+         ".align 32;\n"
+         "1:"
+         "	addl  $8, %%edi;\n"
+
+         "	movb  (%%esi), %%al;\n"
+         "	movb 4(%%esi), %%dl;\n"
+         "	movb  (%%ebx,%%eax), %%al;\n"
+         "	movb  (%%ebx,%%edx), %%dl;\n"
+         "	xorb  %%al,  (%%edi);\n"
+         "	xorb  %%dl, 4(%%edi);\n"
+
+         "	movb 1(%%esi), %%al;\n"
+         "	movb 5(%%esi), %%dl;\n"
+         "	movb  (%%ebx,%%eax), %%al;\n"
+         "	movb  (%%ebx,%%edx), %%dl;\n"
+         "	xorb  %%al, 1(%%edi);\n"
+         "	xorb  %%dl, 5(%%edi);\n"
+
+         "	movb 2(%%esi), %%al;\n"
+         "	movb 6(%%esi), %%dl;\n"
+         "	movb  (%%ebx,%%eax), %%al;\n"
+         "	movb  (%%ebx,%%edx), %%dl;\n"
+         "	xorb  %%al, 2(%%edi);\n"
+         "	xorb  %%dl, 6(%%edi);\n"
+
+         "	movb 3(%%esi), %%al;\n"
+         "	movb 7(%%esi), %%dl;\n"
+         "	addl  $8, %%esi;\n"
+         "	movb  (%%ebx,%%eax), %%al;\n"
+         "	movb  (%%ebx,%%edx), %%dl;\n"
+         "	xorb  %%al, 3(%%edi);\n"
+         "	xorb  %%dl, 7(%%edi);\n"
+
+         "	cmpl  %%ecx, %%esi;\n"
+         "	jb 1b;"
+         : :
+
+         "b" (__gf_mulc_),
+         "D" (dst1-8),
+         "S" (src1),
+         "c" (sz+src1) :
+         "memory", "eax", "edx"
+    );
+}
+#else
+# define addmul1 slow_addmul1
+#endif
+
+static void addmul(gf *dst, gf *src, gf c, int sz) {
+    // fprintf(stderr, "Dst=%p Src=%p, gf=%02x sz=%d\n", dst, src, c, sz);
+    if (c != 0) addmul1(dst, src, c, sz);
+}
+
+/*
+ * mul() computes dst[] = c * src[]
+ * This is used often, so better optimize it! Currently the loop is
+ * unrolled 16 times, a good value for 486 and pentium-class machines.
+ * The case c=0 is also optimized, whereas c=1 is not. These
+ * calls are unfrequent in my typical apps so I did not bother.
+ *
+ * Note that gcc on
+ */
+#if 0
+#define mul(dst, src, c, sz) \
+    do { if (c != 0) mul1(dst, src, c, sz); else memset(dst, 0, sz); } while(0)
+#endif
+
+#define UNROLL 16 /* 1, 4, 8, 16 */
+
+void slow_mul1(gf *dst1, gf *src1, gf c, int sz) {
+    USE_GF_MULC;
+    register gf *dst = dst1, *src = src1;
+    gf *lim = &dst[sz - UNROLL + 1];
+
+    GF_MULC0(c);
+
+#if (UNROLL > 1) /* unrolling by 8/16 is quite effective on the pentium */
+    for (; dst < lim; dst += UNROLL, src += UNROLL) {
+        GF_MULC(dst[0], src[0]);
+        GF_MULC(dst[1], src[1]);
+        GF_MULC(dst[2], src[2]);
+        GF_MULC(dst[3], src[3]);
+#if (UNROLL > 4)
+        GF_MULC(dst[4], src[4]);
+        GF_MULC(dst[5], src[5]);
+        GF_MULC(dst[6], src[6]);
+        GF_MULC(dst[7], src[7]);
+#endif
+#if (UNROLL > 8)
+        GF_MULC(dst[8], src[8]);
+        GF_MULC(dst[9], src[9]);
+        GF_MULC(dst[10], src[10]);
+        GF_MULC(dst[11], src[11]);
+        GF_MULC(dst[12], src[12]);
+        GF_MULC(dst[13], src[13]);
+        GF_MULC(dst[14], src[14]);
+        GF_MULC(dst[15], src[15]);
+#endif
+    }
+#endif
+    lim += UNROLL - 1;
+    for (; dst < lim; dst++, src++)        /* final components */
+        GF_MULC(*dst, *src);
+}
+
+#if defined i386 && defined USE_ASSEMBLER
+static void mul1(gf *dst1, gf *src1, gf c, int sz)
+{
+    USE_GF_MULC ;
+
+    GF_MULC0(c) ;
+
+    if(((unsigned long)dst1 % LOOPSIZE) ||
+       ((unsigned long)src1 % LOOPSIZE) ||
+       (sz % LOOPSIZE)) {
+    slow_mul1(dst1, src1, c, sz);
+    return;
+    }
+
+    asm volatile("pushl %%eax;\n"
+         "pushl %%edx;\n"
+         "xorl %%eax,%%eax;\n"
+         "	xorl %%edx,%%edx;\n"
+         "1:"
+         "	addl  $8, %%edi;\n"
+
+         "	movb  (%%esi), %%al;\n"
+         "	movb 4(%%esi), %%dl;\n"
+         "	movb  (%%ebx,%%eax), %%al;\n"
+         "	movb  (%%ebx,%%edx), %%dl;\n"
+         "	movb  %%al,  (%%edi);\n"
+         "	movb  %%dl, 4(%%edi);\n"
+
+         "	movb 1(%%esi), %%al;\n"
+         "	movb 5(%%esi), %%dl;\n"
+         "	movb  (%%ebx,%%eax), %%al;\n"
+         "	movb  (%%ebx,%%edx), %%dl;\n"
+         "	movb  %%al, 1(%%edi);\n"
+         "	movb  %%dl, 5(%%edi);\n"
+
+         "	movb 2(%%esi), %%al;\n"
+         "	movb 6(%%esi), %%dl;\n"
+         "	movb  (%%ebx,%%eax), %%al;\n"
+         "	movb  (%%ebx,%%edx), %%dl;\n"
+         "	movb  %%al, 2(%%edi);\n"
+         "	movb  %%dl, 6(%%edi);\n"
+
+         "	movb 3(%%esi), %%al;\n"
+         "	movb 7(%%esi), %%dl;\n"
+         "	addl  $8, %%esi;\n"
+         "	movb  (%%ebx,%%eax), %%al;\n"
+         "	movb  (%%ebx,%%edx), %%dl;\n"
+         "	movb  %%al, 3(%%edi);\n"
+         "	movb  %%dl, 7(%%edi);\n"
+
+         "	cmpl  %%ecx, %%esi;\n"
+         "	jb 1b;\n"
+         "	popl %%edx;\n"
+         "	popl %%eax;"
+         : :
+
+         "b" (__gf_mulc_),
+         "D" (dst1-8),
+         "S" (src1),
+         "c" (sz+src1) :
+         "memory", "eax", "edx"
+    );
+}
+#else
+# define mul1 slow_mul1
+#endif
+
+static inline void mul(gf *dst, gf *src, gf c, int sz) {
+    /*fprintf(stderr, "%p = %02x * %p\n", dst, c, src);*/
+    if (c != 0) mul1(dst, src, c, sz); else memset(dst, 0, sz);
+}
 
 /*
  * invert_mat() takes a matrix and produces its inverse
@@ -369,7 +625,7 @@ static int invert_mat(gf *src, int k) {
                 if (ix != icol) {
                     c = p[icol];
                     p[icol] = 0;
-                    gf256_muladd_mem(p, c, pivot_row, k);
+                    addmul(p, pivot_row, c, k);
                 }
             }
         }
@@ -394,13 +650,8 @@ static int invert_mat(gf *src, int k) {
 
 static int fec_initialized = 0;
 
-void fec_init(void) {
+void fec_init_old(void) {
     TICK(ticks[0]);
-    int c;
-    if ((c = gf256_init()) < 0) {
-        fprintf(stderr, "Couldn't initialize GF256 (Error Code %i)\n", c);
-        exit(0);
-    }
     generate_gf();
     TOCK(ticks[0]);
     DDB(fprintf(stderr, "generate_gf took %ldus\n", ticks[0]);)
@@ -507,7 +758,7 @@ void fec_init(void) {
  * few (typically, 4 or 8) that they will fit easily in the cache (even
  * in the L2 cache...)
  */
-void fec_encode(int blockSize,
+void fec_encode_old(unsigned int blockSize,
                 unsigned char **data_blocks,
                 unsigned int nrDataBlocks,
                 unsigned char **fec_blocks,
@@ -523,11 +774,13 @@ void fec_encode(int blockSize,
         return;
 
     for (row = 0; row < nrFecBlocks; row++)
-        gf256_mul_mem(fec_blocks[row], data_blocks[0], inverse[128 ^ row], blockSize);
+        mul(fec_blocks[row], data_blocks[0], inverse[128 ^ row], blockSize);
 
     for (col = 129, blockNo = 1; blockNo < nrDataBlocks; col++, blockNo++) {
         for (row = 0; row < nrFecBlocks; row++)
-            gf256_muladd_mem(fec_blocks[row], inverse[row ^ col], data_blocks[blockNo], blockSize);
+            addmul(fec_blocks[row], data_blocks[blockNo],
+                   inverse[row ^ col],
+                   blockSize);
     }
 }
 
@@ -537,7 +790,7 @@ void fec_encode(int blockSize,
  * (with size being number of blocks lost, rather than number of data blocks
  * + fec)
  */
-static inline void reduce(int blockSize,
+static inline void reduce(unsigned int blockSize,
                           unsigned char **data_blocks,
                           unsigned int nr_data_blocks,
                           unsigned char **fec_blocks,
@@ -556,8 +809,8 @@ static inline void reduce(int blockSize,
             unsigned char *src = data_blocks[col];
             int j;
             for (j = 0; j < nr_fec_blocks; j++) {
-                unsigned int blno = fec_block_nos[j];
-                gf256_muladd_mem(fec_blocks[j], inverse[blno ^ col ^ 128], src, blockSize);
+                int blno = fec_block_nos[j];
+                addmul(fec_blocks[j], src, inverse[blno ^ col ^ 128], blockSize);
             }
         }
     }
@@ -587,7 +840,7 @@ static inline void resolve(int blockSize,
                            unsigned char **fec_blocks,
                            unsigned int *fec_block_nos,
                            unsigned int *erased_blocks,
-                           unsigned short nr_fec_blocks) {
+                           short nr_fec_blocks) {
 #ifdef PROFILE
     long long begin;
 #endif
@@ -603,10 +856,10 @@ static inline void resolve(int blockSize,
      * missing data blocks to obtain the FEC blocks we have */
     for (row = 0, ptr = 0; row < nr_fec_blocks; row++) {
         int col;
-        unsigned int irow = 128 + fec_block_nos[row];
+        int irow = 128 + fec_block_nos[row];
         /*assert(irow < fec_blocks+128);*/
         for (col = 0; col < nr_fec_blocks; col++, ptr++) {
-            unsigned int icol = erased_blocks[col];
+            int icol = erased_blocks[col];
             matrix[ptr] = inverse[irow ^ icol];
         }
     }
@@ -637,24 +890,14 @@ static inline void resolve(int blockSize,
     for (row = 0, ptr = 0; row < nr_fec_blocks; row++) {
         int col;
         unsigned char *target = data_blocks[erased_blocks[row]];
-        gf256_mul_mem(target, fec_blocks[0], matrix[ptr++], blockSize);
+        mul(target, fec_blocks[0], matrix[ptr++], blockSize);
         for (col = 1; col < nr_fec_blocks; col++, ptr++) {
-            gf256_muladd_mem(target, matrix[ptr], fec_blocks[col], blockSize);
+            addmul(target, fec_blocks[col], matrix[ptr], blockSize);
         }
     }
 }
 
-/**
- * Decode data applying FEC
- * @param blockSize Size of packets
- * @param data_blocks pointer to list of data packets
- * @param nr_data_blocks number of data packets
- * @param fec_blocks pointer to list of FEC packets
- * @param fec_block_nos Indices of FEC packets that shall repair erased data packets in data packet list [array]
- * @param erased_blocks Indices of erased data packets in FEC packet data list [array]
- * @param nr_fec_blocks Number of FEC blocks used to repair data packets
- */
-void fec_decode(int blockSize,
+void fec_decode_old(unsigned int blockSize,
                 unsigned char **data_blocks,
                 unsigned int nr_data_blocks,
                 unsigned char **fec_blocks,
@@ -694,7 +937,7 @@ void printDetail(void) {
 #endif
 
 
-void fec_license(void) {
+void fec_license_old(void) {
     fprintf(stderr,
             "   wifibroadcast and its FEC code are free software\n"
             "\n"

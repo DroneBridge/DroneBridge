@@ -111,3 +111,15 @@ InjectionTest/receive
 InjectionTest/send
 
 InjectionTest/cmake_install.cmake
+
+.vscode/
+
+build/
+
+*.cmake
+
+cmake-build-relwithdebinfo/
+
+cmake-build-remotedeploy-release/
+
+cmake-build-arm_rel_cross/

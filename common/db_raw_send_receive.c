@@ -186,13 +186,13 @@ db_socket_t open_db_socket(char *ifName, uint8_t comm_id, char trans_mode, int b
     if (mode == 'w') {
         // TODO: ignore for now. I will be UDP in future.
         if ((socket_fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
-            perror("Error opening raw interface for WiFi mode ");
+            perror("DroneBridgeCommon: Error opening raw interface for WiFi mode ");
             new_socket.db_socket = -1;
             return new_socket;
         }
     } else {
         if ((socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_802_2))) == -1) {
-            perror("Error opening raw interface ");
+            perror("DroneBridgeCommon: Error opening raw interface ");
             new_socket.db_socket = -1;
             return new_socket;
         }

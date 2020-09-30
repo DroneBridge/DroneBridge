@@ -29,6 +29,7 @@
 
 #include "../common/db_raw_send_receive.h"
 #include "../common/db_raw_receive.h"
+#include "../common/db_unix.h"
 
 int keep_running = 1;
 
@@ -70,7 +71,7 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
     struct sockaddr_un unix_socket_addr;
-    unix_client_socket = set_socket_nonblocking(unix_client_socket);
+    set_socket_nonblocking(&unix_client_socket);
     memset(&unix_socket_addr, 0x00, sizeof(unix_socket_addr));
     unix_socket_addr.sun_family = AF_UNIX;
     strcpy(unix_socket_addr.sun_path, DB_UNIX_DOMAIN_VIDEO_PATH);

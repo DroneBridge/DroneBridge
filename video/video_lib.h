@@ -14,6 +14,7 @@ typedef struct {
 
 typedef struct {
 	int block_num;
+	int packet_buffer_len;  // number of packets stored in packet buffer
 	packet_buffer_t *packet_buffer_list;
 } block_buffer_t;
 

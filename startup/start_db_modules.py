@@ -57,7 +57,6 @@ def start_gnd_modules():
     joy_interface = config.getint(GROUND, 'joy_interface')
     fwd_stream = config.get(GROUND, 'fwd_stream')
     fwd_stream_port = config.getint(GROUND, 'fwd_stream_port')
-    video_mem = config.get(GROUND, 'video_mem')
 
     # ---------- pre-init ------------------------
     print(GND_STRING_TAG + "Communication ID: " + str(communication_id))
@@ -73,21 +72,21 @@ def start_gnd_modules():
     # ----------- start modules ------------------------
     if en_comm == 'Y':
         print(f"{GND_STRING_TAG} Starting communication module...")
-        comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py'), "-m", "m",
+        comm = ["python3", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_gnd.py'), "-m", "m",
                 "-c", str(communication_id), "-a", str(compatibility_mode), "-f", str(frametype)]
         comm.extend(interface_comm.split())
-        Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
+        comm_module_process = Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting status module...")
     comm_status = [os.path.join(DRONEBRIDGE_BIN_PATH, 'status', 'db_status'), "-m", "m", "-c", str(communication_id)]
     comm_status.extend(interface_proxy.split())
-    Popen(comm_status, shell=False, stdin=None, stdout=None, stderr=None)
+    status_module_process = Popen(comm_status, shell=False, stdin=None, stdout=None, stderr=None)
 
     print(f"{GND_STRING_TAG} Starting proxy module...")
     comm_proxy = [os.path.join(DRONEBRIDGE_BIN_PATH, 'proxy', 'db_proxy'), "-m", "m", "-c", str(communication_id),
                   "-f", str(frametype), "-b", str(get_bit_rate(datarate)), "-a", str(compatibility_mode)]
     comm_proxy.extend(interface_proxy.split())
-    Popen(comm_proxy, shell=False, stdin=None, stdout=None, stderr=None)
+    proxy_module_process = Popen(comm_proxy, shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_control == 'Y':
         print(f"{GND_STRING_TAG} Starting control module...")
@@ -96,15 +95,15 @@ def start_gnd_modules():
                         str(communication_id), "-t", str(frametype), "-b", str(get_bit_rate(datarate)), "-a",
                         str(compatibility_mode)]
         comm_control.extend(interface_control.split())
-        Popen(comm_control, shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
+        control_module_process = Popen(comm_control, shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_plugin == 'Y':
         print(GND_STRING_TAG + "Starting plugin module...")
-        Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py'), "-g"],
+        Popen(["python3", os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py'), "-g"],
               shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     print(GND_STRING_TAG + "Starting USBBridge module...")
-    Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'usbbridge', 'usbbridge'), "-v", en_video, "-c", en_comm, "-p", "Y",
+    usbbridge_module_process = Popen([os.path.join(DRONEBRIDGE_BIN_PATH, 'usbbridge', 'usbbridge'), "-v", en_video, "-c", en_comm, "-p", "Y",
            "-s", "Y"], shell=False, stdin=None, stdout=None, stderr=None, close_fds=True)
 
     if en_video == 'Y':
@@ -113,9 +112,9 @@ def start_gnd_modules():
                         "-r", str(video_fecs), "-f", str(video_blocklength), "-c", str(communication_id), "-p", "N",
                         "-v", str(fwd_stream_port), "-o"]
         receive_comm.extend(interface_video.split())
-        db_video_receive = Popen(receive_comm, stdout=subprocess.PIPE, close_fds=True, shell=False, bufsize=0)
+        db_video_receive_process = Popen(receive_comm, stdout=subprocess.PIPE, close_fds=True, shell=False, bufsize=0)
         print(f"{GND_STRING_TAG} Starting video player...")
-        Popen([get_video_player(fps)], stdin=db_video_receive.stdout, close_fds=True, shell=False)
+        video_player_process = Popen([get_video_player(fps)], stdin=db_video_receive_process.stdout, close_fds=True, shell=False)
 
 
 def start_uav_modules():
@@ -147,6 +146,8 @@ def start_uav_modules():
     fps = config.getfloat(COMMON, 'fps')
     video_bitrate = config.get(UAV, 'video_bitrate')
     video_channel_util = config.getint(UAV, 'video_channel_util')
+    en_video_rec = config.get(UAV, 'en_video_rec')
+    video_mem = config.get(UAV, 'video_mem')    # path to video files
     serial_int_cont = config.get(UAV, 'serial_int_cont')
     baud_control = config.getint(UAV, 'baud_control')
     serial_prot = config.getint(UAV, 'serial_prot')
@@ -182,10 +183,10 @@ def start_uav_modules():
     # ----------- start modules ------------------------
     if en_comm == 'Y':
         print(f"{UAV_STRING_TAG} Starting communication module...")
-        comm = ["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py'), "-m", "m",
+        comm = ["python3", os.path.join(DRONEBRIDGE_BIN_PATH, 'communication', 'db_communication_air.py'), "-m", "m",
                 "-c", str(communication_id), "-a", str(compatibility_mode), "-f", str(frametype)]
         comm.extend(interface_comm.split())
-        Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
+        comm_module_process = Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_control == 'Y':
         print(f"{UAV_STRING_TAG} Starting control module...")
@@ -194,11 +195,11 @@ def start_uav_modules():
                 str(pass_through_packet_size), "-r", str(baud_control), "-e", str(enable_sumd_rc), "-s",
                 str(serial_int_sumd), "-b", str(get_bit_rate(2))]
         comm.extend(interface_control.split())
-        Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
+        control_module_process = Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_plugin == 'Y':
         print(f"{UAV_STRING_TAG} Starting plugin module...")
-        Popen(["python3.7", os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')],
+        Popen(["python3", os.path.join(DRONEBRIDGE_BIN_PATH, 'plugin', 'db_plugin.py')],
               shell=False, stdin=None, stdout=None, stderr=None)
 
     if en_video == 'Y':
@@ -217,7 +218,15 @@ def start_uav_modules():
                           str(video_fecs), "-f", str(video_blocklength), "-t", str(frametype),
                           "-b", str(get_bit_rate(datarate)), "-c", str(communication_id), "-a", str(compatibility_mode)]
         video_air_comm.extend(interface_video.split())
-        Popen(video_air_comm, stdin=raspivid_task.stdout, stdout=None, stderr=None, close_fds=True, shell=False)
+        video_air_process = Popen(video_air_comm, stdin=raspivid_task.stdout, stdout=None, stderr=None, close_fds=True,
+                                  shell=False)
+
+        if en_video_rec == 'Y' and video_mem != "":
+            if video_mem.endswith("/"):
+                video_mem = video_mem[:-1]
+            print(f"{UAV_STRING_TAG} Starting video recording to {video_mem}")
+            comm = [os.path.join(DRONEBRIDGE_BIN_PATH, 'recorder', 'db_recorder'), video_mem]
+            Popen(comm, shell=False, stdin=None, stdout=None, stderr=None)
 
 
 def get_interface():

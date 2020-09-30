@@ -1,5 +1,5 @@
 /*
- *   This file is part of DroneBridge: https://github.com/seeul8er/DroneBridge
+ *   This file is part of DroneBridge: https://github.com/DroneBridge/DroneBridge
  *
  *   Copyright 2017 Wolfgang Christl
  *
@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     if (background == 1) { BackgroundRGBA(0, 0, 0, 1); };
     Fill(255, 255, 255, 1);
     Image((width-image_width) / 2, (height-image_height) / 2, image_width, image_height, filepath);
-    TextMid(width/2, (height/2) - (image_height/2), "v0.6 Beta", SansTypeface, 18);
+    TextMid(width/2, (height/2) - (image_height/2), "v0.7 Beta", SansTypeface, 18);
     End();
     usleep(7000000);
 
