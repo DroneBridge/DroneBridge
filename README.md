@@ -14,24 +14,19 @@ Visit **["Not just another drone project"](http://wolfgangchristl.de/not-just-an
 
 ## Releases
 Please read the **[getting started guide](https://dronebridge.gitbook.io/docs/dronebridge-for-raspberry-pi/getting-started)**
-The v0.6 release is recommended since v0.5 is deprecated.
+The v0.7.0 release is recommended.
 
 **Disclaimer: Use at your own risk. Malfunction and sudden signal loss can not be ruled out. Use with caution! Do not fly over people or animals.
 The user is responsible for:**
   - **Operating the system within legal limits (e. g. frequency, equivalent isotropically radiated power (EIRP) etc.)**
   - **Any harm or damage caused by using the provided software or parts of it.**
 
-### v0.6 Alpha
-Use with caution. Image and RC link is not field tested.
+### v0.7.0 Alpha
+Use with caution. RC link has a too high latency. USB connection to DroneBridge for Android is unstable.
 
-**[DroneBridge Alpha v0.6 Image for Raspberry Pi](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EZah1nq0VhNKtHNdDhQNh5QBtVIsj1dOsqOnqJYzGeuN8w?e=S7vCbh)**
+**[DroneBridge Alpha v0.7.0 alpha Image for Raspberry Pi](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EZ9Ar2DmtZFCkotQVmZvH4oBhTjbdO2IIfFiuZWwytnOgg?e=kY96C5)**
 
-**[DroneBridge for Android 2.0.1](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EdzSWxE7ZMhIvGesmLFodUABrMjW3oSqpn6d4RU_TgZ3JQ?e=TDdAnH)**
-
-### v0.5 Beta (deprecated)
-**[DroneBridge Beta v0.5 Image for Raspberry Pi](https://github.com/DroneBridge/DroneBridge/releases/tag/v0.5)**
-
-**[DroneBridge for Android 1.2.5](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EQB6Q_RImyhBv_yiDpmn9HsB4f3h8or7wo_wHwo0PXeU1g?e=DAff6Q)**
+**[DroneBridge for Android 2.0.2](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EWsKzWm8rtJJseg8ahCzeNABnZFzLW12zbXc85Txaj2lQA)**
 
 ## One System. One digital radio link to rule them all.
 ![DroneBridge concept](https://github.com/DroneBridge/DroneBridge/blob/master/wiki/oneforall.jpg)
