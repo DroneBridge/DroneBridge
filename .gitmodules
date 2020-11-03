@@ -1,3 +1,6 @@
 [submodule "common/mavlink/c_library_v2"]
 	path = common/mavlink/c_library_v2
 	url = https://github.com/mavlink/c_library_v2
+[submodule "common/radiotap"]
+	path = common/radiotap
+	url = https://github.com/radiotap/radiotap-library
