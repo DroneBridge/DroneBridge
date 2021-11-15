@@ -24,9 +24,9 @@ The user is responsible for:**
 ### v0.7.0 Alpha
 Use with caution. RC link has a too high latency. USB connection to DroneBridge for Android is unstable.
 
-**[DroneBridge Alpha v0.7.0 alpha Image for Raspberry Pi](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EZ9Ar2DmtZFCkotQVmZvH4oBhTjbdO2IIfFiuZWwytnOgg?e=kY96C5)**
+**[DroneBridge Alpha v0.7.0 alpha Image for Raspberry Pi](https://mega.nz/file/r9VknTKL#eTyY36nVQs3g7j5efFQ3pgcfoc4F9QgUAVaOBh90iwI)**
 
-**[DroneBridge for Android 2.0.2](https://forstudents-my.sharepoint.com/:u:/g/personal/ga25puh_forstudents_onmicrosoft_com/EWsKzWm8rtJJseg8ahCzeNABnZFzLW12zbXc85Txaj2lQA)**
+**[DroneBridge for Android 2.0.2](https://mega.nz/file/24cQhTxb#P_DlfOWyTOzVoh1mtspO6zeJv7dfzB0DSHN5_x0SxBM)**
 
 ## One System. One digital radio link to rule them all.
 ![DroneBridge concept](https://github.com/DroneBridge/DroneBridge/blob/master/wiki/oneforall.jpg)
