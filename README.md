@@ -24,7 +24,7 @@ The user is responsible for:**
 ### v0.7.0 Alpha
 Use with caution. RC link has a too high latency. USB connection to DroneBridge for Android is unstable.
 
-**[DroneBridge Alpha v0.7.0 alpha Image for Raspberry Pi](https://mega.nz/file/r9VknTKL#eTyY36nVQs3g7j5efFQ3pgcfoc4F9QgUAVaOBh90iwI)**
+**[DroneBridge Alpha v0.7.0 alpha Image for Raspberry Pi](https://wolfgangchristl.de/downloads/DroneBridge_0_7_0_alpha.zip)**
 
 **[DroneBridge for Android 2.0.2](https://mega.nz/file/24cQhTxb#P_DlfOWyTOzVoh1mtspO6zeJv7dfzB0DSHN5_x0SxBM)**
 
