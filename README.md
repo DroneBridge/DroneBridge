@@ -26,7 +26,7 @@ Use with caution. RC link has a too high latency. USB connection to DroneBridge 
 
 **[DroneBridge Alpha v0.7.0 alpha Image for Raspberry Pi](https://wolfgangchristl.de/downloads/DroneBridge_0_7_0_alpha.zip)**
 
-**[DroneBridge for Android 2.0.2](https://mega.nz/file/24cQhTxb#P_DlfOWyTOzVoh1mtspO6zeJv7dfzB0DSHN5_x0SxBM)**
+**[DroneBridge for Android 2.0.2](https://drive.google.com/file/d/1AGMsrWHJvj8HxnZd_8HFgc7dvxMsE9hX/view?usp=sharing)**
 
 ## One System. One digital radio link to rule them all.
 ![DroneBridge concept](https://github.com/DroneBridge/DroneBridge/blob/master/wiki/oneforall.jpg)
